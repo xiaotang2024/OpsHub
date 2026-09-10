@@ -147,14 +147,23 @@ func TestNativeSupervisor_Stop_SIGKILLFallback(t *testing.T) {
 	assert.False(t, sup.IsRunning(pid))
 }
 
-func TestNativeSupervisor_Stop_IdempotentAndInvalidPid(t *testing.T) {
+func TestNativeSupervisor_Stop_GuardsAgainstInitAndInvalidPid(t *testing.T) {
 	sup := supervisor.NewNativeSupervisor()
 
-	// Stopping PID <= 0
-	assert.NoError(t, sup.Stop(context.Background(), 0, time.Second))
-	assert.NoError(t, sup.Stop(context.Background(), -1, time.Second))
+	// Guard against pid <= 1 (cannot stop init / broadcast signal)
+	err := sup.Stop(context.Background(), 1, time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot stop init or non-positive pid")
 
-	// Stopping non-existent PID
+	err = sup.Stop(context.Background(), 0, time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot stop init or non-positive pid")
+
+	err = sup.Stop(context.Background(), -1, time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot stop init or non-positive pid")
+
+	// Stopping non-existent PID > 1 returns nil idempotently
 	assert.NoError(t, sup.Stop(context.Background(), 9999999, time.Second))
 }
 

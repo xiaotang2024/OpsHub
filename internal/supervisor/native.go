@@ -104,8 +104,8 @@ func (s *NativeSupervisor) Start(ctx context.Context, dir, command string, envs 
 // Stop gracefully terminates a process and its process group via SIGTERM,
 // polling for exit within timeout, and sends SIGKILL if it does not exit.
 func (s *NativeSupervisor) Stop(ctx context.Context, pid int, timeout time.Duration) error {
-	if pid <= 0 {
-		return nil
+	if pid <= 1 {
+		return fmt.Errorf("invalid process pid %d: cannot stop init or non-positive pid", pid)
 	}
 
 	if !s.IsRunning(pid) {
