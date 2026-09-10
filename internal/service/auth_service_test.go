@@ -159,3 +159,36 @@ func TestAuthService_ChangePassword(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 }
+
+func TestAuthService_ResetPassword(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	authSvc := service.NewAuthService(db, "my-secret-key")
+
+	initPass, err := authSvc.InitAdminIfNeeded()
+	require.NoError(t, err)
+
+	// Reset with empty password should fail
+	err = authSvc.ResetPassword("admin", "   ")
+	assert.Error(t, err)
+
+	// Reset for non-existent user should fail
+	err = authSvc.ResetPassword("nonexistent", "newpass123")
+	assert.Error(t, err)
+
+	// Reset admin password
+	err = authSvc.ResetPassword("admin", "forced-admin-pass-456")
+	require.NoError(t, err)
+
+	// Old pass fails
+	_, err = authSvc.Login("admin", initPass)
+	assert.Error(t, err)
+
+	// New pass succeeds
+	token, err := authSvc.Login("admin", "forced-admin-pass-456")
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
+}

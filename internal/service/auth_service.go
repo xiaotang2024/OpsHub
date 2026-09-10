@@ -183,6 +183,37 @@ func (s *AuthService) ChangePassword(username, oldPassword, newPassword string) 
 	return nil
 }
 
+// ResetPassword sets a new password for a user without verifying the previous password.
+func (s *AuthService) ResetPassword(username, newPassword string) error {
+	if strings.TrimSpace(newPassword) == "" {
+		return errors.New("new password cannot be empty")
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash new password failed: %w", err)
+	}
+
+	res, err := s.db.Exec(
+		"UPDATE users SET password_hash = ? WHERE username = ?",
+		string(newHash),
+		username,
+	)
+	if err != nil {
+		return fmt.Errorf("update user password failed: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
+}
+
 // generateSecurePassword generates a cryptographically secure random alphanumeric string of length n.
 func generateSecurePassword(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

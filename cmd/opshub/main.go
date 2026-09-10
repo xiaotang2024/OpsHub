@@ -20,6 +20,7 @@ import (
 
 func main() {
 	configPath := flag.String("config", "", "Path to opshub.yaml configuration file")
+	resetPass := flag.String("reset-password", "", "Reset administrator password (e.g. -reset-password=admin123)")
 	flag.Parse()
 
 	// 1. Load application configuration
@@ -48,6 +49,22 @@ func main() {
 
 	// 4. Initialize admin account if first run
 	authSvc := service.NewAuthService(db, cfg.Server.JWTSecret)
+
+	// Reset admin password if requested via CLI
+	if *resetPass != "" {
+		if err := authSvc.ResetPassword("admin", *resetPass); err != nil {
+			log.Fatalf("[OpsHub] Failed to reset admin password: %v", err)
+		}
+		fmt.Println("==================================================================")
+		fmt.Println("             OPSHUB ADMIN PASSWORD RESET SUCCESSFUL")
+		fmt.Println("==================================================================")
+		fmt.Println("  The administrator password has been updated:")
+		fmt.Printf("    Username: admin\n")
+		fmt.Printf("    Password: %s\n", *resetPass)
+		fmt.Println("==================================================================")
+		return
+	}
+
 	initialPassword, err := authSvc.InitAdminIfNeeded()
 	if err != nil {
 		log.Fatalf("[OpsHub] Failed to initialize admin user: %v", err)
