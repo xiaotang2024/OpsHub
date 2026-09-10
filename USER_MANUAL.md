@@ -117,6 +117,12 @@ Password: [ a8F3b9K2xL7mQ1pZ ]
 >   OPSHUB_PORT=9090 OPSHUB_DATA_DIR=/data/opshub ./bin/opshub
 >   ```
 
+#### 浏览器访问与登录：
+1. 浏览器打开 `http://localhost:8080`，若当前未登录，系统会自动弹出 **OpsHub 控制台登录** 弹窗。
+2. 默认用户名为 `admin`，密码输入上方启动终端中打印的一次性初始密码。
+3. 点击 **确认登录**，系统将自动校验凭据并保存 JWT Token，立即加载服务舰队与模板数据。
+4. 如需退出登录，点击左侧导航栏底部的 **退出登录 (LogOut)** 图标即可安全清除凭证。
+
 ---
 
 ## 3. 核心架构与运行原理 (Architecture & Core Concepts)
