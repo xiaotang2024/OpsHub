@@ -3,10 +3,13 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"path"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"opshub"
 	"opshub/internal/api/handler"
 	"opshub/internal/api/middleware"
 	"opshub/internal/api/websocket"
@@ -30,6 +33,7 @@ type RouterOptions struct {
 	Prober            prober.Prober
 	Tailer            tailer.Tailer
 	Hub               *websocket.Hub
+	StaticFS          http.FileSystem
 }
 
 // Option configures RouterOptions.
@@ -56,6 +60,13 @@ func WithHub(hub *websocket.Hub) Option {
 	}
 }
 
+// WithStaticFS sets a custom StaticFS.
+func WithStaticFS(fs http.FileSystem) Option {
+	return func(o *RouterOptions) {
+		o.StaticFS = fs
+	}
+}
+
 // SetupRouter initializes the Gin engine and wires all API routes and middleware.
 func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine {
 	options := &RouterOptions{}
@@ -64,6 +75,11 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 	}
 
 	// Resolve dependencies with sane defaults
+	if options.StaticFS == nil {
+		if sfs, err := opshub.StaticFS(); err == nil {
+			options.StaticFS = sfs
+		}
+	}
 	if options.Engine == nil {
 		options.Engine = template.NewEngine()
 	}
@@ -212,6 +228,47 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 				options.Hub.ServeWS(c.Writer, c.Request, serviceID)
 			})
 		}
+	}
+
+	// Static assets and SPA client-side fallback routes
+	if options.StaticFS != nil {
+		fileServer := http.FileServer(options.StaticFS)
+		r.NoRoute(func(c *gin.Context) {
+			reqPath := c.Request.URL.Path
+			if strings.HasPrefix(reqPath, "/api") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
+				return
+			}
+
+			// Try serving exact static asset if it exists
+			cleanPath := strings.TrimPrefix(path.Clean(reqPath), "/")
+			if cleanPath != "" && cleanPath != "." {
+				if f, err := options.StaticFS.Open(cleanPath); err == nil {
+					defer f.Close()
+					if stat, err := f.Stat(); err == nil && !stat.IsDir() {
+						fileServer.ServeHTTP(c.Writer, c.Request)
+						return
+					}
+				}
+			}
+
+			// Fallback to index.html for SPA client routes
+			indexFile, err := options.StaticFS.Open("index.html")
+			if err != nil {
+				c.String(http.StatusNotFound, "index.html not found")
+				return
+			}
+			defer indexFile.Close()
+
+			stat, err := indexFile.Stat()
+			if err != nil {
+				c.String(http.StatusInternalServerError, "failed to stat index.html")
+				return
+			}
+
+			c.Header("Content-Type", "text/html; charset=utf-8")
+			http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), indexFile)
+		})
 	}
 
 	return r
