@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"opshub"
 	"opshub/internal/api"
 	"opshub/internal/config"
 	"opshub/internal/database"
@@ -56,9 +57,20 @@ func TestE2E_ServerStartupAndStaticAssetServing(t *testing.T) {
 		assert.Contains(t, wSPA.Body.String(), "root")
 	}
 
-	// 5. Verify direct static asset serving
+	// 5. Verify direct static asset serving (dynamically discovered to avoid hash breakage)
+	entries, err := opshub.WebDistFS.ReadDir("web/dist/assets")
+	require.NoError(t, err)
+	var cssFile string
+	for _, entry := range entries {
+		if filepath.Ext(entry.Name()) == ".css" {
+			cssFile = entry.Name()
+			break
+		}
+	}
+	require.NotEmpty(t, cssFile, "should find at least one css bundle in assets")
+
 	wAsset := httptest.NewRecorder()
-	reqAsset, _ := http.NewRequest("GET", "/assets/index-Fm-vv9dV.css", nil)
+	reqAsset, _ := http.NewRequest("GET", "/assets/"+cssFile, nil)
 	r.ServeHTTP(wAsset, reqAsset)
 	assert.Equal(t, http.StatusOK, wAsset.Code)
 	assert.Contains(t, wAsset.Header().Get("Content-Type"), "text/css")

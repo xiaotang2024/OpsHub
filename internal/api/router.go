@@ -235,7 +235,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 		fileServer := http.FileServer(options.StaticFS)
 		r.NoRoute(func(c *gin.Context) {
 			reqPath := c.Request.URL.Path
-			if strings.HasPrefix(reqPath, "/api") {
+			if reqPath == "/api" || strings.HasPrefix(reqPath, "/api/") {
 				c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
 				return
 			}

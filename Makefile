@@ -10,7 +10,7 @@ build-backend:
 
 build-all: build-frontend build-backend
 
-test:
+test: build-frontend
 	go test ./...
 	npm test --prefix web
 
