@@ -57,6 +57,35 @@ func TestAuthMiddleware_BearerHeader(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"role":"admin"`)
 }
 
+func TestAuthMiddleware_CaseInsensitiveBearerHeader(t *testing.T) {
+	authSvc, validToken := setupAuthTestEnv(t)
+
+	r := gin.New()
+	r.Use(middleware.AuthMiddleware(authSvc))
+	r.GET("/protected", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"username": middleware.GetUsername(c),
+			"role":     middleware.GetRole(c),
+		})
+	})
+
+	// Test lowercase "bearer "
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest(http.MethodGet, "/protected", nil)
+	req1.Header.Set("Authorization", "bearer "+validToken)
+	r.ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusOK, w1.Code)
+	assert.Contains(t, w1.Body.String(), `"username":"admin"`)
+
+	// Test uppercase "BEARER "
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest(http.MethodGet, "/protected", nil)
+	req2.Header.Set("Authorization", "BEARER "+validToken)
+	r.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusOK, w2.Code)
+	assert.Contains(t, w2.Body.String(), `"username":"admin"`)
+}
+
 func TestAuthMiddleware_QueryToken(t *testing.T) {
 	authSvc, validToken := setupAuthTestEnv(t)
 

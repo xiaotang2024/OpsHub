@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
@@ -146,3 +147,33 @@ func TestAuditMiddleware_MutatingRequest_Failed(t *testing.T) {
 	assert.Equal(t, "anonymous", log.Operator)
 	assert.Equal(t, "FAILED", log.Status)
 }
+
+func TestAuditMiddleware_ClientDisconnectedContext(t *testing.T) {
+	db := setupAuditDB(t)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("username", "test_user")
+		c.Next()
+	})
+	r.Use(middleware.AuditMiddleware(db))
+
+	r.POST("/api/services", func(c *gin.Context) {
+		c.Status(http.StatusCreated)
+	})
+
+	// Pre-cancel request context to simulate client abruptly disconnecting
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "/api/services", nil)
+	r.ServeHTTP(w, req)
+
+	// Verify that the audit record is still safely persisted despite canceled client context
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM audit_logs WHERE operator = 'test_user'").Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "audit log must be recorded even if client request context was canceled")
+}
+

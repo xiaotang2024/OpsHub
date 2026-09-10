@@ -22,8 +22,8 @@ func AuthMiddleware(verifier TokenVerifier) gin.HandlerFunc {
 		var tokenStr string
 		authHeader := c.GetHeader("Authorization")
 
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		if len(authHeader) >= 7 && strings.EqualFold(authHeader[:7], "bearer ") {
+			tokenStr = authHeader[7:]
 		} else if authHeader != "" {
 			tokenStr = authHeader
 		} else {

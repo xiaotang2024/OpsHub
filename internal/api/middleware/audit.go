@@ -1,10 +1,13 @@
 package middleware
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -119,11 +122,14 @@ func AuditMiddleware(db *sql.DB) gin.HandlerFunc {
 			}
 		}
 
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 5*time.Second)
+		defer cancel()
+
 		query := `
 			INSERT INTO audit_logs (operator, client_ip, action, target_type, target_id, details, status)
 			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`
-		_, _ = db.ExecContext(c.Request.Context(), query,
+		if _, err := db.ExecContext(ctx, query,
 			operator,
 			clientIP,
 			action,
@@ -131,6 +137,8 @@ func AuditMiddleware(db *sql.DB) gin.HandlerFunc {
 			targetID,
 			details,
 			status,
-		)
+		); err != nil {
+			log.Printf("failed to insert audit log: %v", err)
+		}
 	}
 }
