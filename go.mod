@@ -3,6 +3,7 @@ module opshub
 go 1.25.6
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.58.0
