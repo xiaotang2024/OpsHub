@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   Cpu,
   HardDrive,
@@ -7,7 +6,6 @@ import {
   Copy,
   Check,
   Activity,
-  Zap,
 } from 'lucide-react';
 
 export interface ProcessTelemetryCardProps {

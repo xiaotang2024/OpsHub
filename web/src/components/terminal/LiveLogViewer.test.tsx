@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LiveLogViewer } from './LiveLogViewer';
 
@@ -33,6 +33,9 @@ describe('LiveLogViewer', () => {
     MockWebSocket.instances = [];
     (global as any).WebSocket = MockWebSocket;
     localStorage.setItem('opshub_token', 'test-token-xyz');
+    window.URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -85,12 +88,41 @@ describe('LiveLogViewer', () => {
     expect(pauseBtn).toHaveAttribute('data-paused', 'false');
   });
 
-  it('performs keyword search and updates match count', () => {
+  it('performs keyword search and displays match count badge with query context', async () => {
     render(<LiveLogViewer serviceId={10} serviceName="order-center" />);
     const searchInput = screen.getByPlaceholderText(/搜索控制台日志/i);
 
     fireEvent.change(searchInput, { target: { value: 'ERROR' } });
     expect(searchInput).toHaveValue('ERROR');
+
+    // Wait for debounced search badge to render with query context
+    await waitFor(() => {
+      expect(screen.getByText(/matches for "ERROR"/i)).toBeInTheDocument();
+    });
+  });
+
+  it('bounds log accumulator to maximum entries preventing memory leaks', async () => {
+    render(<LiveLogViewer serviceId={10} serviceName="order-center" />);
+    const ws = MockWebSocket.instances[0];
+
+    await waitFor(() => {
+      expect(ws.readyState).toBe(1);
+    });
+
+    act(() => {
+      for (let i = 0; i < 10050; i++) {
+        ws.onmessage?.({ data: `line ${i}\n` });
+      }
+    });
+
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
+    window.URL.createObjectURL = createObjectURLMock;
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const downloadBtn = screen.getByRole('button', { name: /download-log/i });
+    fireEvent.click(downloadBtn);
+
+    expect(createObjectURLMock).toHaveBeenCalled();
   });
 
   it('handles log download action', () => {

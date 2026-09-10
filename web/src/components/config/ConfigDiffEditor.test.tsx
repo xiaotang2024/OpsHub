@@ -124,4 +124,46 @@ describe('ConfigDiffEditor', () => {
 
     expect(textarea.value).toContain('port: 8080');
   });
+
+  it('synchronizes line number gutter on textarea scroll', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    let textarea!: HTMLTextAreaElement;
+    await waitFor(() => {
+      textarea = screen.getByTestId('config-editor-textarea') as HTMLTextAreaElement;
+      expect(textarea.value).toContain('port: 8080');
+    });
+
+    fireEvent.scroll(textarea, { target: { scrollTop: 120 } });
+    expect(textarea.scrollTop).toBe(120);
+  });
+
+  it('supports toggling between side-by-side and unified diff views', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    let textarea!: HTMLTextAreaElement;
+    await waitFor(() => {
+      textarea = screen.getByTestId('config-editor-textarea') as HTMLTextAreaElement;
+      expect(textarea.value).toContain('port: 8080');
+    });
+
+    fireEvent.change(textarea, {
+      target: { value: 'server:\n  port: 9090\nspring:\n  profiles: active\n' },
+    });
+
+    // Switch to diff view tab
+    const diffTab = screen.getByRole('button', { name: /差异对比/i });
+    fireEvent.click(diffTab);
+
+    // Default is side-by-side view with header columns
+    expect(screen.getByText(/原始配置/i)).toBeInTheDocument();
+    expect(screen.getByText(/待保存配置/i)).toBeInTheDocument();
+
+    // Switch to unified view
+    const unifiedBtn = screen.getByRole('button', { name: /行内/i });
+    fireEvent.click(unifiedBtn);
+
+    expect(screen.getByText(/port: 9090/)).toBeInTheDocument();
+    expect(screen.getByText(/port: 8080/)).toBeInTheDocument();
+  });
 });

@@ -46,6 +46,8 @@ import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
 
 type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
 
+const DEFAULT_CONFIG_FILES: string[] = ['application.yml'];
+
 export const ServiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -133,6 +135,11 @@ export const ServiceDetail: React.FC = () => {
     if (!service || !service.current_artifact_id) return null;
     return artifacts.find((a) => a.id === service.current_artifact_id) || null;
   }, [service, artifacts]);
+
+  // Memoize config files to prevent unnecessary re-renders in ConfigDiffEditor
+  const effectiveConfigFiles = useMemo(() => {
+    return configFiles.length > 0 ? configFiles : DEFAULT_CONFIG_FILES;
+  }, [configFiles]);
 
   // Lifecycle actions
   const handleStart = async () => {
@@ -685,7 +692,7 @@ export const ServiceDetail: React.FC = () => {
 
               <ConfigDiffEditor
                 serviceId={service.id}
-                files={configFiles.length > 0 ? configFiles : ['application.yml']}
+                files={effectiveConfigFiles}
                 onSaveSuccess={() => {
                   loadServiceData(true);
                 }}

@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   FileCode2,
   AlertTriangle,
   Save,
   RotateCcw,
   CheckCircle2,
-  FileText,
   Split,
-  Eye,
   Edit3,
   Loader2,
   ShieldCheck,
   RefreshCw,
   X,
+  Columns,
+  AlignLeft,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -24,97 +24,135 @@ export interface ConfigDiffEditorProps {
 }
 
 type ViewMode = 'edit' | 'diff';
+type DiffStyle = 'split' | 'unified';
 
-interface DiffLine {
+export interface DiffLine {
   type: 'added' | 'removed' | 'unchanged';
   origLineNo?: number;
   modLineNo?: number;
   content: string;
 }
 
-// Simple line-by-line diff computation
-function computeDiff(original: string, modified: string): DiffLine[] {
+export interface SideBySideRow {
+  left?: { lineNo: number; content: string; type: 'removed' | 'unchanged' };
+  right?: { lineNo: number; content: string; type: 'added' | 'unchanged' };
+}
+
+// Robust LCS (Longest Common Subsequence) diff algorithm
+export function computeDiff(original: string, modified: string): { unified: DiffLine[]; sideBySide: SideBySideRow[] } {
   const origLines = original.split('\n');
   const modLines = modified.split('\n');
+  const m = origLines.length;
+  const n = modLines.length;
 
-  const diff: DiffLine[] = [];
-  const maxLines = Math.max(origLines.length, modLines.length);
+  // LCS dynamic programming table
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
 
-  // Use a clean LCS or straightforward match-lookahead for practical config files
-  let i = 0;
-  let j = 0;
-  let origLineNo = 1;
-  let modLineNo = 1;
-
-  while (i < origLines.length || j < modLines.length) {
-    if (i < origLines.length && j < modLines.length && origLines[i] === modLines[j]) {
-      diff.push({
-        type: 'unchanged',
-        origLineNo: origLineNo++,
-        modLineNo: modLineNo++,
-        content: origLines[i],
-      });
-      i++;
-      j++;
-    } else {
-      // Lookahead to find matches
-      let matchInMod = -1;
-      let matchInOrig = -1;
-
-      for (let look = 1; look <= 5; look++) {
-        if (j + look < modLines.length && i < origLines.length && modLines[j + look] === origLines[i]) {
-          matchInMod = j + look;
-          break;
-        }
-        if (i + look < origLines.length && j < modLines.length && origLines[i + look] === modLines[j]) {
-          matchInOrig = i + look;
-          break;
-        }
-      }
-
-      if (matchInMod !== -1) {
-        // Elements in mod were added
-        while (j < matchInMod) {
-          diff.push({
-            type: 'added',
-            modLineNo: modLineNo++,
-            content: modLines[j],
-          });
-          j++;
-        }
-      } else if (matchInOrig !== -1) {
-        // Elements in orig were removed
-        while (i < matchInOrig) {
-          diff.push({
-            type: 'removed',
-            origLineNo: origLineNo++,
-            content: origLines[i],
-          });
-          i++;
-        }
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (origLines[i - 1] === modLines[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
       } else {
-        // Modification
-        if (i < origLines.length) {
-          diff.push({
-            type: 'removed',
-            origLineNo: origLineNo++,
-            content: origLines[i],
-          });
-          i++;
-        }
-        if (j < modLines.length) {
-          diff.push({
-            type: 'added',
-            modLineNo: modLineNo++,
-            content: modLines[j],
-          });
-          j++;
-        }
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       }
     }
   }
 
-  return diff;
+  // Backtrack to construct minimal edit sequence
+  let i = m;
+  let j = n;
+  const rawDiff: { type: 'added' | 'removed' | 'unchanged'; origIdx?: number; modIdx?: number; content: string }[] = [];
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && origLines[i - 1] === modLines[j - 1]) {
+      rawDiff.push({
+        type: 'unchanged',
+        origIdx: i - 1,
+        modIdx: j - 1,
+        content: origLines[i - 1],
+      });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      rawDiff.push({
+        type: 'added',
+        modIdx: j - 1,
+        content: modLines[j - 1],
+      });
+      j--;
+    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+      rawDiff.push({
+        type: 'removed',
+        origIdx: i - 1,
+        content: origLines[i - 1],
+      });
+      i--;
+    }
+  }
+
+  rawDiff.reverse();
+
+  // Unified diff lines with accurate line numbers
+  let origLineNo = 1;
+  let modLineNo = 1;
+  const unified: DiffLine[] = rawDiff.map((item) => {
+    if (item.type === 'unchanged') {
+      return {
+        type: 'unchanged',
+        origLineNo: origLineNo++,
+        modLineNo: modLineNo++,
+        content: item.content,
+      };
+    } else if (item.type === 'removed') {
+      return {
+        type: 'removed',
+        origLineNo: origLineNo++,
+        content: item.content,
+      };
+    } else {
+      return {
+        type: 'added',
+        modLineNo: modLineNo++,
+        content: item.content,
+      };
+    }
+  });
+
+  // Construct Side-by-side rows aligning changes side by side
+  const sideBySide: SideBySideRow[] = [];
+  let k = 0;
+  while (k < unified.length) {
+    const item = unified[k];
+    if (item.type === 'unchanged') {
+      sideBySide.push({
+        left: { lineNo: item.origLineNo!, content: item.content, type: 'unchanged' },
+        right: { lineNo: item.modLineNo!, content: item.content, type: 'unchanged' },
+      });
+      k++;
+    } else {
+      const removedGroup: DiffLine[] = [];
+      const addedGroup: DiffLine[] = [];
+      while (k < unified.length && unified[k].type !== 'unchanged') {
+        if (unified[k].type === 'removed') {
+          removedGroup.push(unified[k]);
+        } else {
+          addedGroup.push(unified[k]);
+        }
+        k++;
+      }
+      const count = Math.max(removedGroup.length, addedGroup.length);
+      for (let idx = 0; idx < count; idx++) {
+        const rem = removedGroup[idx];
+        const add = addedGroup[idx];
+        sideBySide.push({
+          left: rem ? { lineNo: rem.origLineNo!, content: rem.content, type: 'removed' } : undefined,
+          right: add ? { lineNo: add.modLineNo!, content: add.content, type: 'added' } : undefined,
+        });
+      }
+    }
+  }
+
+  return { unified, sideBySide };
 }
 
 export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
@@ -130,9 +168,13 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
+  const [diffStyle, setDiffStyle] = useState<DiffStyle>('split');
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const gutterRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Sync prop files if changed
   useEffect(() => {
@@ -176,8 +218,10 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     [originalContent, modifiedContent]
   );
 
-  const diffLines = useMemo(() => {
-    if (!hasChanges) return [];
+  const { unified: diffLines, sideBySide: sideBySideRows } = useMemo(() => {
+    if (!hasChanges) {
+      return { unified: [], sideBySide: [] };
+    }
     return computeDiff(originalContent, modifiedContent);
   }, [originalContent, modifiedContent, hasChanges]);
 
@@ -213,11 +257,18 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     [modifiedContent]
   );
 
+  // Line numbers gutter synchronization on scroll
+  const handleTextareaScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  };
+
   return (
     <div
       className={`rounded-2xl border border-ops-border bg-ops-card shadow-2xl overflow-hidden flex flex-col font-mono text-xs ${className}`}
     >
-      {/* Warning Notice Banner (Directive Highlight: "修改后需重启服务以使配置生效") */}
+      {/* Warning Notice Banner (Directive: "修改后需重启服务以使配置生效") */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-950/40 border-b border-amber-500/30 text-amber-300">
         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
         <span className="font-semibold tracking-wide">
@@ -300,37 +351,71 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
         </div>
 
         {/* Center: View Switcher (Edit vs Diff) */}
-        <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode('edit')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-colors ${
-              viewMode === 'edit'
-                ? 'bg-ops-cyan text-slate-950 shadow-sm'
-                : 'text-ops-text-muted hover:text-white'
-            }`}
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-            <span>编辑源码</span>
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('edit')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-colors ${
+                viewMode === 'edit'
+                  ? 'bg-ops-cyan text-slate-950 shadow-sm'
+                  : 'text-ops-text-muted hover:text-white'
+              }`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>编辑源码</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('diff')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-colors ${
-              viewMode === 'diff'
-                ? 'bg-ops-cyan text-slate-950 shadow-sm'
-                : 'text-ops-text-muted hover:text-white'
-            }`}
-          >
-            <Split className="h-3.5 w-3.5" />
-            <span>差异对比</span>
-            {hasChanges && (
-              <span className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[10px] text-amber-300">
-                +{diffSummary.added} -{diffSummary.removed}
-              </span>
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('diff')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-colors ${
+                viewMode === 'diff'
+                  ? 'bg-ops-cyan text-slate-950 shadow-sm'
+                  : 'text-ops-text-muted hover:text-white'
+              }`}
+            >
+              <Split className="h-3.5 w-3.5" />
+              <span>差异对比</span>
+              {hasChanges && (
+                <span className="ml-1 rounded-full bg-amber-500/20 px-1.5 py-0.2 text-[10px] text-amber-300">
+                  +{diffSummary.added} -{diffSummary.removed}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Diff Style Switcher (Split vs Unified) */}
+          {viewMode === 'diff' && hasChanges && (
+            <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setDiffStyle('split')}
+                title="并排分栏对比"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
+                  diffStyle === 'split'
+                    ? 'bg-slate-800 text-ops-cyan'
+                    : 'text-ops-text-muted hover:text-white'
+                }`}
+              >
+                <Columns className="h-3 w-3" />
+                <span>并排</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDiffStyle('unified')}
+                title="行内统一对比"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
+                  diffStyle === 'unified'
+                    ? 'bg-slate-800 text-ops-cyan'
+                    : 'text-ops-text-muted hover:text-white'
+                }`}
+              >
+                <AlignLeft className="h-3 w-3" />
+                <span>行内</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Actions (Revert, Save) */}
@@ -371,10 +456,13 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             <span>正在读取配置文件内容...</span>
           </div>
         ) : viewMode === 'edit' ? (
-          /* Edit Mode with Line Numbers */
+          /* Edit Mode with Synchronized Line Numbers Gutter */
           <div className="flex-1 flex overflow-hidden">
-            {/* Line numbers gutter */}
-            <div className="w-12 bg-[#050811] py-4 px-2 text-right text-slate-600 font-mono select-none border-r border-ops-border/60 overflow-hidden">
+            {/* Synchronized Line Numbers Gutter */}
+            <div
+              ref={gutterRef}
+              className="w-12 bg-[#050811] py-4 px-2 text-right text-slate-600 font-mono select-none border-r border-ops-border/60 overflow-hidden"
+            >
               {Array.from({ length: lineCount }).map((_, idx) => (
                 <div key={idx} className="leading-6">
                   {idx + 1}
@@ -382,18 +470,20 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               ))}
             </div>
 
-            {/* Editable code textarea */}
+            {/* Editable code textarea with lockstep scroll handler */}
             <textarea
+              ref={textareaRef}
               data-testid="config-editor-textarea"
               aria-label="config-textarea"
               value={modifiedContent}
               onChange={(e) => setModifiedContent(e.target.value)}
+              onScroll={handleTextareaScroll}
               spellCheck={false}
               className="flex-1 p-4 bg-transparent text-slate-200 font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-cyan-950 selection:text-ops-cyan"
             />
           </div>
         ) : (
-          /* Diff Mode (Side-by-side or visual diff highlight) */
+          /* Diff Mode */
           <div className="flex-1 flex flex-col overflow-auto p-4 space-y-1">
             {!hasChanges ? (
               <div className="m-auto text-center p-8 text-ops-text-muted space-y-2">
@@ -401,7 +491,57 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                 <div className="text-white font-bold">配置与原文件完全一致</div>
                 <p className="text-[11px]">当前未对文件进行任何变更修改。</p>
               </div>
+            ) : diffStyle === 'split' ? (
+              /* Side-by-Side Split Diff View */
+              <div className="space-y-1">
+                {/* Header column labels */}
+                <div className="grid grid-cols-2 gap-2 pb-2 mb-1 border-b border-ops-border/80 text-[11px] font-bold text-ops-text-muted">
+                  <div className="px-2">原始配置 ({selectedFile})</div>
+                  <div className="px-2 text-ops-cyan">待保存配置 (Modified)</div>
+                </div>
+
+                {sideBySideRows.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-2 gap-2 text-xs leading-6">
+                    {/* Left cell (original) */}
+                    <div
+                      className={`flex items-start gap-2 px-2 py-0.5 rounded font-mono border-l-2 ${
+                        row.left?.type === 'removed'
+                          ? 'bg-red-950/40 text-red-300 border-red-500'
+                          : row.left
+                          ? 'text-slate-400 border-transparent'
+                          : 'bg-slate-900/30 text-slate-700 border-transparent select-none'
+                      }`}
+                    >
+                      <span className="w-8 text-right select-none text-slate-600 shrink-0">
+                        {row.left?.lineNo ?? ''}
+                      </span>
+                      <pre className="flex-1 whitespace-pre-wrap font-mono break-all">
+                        {row.left ? row.left.content || ' ' : ''}
+                      </pre>
+                    </div>
+
+                    {/* Right cell (modified) */}
+                    <div
+                      className={`flex items-start gap-2 px-2 py-0.5 rounded font-mono border-l-2 ${
+                        row.right?.type === 'added'
+                          ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500'
+                          : row.right
+                          ? 'text-slate-400 border-transparent'
+                          : 'bg-slate-900/30 text-slate-700 border-transparent select-none'
+                      }`}
+                    >
+                      <span className="w-8 text-right select-none text-slate-600 shrink-0">
+                        {row.right?.lineNo ?? ''}
+                      </span>
+                      <pre className="flex-1 whitespace-pre-wrap font-mono break-all">
+                        {row.right ? row.right.content || ' ' : ''}
+                      </pre>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              /* Inline Unified Diff View */
               <div className="space-y-0.5">
                 {diffLines.map((line, idx) => {
                   const isAdded = line.type === 'added';

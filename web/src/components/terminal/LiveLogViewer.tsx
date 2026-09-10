@@ -15,8 +15,6 @@ import {
   Terminal as TerminalIcon,
   ChevronUp,
   ChevronDown,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 
 export interface LiveLogViewerProps {
@@ -48,6 +46,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [matchCount, setMatchCount] = useState<number>(0);
   const [bufferedCount, setBufferedCount] = useState<number>(0);
 
@@ -171,6 +170,10 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
       socket.onmessage = (event) => {
         const text = String(event.data || '');
         fullLogAccumulatorRef.current.push(text);
+        // Bounded ring-buffer / cap to 10,000 log chunks to prevent memory leaks on long streams
+        if (fullLogAccumulatorRef.current.length > 10000) {
+          fullLogAccumulatorRef.current = fullLogAccumulatorRef.current.slice(-10000);
+        }
 
         if (isPausedRef.current) {
           pausedBufferRef.current.push(text);
@@ -220,24 +223,23 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
     });
   };
 
-  // Toggle Stream Pause / Resume
+  // Toggle Stream Pause / Resume (Pure state updater with explicit side-effects in event handler)
   const handleTogglePause = () => {
-    setIsPaused((prev) => {
-      const next = !prev;
-      if (!next) {
-        // Resuming: flush paused buffer to terminal
-        if (pausedBufferRef.current.length > 0 && termRef.current) {
-          const flushed = pausedBufferRef.current.join('');
-          termRef.current.write(flushed);
-          pausedBufferRef.current = [];
-          setBufferedCount(0);
-          if (autoScrollRef.current) {
-            termRef.current.scrollToBottom();
-          }
+    const nextPaused = !isPaused;
+    setIsPaused(nextPaused);
+
+    if (!nextPaused) {
+      // Resuming: flush paused buffer to terminal directly in event handler
+      if (pausedBufferRef.current.length > 0 && termRef.current) {
+        const flushed = pausedBufferRef.current.join('');
+        termRef.current.write(flushed);
+        pausedBufferRef.current = [];
+        setBufferedCount(0);
+        if (autoScrollRef.current) {
+          termRef.current.scrollToBottom();
         }
       }
-      return next;
-    });
+    }
   };
 
   // Clear Screen
@@ -247,20 +249,25 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
     }
   };
 
-  // Search logic
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchQuery(val);
+  // Debounce search query changes by 250ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    if (!val.trim()) {
+  // Search logic executed against debounced query
+  useEffect(() => {
+    if (!debouncedSearchQuery.trim()) {
       setMatchCount(0);
       return;
     }
 
-    // Count occurrences across full accumulated logs
+    // Count occurrences across bounded accumulated logs
     const fullText = fullLogAccumulatorRef.current.join('');
     try {
-      const regex = new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      const regex = new RegExp(debouncedSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       const matches = fullText.match(regex);
       setMatchCount(matches ? matches.length : 0);
     } catch {
@@ -268,19 +275,25 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
     }
 
     if (searchAddonRef.current) {
-      searchAddonRef.current.findNext(val, { incremental: true });
+      searchAddonRef.current.findNext(debouncedSearchQuery, { incremental: true });
     }
+  }, [debouncedSearchQuery]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   const handleSearchNext = () => {
-    if (searchAddonRef.current && searchQuery) {
-      searchAddonRef.current.findNext(searchQuery);
+    const query = debouncedSearchQuery || searchQuery;
+    if (searchAddonRef.current && query) {
+      searchAddonRef.current.findNext(query);
     }
   };
 
   const handleSearchPrev = () => {
-    if (searchAddonRef.current && searchQuery) {
-      searchAddonRef.current.findPrevious(searchQuery);
+    const query = debouncedSearchQuery || searchQuery;
+    if (searchAddonRef.current && query) {
+      searchAddonRef.current.findPrevious(query);
     }
   };
 
@@ -296,7 +309,9 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    if (window.URL?.revokeObjectURL) {
+      window.URL.revokeObjectURL(url);
+    }
   };
 
   return (
@@ -373,8 +388,11 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
           />
           {searchQuery && (
             <div className="flex items-center gap-1 pl-1 border-l border-ops-border">
-              <span className="text-[10px] bg-cyan-950 border border-ops-cyan/30 text-ops-cyan px-1.5 py-0.2 rounded">
-                {matchCount > 0 ? `${matchCount} matches` : '0 matches'}
+              <span
+                className="text-[10px] bg-cyan-950 border border-ops-cyan/30 text-ops-cyan px-1.5 py-0.2 rounded truncate max-w-[180px]"
+                title={`${matchCount} matches for "${searchQuery}"`}
+              >
+                {`${matchCount} matches for "${searchQuery}"`}
               </span>
               <button
                 type="button"
