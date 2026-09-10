@@ -160,7 +160,7 @@ func migrateUsersTable(db *sql.DB) error {
 		{"email", "TEXT DEFAULT ''"},
 		{"security_question", "TEXT DEFAULT ''"},
 		{"security_answer_hash", "TEXT DEFAULT ''"},
-		{"updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"},
+		{"updated_at", "DATETIME"},
 	}
 
 	for _, m := range migrations {
@@ -170,6 +170,11 @@ func migrateUsersTable(db *sql.DB) error {
 				return fmt.Errorf("add column %s failed: %w", m.colName, err)
 			}
 		}
+	}
+
+	// Backfill updated_at for existing records where updated_at is NULL
+	if _, err := db.Exec("UPDATE users SET updated_at = created_at WHERE updated_at IS NULL"); err != nil {
+		return fmt.Errorf("backfill updated_at failed: %w", err)
 	}
 
 	return nil
