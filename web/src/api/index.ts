@@ -101,6 +101,23 @@ export const api = {
 
   // JDKs
   getJDKs: () => request<JDKAsset[]>('/jdks'),
+  getJDK: (id: number) => request<JDKAsset>(`/jdks/${id}`),
+  createJDK: (data: {
+    name: string;
+    java_home: string;
+    bin_path?: string;
+    version_str?: string;
+    is_system?: boolean;
+  }) =>
+    request<JDKAsset>('/jdks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  scanJDKs: () => request<JDKAsset[]>('/jdks/scan'),
+  deleteJDK: (id: number) =>
+    request<{ message: string }>(`/jdks/${id}`, {
+      method: 'DELETE',
+    }),
 
   // Releases & Deployment
   getReleases: (serviceId: number) =>
