@@ -165,4 +165,42 @@ describe('LoginModal Component', () => {
       expect(screen.getByText(/密码重置成功/)).toBeInTheDocument();
     });
   });
+
+  it('switches full-page theme when double-clicking characters and persists to localStorage', async () => {
+    render(<LoginModal isOpen={true} />);
+
+    const root = screen.getByTestId('login-modal-root');
+    expect(root).toBeInTheDocument();
+
+    // Default theme is index 1 (天水雾蓝雅致)
+    expect(root.className).toContain('from-[#122232]');
+
+    // Double click purple character (theme index 0)
+    const purpleChars = screen.getAllByTestId('char-purple');
+    fireEvent.doubleClick(purpleChars[0]);
+    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('赛博深空极光');
+    expect(localStorage.getItem('opshub_login_theme')).toBe('0');
+    expect(root.className).toContain('from-[#0b1022]');
+
+    // Double click orange character (theme index 2)
+    const orangeChars = screen.getAllByTestId('char-orange');
+    fireEvent.doubleClick(orangeChars[0]);
+    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('熔岩落日余晖');
+    expect(localStorage.getItem('opshub_login_theme')).toBe('2');
+    expect(root.className).toContain('from-[#241315]');
+
+    // Double click yellow character (theme index 3)
+    const yellowChars = screen.getAllByTestId('char-yellow');
+    fireEvent.doubleClick(yellowChars[0]);
+    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('翡翠极客矩阵');
+    expect(localStorage.getItem('opshub_login_theme')).toBe('3');
+    expect(root.className).toContain('from-[#0a1f18]');
+
+    // Double click black character (theme index 1)
+    const blackChars = screen.getAllByTestId('char-black');
+    fireEvent.doubleClick(blackChars[0]);
+    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('天水雾蓝雅致');
+    expect(localStorage.getItem('opshub_login_theme')).toBe('1');
+    expect(root.className).toContain('from-[#122232]');
+  });
 });

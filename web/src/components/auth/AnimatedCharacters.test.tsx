@@ -35,4 +35,21 @@ describe('AnimatedCharacters Component', () => {
     const purple = screen.getByTestId('char-purple');
     expect(purple.style.transform).toContain('skewX(0deg)');
   });
+
+  it('calls onCharacterDoubleClick when double clicking any character', () => {
+    const onDoubleClick = vi.fn();
+    render(<AnimatedCharacters onCharacterDoubleClick={onDoubleClick} />);
+
+    fireEvent.doubleClick(screen.getByTestId('char-purple'));
+    expect(onDoubleClick).toHaveBeenCalledWith(0);
+
+    fireEvent.doubleClick(screen.getByTestId('char-black'));
+    expect(onDoubleClick).toHaveBeenCalledWith(1);
+
+    fireEvent.doubleClick(screen.getByTestId('char-orange'));
+    expect(onDoubleClick).toHaveBeenCalledWith(2);
+
+    fireEvent.doubleClick(screen.getByTestId('char-yellow'));
+    expect(onDoubleClick).toHaveBeenCalledWith(3);
+  });
 });

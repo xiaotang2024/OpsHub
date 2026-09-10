@@ -12,7 +12,7 @@ export interface AnimatedGradientBackgroundProps {
   containerClassName?: string;
   topOffset?: number;
   showGrid?: boolean;
-  variant?: 'cyber' | 'celadon-blue';
+  variant?: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald';
 }
 
 export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProps> = ({
@@ -28,11 +28,21 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
   topOffset = 0,
   showGrid = true,
 }) => {
-  const activeGradientColors =
-    gradientColors ||
-    (variant === 'celadon-blue'
-      ? ['#1c384d', '#2d5678', '#163346', '#122a3b', '#0f202e', '#08141f']
-      : ['#0d1b3e', '#1e1b4b', '#0e2a47', '#1a103c', '#0b1329', '#060913']);
+  const getVariantColors = (v: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald') => {
+    switch (v) {
+      case 'cyber':
+        return ['#0d1b3e', '#1e1b4b', '#0e2a47', '#1a103c', '#0b1329', '#060913'];
+      case 'sunset':
+        return ['#3b181a', '#4a1d17', '#2e1215', '#241014', '#1a0c10', '#0f0609'];
+      case 'emerald':
+        return ['#0e3022', '#143d2c', '#0c2419', '#081c13', '#05140d', '#030a07'];
+      case 'celadon-blue':
+      default:
+        return ['#1c384d', '#2d5678', '#163346', '#122a3b', '#0f202e', '#08141f'];
+    }
+  };
+
+  const activeGradientColors = gradientColors || getVariantColors(variant);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -102,6 +112,18 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
           <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#5fa3b0]/24 blur-3xl pointer-events-none" />
           <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#2d5678]/30 blur-3xl pointer-events-none" />
           <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-[#475061]/25 blur-3xl pointer-events-none" />
+        </>
+      ) : variant === 'sunset' ? (
+        <>
+          <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#ea580c]/24 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#f59e0b]/25 blur-3xl pointer-events-none" />
+          <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-[#b91c1c]/20 blur-3xl pointer-events-none" />
+        </>
+      ) : variant === 'emerald' ? (
+        <>
+          <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#10b981]/25 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#84cc16]/22 blur-3xl pointer-events-none" />
+          <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-[#059669]/20 blur-3xl pointer-events-none" />
         </>
       ) : (
         <>

@@ -142,6 +142,7 @@ export interface AnimatedCharactersProps {
   passwordLength?: number;
   scale?: number;
   className?: string;
+  onCharacterDoubleClick?: (characterIndex: 0 | 1 | 2 | 3) => void;
 }
 
 export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
@@ -150,12 +151,21 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
   passwordLength = 0,
   scale = 1,
   className = '',
+  onCharacterDoubleClick,
 }) => {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPurpleBlinking, setIsPurpleBlinking] = useState(false);
   const [isBlackBlinking, setIsBlackBlinking] = useState(false);
   const [isLookingAtEachOther, setIsLookingAtEachOther] = useState(false);
   const [isPurplePeeking, setIsPurplePeeking] = useState(false);
+  const [bouncingIndex, setBouncingIndex] = useState<number | null>(null);
+
+  const handleCharDoubleClick = (index: 0 | 1 | 2 | 3, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBouncingIndex(index);
+    setTimeout(() => setBouncingIndex(null), 350);
+    onCharacterDoubleClick?.(index);
+  };
 
   const purpleRef = useRef<HTMLDivElement>(null);
   const blackRef = useRef<HTMLDivElement>(null);
@@ -296,7 +306,9 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
       <div
         ref={purpleRef}
         data-testid="char-purple"
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onDoubleClick={(e) => handleCharDoubleClick(0, e)}
+        title="双击切换【赛博深空极光】全屏背景"
+        className="absolute bottom-0 transition-all duration-700 ease-in-out pointer-events-auto cursor-pointer hover:brightness-110"
         style={{
           left: '60px',
           width: '170px',
@@ -305,11 +317,12 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
           borderRadius: '16px 16px 0 0',
           zIndex: 1,
           transform:
-            passwordLength > 0 && showPassword
+            (passwordLength > 0 && showPassword
               ? 'skewX(0deg)'
               : isTyping || isHidingPassword
               ? `skewX(${(purplePos.bodySkew || 0) - 12}deg) translateX(35px)`
-              : `skewX(${purplePos.bodySkew || 0}deg)`,
+              : `skewX(${purplePos.bodySkew || 0}deg)`) +
+            (bouncingIndex === 0 ? ' scale(1.08)' : ''),
           transformOrigin: 'bottom center',
           boxShadow: '0 8px 30px rgba(108, 63, 245, 0.3)',
         }}
@@ -395,7 +408,9 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
       <div
         ref={blackRef}
         data-testid="char-black"
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onDoubleClick={(e) => handleCharDoubleClick(1, e)}
+        title="双击切换【天水雾蓝雅致】全屏背景"
+        className="absolute bottom-0 transition-all duration-700 ease-in-out pointer-events-auto cursor-pointer hover:brightness-125"
         style={{
           left: '225px',
           width: '115px',
@@ -404,13 +419,14 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
           borderRadius: '12px 12px 0 0',
           zIndex: 2,
           transform:
-            passwordLength > 0 && showPassword
+            (passwordLength > 0 && showPassword
               ? 'skewX(0deg)'
               : isLookingAtEachOther
               ? `skewX(${(blackPos.bodySkew || 0) * 1.5 + 10}deg) translateX(18px)`
               : isTyping || isHidingPassword
               ? `skewX(${(blackPos.bodySkew || 0) * 1.5}deg)`
-              : `skewX(${blackPos.bodySkew || 0}deg)`,
+              : `skewX(${blackPos.bodySkew || 0}deg)`) +
+            (bouncingIndex === 1 ? ' scale(1.08)' : ''),
           transformOrigin: 'bottom center',
           boxShadow: '0 8px 25px rgba(0, 0, 0, 0.4)',
         }}
@@ -488,7 +504,9 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
       <div
         ref={orangeRef}
         data-testid="char-orange"
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onDoubleClick={(e) => handleCharDoubleClick(2, e)}
+        title="双击切换【熔岩落日余晖】全屏背景"
+        className="absolute bottom-0 transition-all duration-700 ease-in-out pointer-events-auto cursor-pointer hover:brightness-110"
         style={{
           left: '0px',
           width: '230px',
@@ -497,9 +515,10 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
           backgroundColor: '#FF9B6B',
           borderRadius: '115px 115px 0 0',
           transform:
-            passwordLength > 0 && showPassword
+            (passwordLength > 0 && showPassword
               ? 'skewX(0deg)'
-              : `skewX(${orangePos.bodySkew || 0}deg)`,
+              : `skewX(${orangePos.bodySkew || 0}deg)`) +
+            (bouncingIndex === 2 ? ' scale(1.08)' : ''),
           transformOrigin: 'bottom center',
           boxShadow: '0 8px 25px rgba(255, 155, 107, 0.3)',
         }}
@@ -543,7 +562,9 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
       <div
         ref={yellowRef}
         data-testid="char-yellow"
-        className="absolute bottom-0 transition-all duration-700 ease-in-out"
+        onDoubleClick={(e) => handleCharDoubleClick(3, e)}
+        title="双击切换【翡翠极客矩阵】全屏背景"
+        className="absolute bottom-0 transition-all duration-700 ease-in-out pointer-events-auto cursor-pointer hover:brightness-110"
         style={{
           left: '295px',
           width: '135px',
@@ -552,9 +573,10 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
           borderRadius: '68px 68px 0 0',
           zIndex: 4,
           transform:
-            passwordLength > 0 && showPassword
+            (passwordLength > 0 && showPassword
               ? 'skewX(0deg)'
-              : `skewX(${yellowPos.bodySkew || 0}deg)`,
+              : `skewX(${yellowPos.bodySkew || 0}deg)`) +
+            (bouncingIndex === 3 ? ' scale(1.08)' : ''),
           transformOrigin: 'bottom center',
           boxShadow: '0 8px 25px rgba(232, 215, 84, 0.3)',
         }}

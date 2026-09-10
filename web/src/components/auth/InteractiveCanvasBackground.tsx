@@ -20,12 +20,38 @@ const PARTICLE_COLORS = [
 
 export interface InteractiveCanvasBackgroundProps {
   transparent?: boolean;
+  particleColors?: string[];
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#')) return `rgba(100, 149, 237, ${alpha})`;
+  let c = hex.substring(1);
+  if (c.length === 3) {
+    c = c.split('').map((x) => x + x).join('');
+  }
+  const num = parseInt(c, 16);
+  if (isNaN(num)) return `rgba(100, 149, 237, ${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundProps> = ({
   transparent = false,
+  particleColors,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const particlesRef = useRef<Particle[]>([]);
+
+  // Update existing particles colors dynamically when particleColors prop changes
+  useEffect(() => {
+    if (particleColors && particleColors.length > 0 && particlesRef.current.length > 0) {
+      particlesRef.current.forEach((p) => {
+        p.color = particleColors[Math.floor(Math.random() * particleColors.length)];
+      });
+    }
+  }, [particleColors]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -37,6 +63,11 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
     let animationFrameId: number;
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
+
+    const activeColors =
+      particleColors && particleColors.length > 0 ? particleColors : PARTICLE_COLORS;
+    const primaryColor = activeColors[0] || '#06b6d4';
+    const secondaryColor = activeColors[1] || '#38bdf8';
 
     // Mouse coordinates with easing
     const mouse = {
@@ -69,16 +100,16 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
 
     // Initialize particles
     const particleCount = Math.min(Math.floor((width * height) / 14000), 100);
-    const particles: Particle[] = [];
+    particlesRef.current = [];
 
     for (let i = 0; i < particleCount; i++) {
-      particles.push({
+      particlesRef.current.push({
         x: Math.random() * width,
         y: Math.random() * height,
         vx: (Math.random() - 0.5) * 0.7,
         vy: (Math.random() - 0.5) * 0.7,
         radius: Math.random() * 2 + 1.2,
-        color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
+        color: activeColors[Math.floor(Math.random() * activeColors.length)],
         alpha: Math.random() * 0.5 + 0.3,
       });
     }
@@ -122,8 +153,8 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
           mouse.y,
           320
         );
-        mouseAura.addColorStop(0, 'rgba(6, 182, 212, 0.12)');
-        mouseAura.addColorStop(0.4, 'rgba(16, 185, 129, 0.05)');
+        mouseAura.addColorStop(0, hexToRgba(primaryColor, 0.14));
+        mouseAura.addColorStop(0.4, hexToRgba(secondaryColor, 0.05));
         mouseAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = mouseAura;
         ctx.fillRect(0, 0, width, height);
@@ -132,9 +163,10 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
       // 3. Update and draw particles
       const maxDistance = 120;
       const mouseInfluenceRadius = 150;
+      const currentParticles = particlesRef.current;
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
+      for (let i = 0; i < currentParticles.length; i++) {
+        const p = currentParticles[i];
 
         // Move
         p.x += p.vx;
@@ -160,7 +192,7 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(mouse.x, mouse.y);
-            ctx.strokeStyle = `rgba(6, 182, 212, ${alpha})`;
+            ctx.strokeStyle = hexToRgba(primaryColor, alpha);
             ctx.lineWidth = 0.8;
             ctx.stroke();
           }
@@ -175,8 +207,8 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
         ctx.globalAlpha = 1;
 
         // Connect nearby particles
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
+        for (let j = i + 1; j < currentParticles.length; j++) {
+          const p2 = currentParticles[j];
           const distSq = (p.x - p2.x) ** 2 + (p.y - p2.y) ** 2;
           if (distSq < maxDistance * maxDistance) {
             const dist = Math.sqrt(distSq);
@@ -184,7 +216,7 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(100, 149, 237, ${lineAlpha})`;
+            ctx.strokeStyle = hexToRgba(secondaryColor, lineAlpha);
             ctx.lineWidth = 0.7;
             ctx.stroke();
           }
@@ -202,7 +234,7 @@ export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundPr
       window.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('resize', handleResize);
     };
-  }, [transparent]);
+  }, [transparent, particleColors]);
 
   return (
     <canvas
