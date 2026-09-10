@@ -17,6 +17,13 @@ type Tailer interface {
 	TailFile(ctx context.Context, path string, tailLines int) (<-chan string, error)
 }
 
+const (
+	// MaxTailLinesCeiling is the maximum number of recent lines allowed to be requested.
+	MaxTailLinesCeiling = 5000
+	// MaxSearchBytesFloor is the maximum ceiling for reverse seek search window (8 MB).
+	MaxSearchBytesFloor = 8 * 1024 * 1024
+)
+
 // FileTailer implements Tailer with reverse seek and continuous polling/following.
 type FileTailer struct {
 	pollInterval time.Duration
@@ -68,6 +75,10 @@ func (t *FileTailer) TailFile(ctx context.Context, path string, tailLines int) (
 		return nil, fmt.Errorf("open file failed: %w", err)
 	}
 
+	if tailLines > MaxTailLinesCeiling {
+		tailLines = MaxTailLinesCeiling
+	}
+
 	var startOffset int64
 	if tailLines > 0 {
 		startOffset, err = t.findReverseOffset(f, tailLines)
@@ -109,6 +120,9 @@ func (t *FileTailer) findReverseOffset(f *os.File, tailLines int) (int64, error)
 	minSearchBytes := int64(tailLines) * 512
 	if searchBytes < minSearchBytes {
 		searchBytes = minSearchBytes
+	}
+	if searchBytes > MaxSearchBytesFloor {
+		searchBytes = MaxSearchBytesFloor
 	}
 	if searchBytes > size {
 		searchBytes = size

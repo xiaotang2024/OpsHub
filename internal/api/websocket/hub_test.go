@@ -217,3 +217,38 @@ func TestHub_ServeWS_ClientDisconnectCleanup(t *testing.T) {
 	// Allow goroutines on server side to clean up
 	time.Sleep(100 * time.Millisecond)
 }
+
+func TestHub_ServeWS_LargeTailQueryClamped(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "ws_clamped.log")
+
+	f, err := os.Create(logPath)
+	require.NoError(t, err)
+	for i := 1; i <= 6000; i++ {
+		_, _ = f.WriteString(fmt.Sprintf("line %d\n", i))
+	}
+	_ = f.Close()
+
+	tl := tailer.NewTailer(tailer.WithPollInterval(20 * time.Millisecond))
+	hub := ws.NewHubWithResolver(tl, func(serviceID int64) (string, error) {
+		return logPath, nil
+	})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hub.ServeWS(w, r, 1)
+	}))
+	defer server.Close()
+
+	u, _ := url.Parse(server.URL)
+	wsURL := "ws://" + u.Host + "/?tail=10000000"
+
+	conn, _, err := gorilla.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, msg, err := conn.ReadMessage()
+	require.NoError(t, err)
+	assert.Equal(t, "line 1001\r\n", string(msg))
+}
+

@@ -233,3 +233,28 @@ func TestTailer_ContextCancellation(t *testing.T) {
 		t.Fatal("timed out waiting for channel to close")
 	}
 }
+
+func TestTailer_LargeTailLinesClamped(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "clamped.log")
+
+	f, err := os.Create(logPath)
+	require.NoError(t, err)
+	for i := 1; i <= 6000; i++ {
+		_, _ = f.WriteString(fmt.Sprintf("line %d\n", i))
+	}
+	_ = f.Close()
+
+	tl := tailer.NewTailer(tailer.WithPollInterval(20 * time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Request an excessively large tail lines value (10 million)
+	ch, err := tl.TailFile(ctx, logPath, 10_000_000)
+	require.NoError(t, err)
+
+	// Since MaxTailLinesCeiling is 5000, out of 6000 lines, the first line should be line 1001
+	first := <-ch
+	assert.Equal(t, "line 1001", first)
+}
+

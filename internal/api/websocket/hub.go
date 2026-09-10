@@ -19,6 +19,11 @@ import (
 // LogPathResolver resolves the disk log path for a given service ID.
 type LogPathResolver func(serviceID int64) (string, error)
 
+const (
+	// MaxTailLinesCeiling is the maximum number of lines allowed to be requested.
+	MaxTailLinesCeiling = 5000
+)
+
 // Hub manages WebSocket connections for streaming real-time service logs.
 type Hub struct {
 	tailer           tailer.Tailer
@@ -140,6 +145,9 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request, serviceID int) {
 				tailLines = n
 			}
 		}
+	}
+	if tailLines > MaxTailLinesCeiling {
+		tailLines = MaxTailLinesCeiling
 	}
 
 	// 3. Upgrade to WebSocket
