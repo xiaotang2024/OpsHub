@@ -16,6 +16,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { LoginModal } from '../auth/LoginModal';
+import { ThemePicker } from '../theme/ThemePicker';
 import { api } from '../../api';
 
 interface ShellProps {
@@ -288,8 +289,10 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
             </div>
           </div>
 
-          {/* Right Header Quick Stats & Clock */}
-          <div className="flex items-center gap-4">
+          {/* Right Header Quick Stats, Theme Picker & Clock */}
+          <div className="flex items-center gap-3">
+            <ThemePicker />
+
             <div className="hidden sm:flex items-center gap-2 rounded-md border border-ops-border bg-ops-bg/80 px-2.5 py-1 text-xs font-mono text-ops-text-muted">
               <Clock className="h-3.5 w-3.5 text-ops-cyan" />
               <span>{currentTime || '00:00:00'}</span>

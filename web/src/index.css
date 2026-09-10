@@ -3,13 +3,60 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="default"] {
     color-scheme: dark;
+    --ops-bg: #0B0F17;
+    --ops-surface: #131B2A;
+    --ops-card: #131B2A;
+    --ops-card-hover: #1A2438;
+    --ops-border: #1E293B;
+    --ops-border-hover: #334155;
+    --ops-primary: #06B6D4;
+    --ops-primary-dim: rgba(6, 182, 212, 0.15);
+    --ops-primary-glow: rgba(6, 182, 212, 0.35);
+    --ops-text-main: #F8FAFC;
+    --ops-text-sub: #CBD5E1;
+    --ops-text-muted: #94A3B8;
   }
-  
+
+  [data-theme="celadon-blue"] {
+    color-scheme: dark;
+    /* 天水雾蓝：天水碧 #5fa3b0 + 雾蓝 #2d5678 + 鲸灰 #475061 */
+    --ops-bg: #0c131a;
+    --ops-surface: #13202c;
+    --ops-card: #13202c;
+    --ops-card-hover: #1b2c3d;
+    --ops-border: #243a4e;
+    --ops-border-hover: #475061; /* 鲸灰 */
+    --ops-primary: #5fa3b0; /* 天水碧 */
+    --ops-primary-dim: rgba(95, 163, 176, 0.18);
+    --ops-primary-glow: rgba(95, 163, 176, 0.38);
+    --ops-text-main: #F4F8FA;
+    --ops-text-sub: #C8D7DE;
+    --ops-text-muted: #8FA2AF;
+  }
+
+  [data-theme="purple-tea"] {
+    color-scheme: dark;
+    /* 木紫茶岩：木紫 #4b4e72 + 茶色 #aa5140 + 熔岩灰 #606165 */
+    --ops-bg: #13131c;
+    --ops-surface: #1e1e2c;
+    --ops-card: #1e1e2c;
+    --ops-card-hover: #29293b;
+    --ops-border: #353647;
+    --ops-border-hover: #606165; /* 熔岩灰 */
+    --ops-primary: #aa5140; /* 茶色高亮 */
+    --ops-primary-dim: rgba(170, 81, 64, 0.20);
+    --ops-primary-glow: rgba(170, 81, 64, 0.38);
+    --ops-text-main: #FAF6F5;
+    --ops-text-sub: #DBD5DA;
+    --ops-text-muted: #A39DA8;
+  }
+
   body {
-    background-color: #0B0F17;
-    color: #F8FAFC;
+    background-color: var(--ops-bg, #0B0F17);
+    color: var(--ops-text-main, #F8FAFC);
     margin: 0;
     padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -21,14 +68,14 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0B0F17;
+    background: var(--ops-bg, #0B0F17);
   }
   ::-webkit-scrollbar-thumb {
-    background: #1E293B;
+    background: var(--ops-border, #1E293B);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: var(--ops-border-hover, #334155);
   }
 }
 
