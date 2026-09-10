@@ -717,6 +717,18 @@ export const ServiceFleet: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    onClick={() => {
+                      const sid = selectedService.id;
+                      setSelectedServiceId(null);
+                      navigate(`/services/${sid}`);
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold hover:bg-cyan-400 transition-colors"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>服务详情与发布</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setSelectedServiceId(null)}
                     className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white"
                   >

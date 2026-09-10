@@ -62,3 +62,48 @@ export interface HealthCheckConfig {
   interval_sec?: number;
   timeout_sec?: number;
 }
+
+export interface Artifact {
+  id: number;
+  service_id: number;
+  filename: string;
+  file_size: number;
+  sha256: string;
+  storage_path: string;
+  version_tag: string;
+  upload_time: string;
+}
+
+export interface DeployRecord {
+  id: number;
+  service_id: number;
+  artifact_id?: number | null;
+  action: string;
+  operator: string;
+  client_ip: string;
+  status: 'SUCCESS' | 'FAILED' | string;
+  output_log: string;
+  started_at: string;
+  finished_at?: string | null;
+}
+
+export interface AuditLog {
+  id: number;
+  operator: string;
+  client_ip: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  details: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ServiceMetrics {
+  pid: number;
+  status: string;
+  cpu_percent: number;
+  memory_rss_mb: number;
+  uptime: string;
+}
+

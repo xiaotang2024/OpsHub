@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Shell } from './components/layout/Shell';
 import { ServiceFleet } from './pages/Services/ServiceFleet';
+import { ServiceDetail } from './pages/Services/ServiceDetail';
 import { TemplateList } from './pages/Templates/TemplateList';
 
 export const App: React.FC = () => {
@@ -10,6 +11,7 @@ export const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/services" replace />} />
         <Route path="/services" element={<ServiceFleet />} />
+        <Route path="/services/:id" element={<ServiceDetail />} />
         <Route path="/templates" element={<TemplateList />} />
         <Route
           path="/jdks"

@@ -1,0 +1,831 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft,
+  Server,
+  Play,
+  Square,
+  RotateCw,
+  Layers,
+  FileCode2,
+  Terminal,
+  Clock,
+  ShieldCheck,
+  Check,
+  Copy,
+  AlertTriangle,
+  RotateCcw,
+  Activity,
+  HardDrive,
+  Cpu,
+  RefreshCw,
+  Sliders,
+  FolderTree,
+  FileText,
+  ExternalLink,
+  Info,
+  Loader2,
+} from 'lucide-react';
+import {
+  Service,
+  Template,
+  JDKAsset,
+  DeployRecord,
+  Artifact,
+  AuditLog,
+  ServiceMetrics,
+} from '../../types';
+import { api } from '../../api';
+import { StatusBadge } from '../../components/service/StatusBadge';
+import { DeployWizardModal } from '../../components/deploy/DeployWizardModal';
+import { RollbackModal } from '../../components/deploy/RollbackModal';
+
+type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
+
+export const ServiceDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const serviceId = Number(id);
+
+  // Core data
+  const [service, setService] = useState<Service | null>(null);
+  const [template, setTemplate] = useState<Template | null>(null);
+  const [jdk, setJdk] = useState<JDKAsset | null>(null);
+  const [releases, setReleases] = useState<DeployRecord[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [metrics, setMetrics] = useState<ServiceMetrics | null>(null);
+  const [configFiles, setConfigFiles] = useState<string[]>([]);
+
+  // State
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [inFlightAction, setInFlightAction] = useState<string | null>(null);
+  const [copiedPort, setCopiedPort] = useState(false);
+
+  // Modals
+  const [deployModalVisible, setDeployModalVisible] = useState(false);
+  const [rollbackModalVisible, setRollbackModalVisible] = useState(false);
+  const [targetRollbackArtifact, setTargetRollbackArtifact] = useState<Artifact | null>(null);
+
+  // Load all service data
+  const loadServiceData = useCallback(async (isBackground = false) => {
+    if (!serviceId) return;
+    try {
+      if (!isBackground) setLoading(true);
+      setError(null);
+
+      const [svc, allTemplates, allJdks, relList, artList] = await Promise.all([
+        api.getService(serviceId),
+        api.getTemplates().catch(() => []),
+        api.getJDKs().catch(() => []),
+        api.getReleases(serviceId).catch(() => []),
+        api.getArtifacts(serviceId).catch(() => []),
+      ]);
+
+      setService(svc);
+      setReleases(relList || []);
+      setArtifacts(artList || []);
+
+      if (svc.template_id) {
+        const foundTpl = allTemplates.find((t) => t.id === svc.template_id);
+        if (foundTpl) setTemplate(foundTpl);
+      }
+
+      const activeJdkId = svc.jdk_id;
+      if (activeJdkId) {
+        const foundJdk = allJdks.find((j) => j.id === activeJdkId);
+        if (foundJdk) setJdk(foundJdk);
+      }
+
+      // Load metrics
+      api.getServiceMetrics(serviceId)
+        .then((m) => setMetrics(m))
+        .catch(() => setMetrics(null));
+
+      // Load configs
+      api.getServiceConfigs(serviceId)
+        .then((res) => setConfigFiles(res.files || []))
+        .catch(() => setConfigFiles([]));
+
+      // Load audit logs for this service
+      api.getAuditLogs({ target_type: 'service', target_id: String(serviceId) })
+        .then((res) => setAuditLogs(res.items || []))
+        .catch(() => setAuditLogs([]));
+    } catch (err: any) {
+      setError(err.message || '加载服务详情失败');
+    } finally {
+      if (!isBackground) setLoading(false);
+    }
+  }, [serviceId]);
+
+  useEffect(() => {
+    loadServiceData();
+  }, [loadServiceData]);
+
+  // Current active artifact
+  const currentArtifact = useMemo(() => {
+    if (!service || !service.current_artifact_id) return null;
+    return artifacts.find((a) => a.id === service.current_artifact_id) || null;
+  }, [service, artifacts]);
+
+  // Lifecycle actions
+  const handleStart = async () => {
+    if (!service) return;
+    setInFlightAction('start');
+    setService((prev) => (prev ? { ...prev, status: 'STARTING' } : prev));
+    try {
+      const updated = await api.startService(service.id);
+      setService(updated);
+      await loadServiceData(true);
+    } catch (err: any) {
+      alert(`启动服务失败: ${err.message}`);
+      await loadServiceData(true);
+    } finally {
+      setInFlightAction(null);
+    }
+  };
+
+  const handleStop = async () => {
+    if (!service) return;
+    setInFlightAction('stop');
+    setService((prev) => (prev ? { ...prev, status: 'STOPPING' } : prev));
+    try {
+      const updated = await api.stopService(service.id);
+      setService(updated);
+      await loadServiceData(true);
+    } catch (err: any) {
+      alert(`停止服务失败: ${err.message}`);
+      await loadServiceData(true);
+    } finally {
+      setInFlightAction(null);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!service) return;
+    setInFlightAction('restart');
+    setService((prev) => (prev ? { ...prev, status: 'STARTING' } : prev));
+    try {
+      const updated = await api.restartService(service.id);
+      setService(updated);
+      await loadServiceData(true);
+    } catch (err: any) {
+      alert(`重启服务失败: ${err.message}`);
+      await loadServiceData(true);
+    } finally {
+      setInFlightAction(null);
+    }
+  };
+
+  const handleCopyPort = (port: number) => {
+    navigator.clipboard?.writeText(String(port));
+    setCopiedPort(true);
+    setTimeout(() => setCopiedPort(false), 2000);
+  };
+
+  const openRollbackForArtifact = (artifact: Artifact) => {
+    setTargetRollbackArtifact(artifact);
+    setRollbackModalVisible(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-10 w-48 bg-slate-800/60 rounded animate-pulse" />
+        <div className="h-32 rounded-xl border border-ops-border bg-ops-card p-6 animate-pulse" />
+        <div className="h-96 rounded-xl border border-ops-border bg-ops-card p-6 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (error || !service) {
+    return (
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() => navigate('/services')}
+          className="inline-flex items-center gap-1.5 text-xs text-ops-text-muted hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>返回服务舰队列表</span>
+        </button>
+        <div className="rounded-xl border border-red-500/40 bg-red-950/20 p-6 text-center space-y-3">
+          <AlertTriangle className="h-8 w-8 text-red-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">未能加载指定服务</h3>
+          <p className="text-xs text-red-300 font-mono">{error || '服务未找到'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isRunning = service.status === 'RUNNING';
+  const isStopped = service.status === 'STOPPED';
+  const isStarting = service.status === 'STARTING';
+  const isStopping = service.status === 'STOPPING';
+  const isActionBusy = Boolean(inFlightAction);
+
+  return (
+    <div className="space-y-6">
+      {/* Top Breadcrumb & Return Nav */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => navigate('/services')}
+          className="inline-flex items-center gap-1.5 text-xs font-mono text-ops-text-muted hover:text-ops-cyan transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>返回服务舰队</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => loadServiceData(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-ops-border bg-ops-surface text-xs text-ops-text-sub hover:text-white transition-colors"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>刷新</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Service Hero Banner */}
+      <div className="rounded-2xl border border-ops-border bg-ops-card p-6 shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-cyan-950/80 border border-ops-cyan/40 text-ops-cyan shadow-cyan-glow">
+              <Server className="h-7 w-7" />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight text-white">{service.name}</h1>
+                <StatusBadge status={service.status} />
+                <span className="rounded-md bg-slate-900 border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-muted">
+                  ID: #{service.id}
+                </span>
+                <span className="rounded-md bg-slate-900 border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-sub">
+                  {service.supervision_mode === 'systemd' ? 'Linux Systemd' : 'Native Supervisor'}
+                </span>
+              </div>
+
+              <div className="text-xs font-mono text-ops-text-muted flex flex-wrap items-center gap-3 mt-1">
+                <span>模板: {template ? template.name : `#${service.template_id}`}</span>
+                <span>•</span>
+                <span>当前制品: {currentArtifact ? currentArtifact.filename : '暂无活跃包'}</span>
+                {currentArtifact?.version_tag && (
+                  <>
+                    <span>•</span>
+                    <span className="text-ops-cyan font-semibold">
+                      Tag: {currentArtifact.version_tag}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Lifecycle & Deployment Action Bar */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Start */}
+            <button
+              type="button"
+              disabled={isRunning || isStarting || isActionBusy}
+              onClick={handleStart}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            >
+              {inFlightAction === 'start' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5 fill-current" />
+              )}
+              <span>启动</span>
+            </button>
+
+            {/* Stop */}
+            <button
+              type="button"
+              disabled={isStopped || isStopping || isActionBusy}
+              onClick={handleStop}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            >
+              {inFlightAction === 'stop' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Square className="h-3.5 w-3.5 fill-current" />
+              )}
+              <span>停止</span>
+            </button>
+
+            {/* Restart */}
+            <button
+              type="button"
+              disabled={!isRunning || isActionBusy}
+              onClick={handleRestart}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            >
+              {inFlightAction === 'restart' ? (
+                <RotateCw className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="h-3.5 w-3.5" />
+              )}
+              <span>重启</span>
+            </button>
+
+            {/* Deploy New Version (Directive Highlight!) */}
+            <button
+              type="button"
+              onClick={() => setDeployModalVisible(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
+            >
+              <Layers className="h-4 w-4" />
+              <span>部署新版本</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Real-time Telemetry Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-ops-border font-mono text-xs">
+          <div className="rounded-xl border border-ops-border/70 bg-ops-bg/70 p-3">
+            <span className="text-ops-text-muted block text-[10px] uppercase">监听服务端口</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-base font-bold text-ops-cyan">:{service.port}</span>
+              <button
+                type="button"
+                onClick={() => handleCopyPort(service.port)}
+                className="text-ops-text-muted hover:text-white"
+                title="复制端口"
+              >
+                {copiedPort ? (
+                  <Check className="h-3.5 w-3.5 text-ops-emerald" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border/70 bg-ops-bg/70 p-3">
+            <span className="text-ops-text-muted block text-[10px] uppercase">操作系统 PID</span>
+            <div className="mt-1 text-base font-bold text-white">
+              {service.pid > 0 ? `#${service.pid}` : '未运行'}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border/70 bg-ops-bg/70 p-3">
+            <span className="text-ops-text-muted block text-[10px] uppercase">内存占用 (RSS)</span>
+            <div className="mt-1 text-base font-bold text-emerald-400">
+              {metrics?.memory_rss_mb ? `${metrics.memory_rss_mb} MB` : '-'}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border/70 bg-ops-bg/70 p-3">
+            <span className="text-ops-text-muted block text-[10px] uppercase">CPU 负载 & 存活</span>
+            <div className="mt-1 text-base font-bold text-slate-300">
+              {metrics?.uptime ? `${metrics.uptime}` : isRunning ? '在线' : '离线'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex items-center border-b border-ops-border gap-2 text-xs font-mono">
+        <button
+          type="button"
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2.5 font-bold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'overview'
+              ? 'border-ops-cyan text-ops-cyan'
+              : 'border-transparent text-ops-text-muted hover:text-white'
+          }`}
+        >
+          <Info className="h-4 w-4" />
+          <span>概览</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('releases')}
+          className={`px-4 py-2.5 font-bold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'releases'
+              ? 'border-ops-cyan text-ops-cyan'
+              : 'border-transparent text-ops-text-muted hover:text-white'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>版本与发布</span>
+          {releases.length > 0 && (
+            <span className="rounded-full bg-slate-800 px-2 py-0.2 text-[10px] text-slate-300">
+              {releases.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('configs')}
+          className={`px-4 py-2.5 font-bold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'configs'
+              ? 'border-ops-cyan text-ops-cyan'
+              : 'border-transparent text-ops-text-muted hover:text-white'
+          }`}
+        >
+          <FileCode2 className="h-4 w-4" />
+          <span>配置文件</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('logs')}
+          className={`px-4 py-2.5 font-bold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'logs'
+              ? 'border-ops-cyan text-ops-cyan'
+              : 'border-transparent text-ops-text-muted hover:text-white'
+          }`}
+        >
+          <Terminal className="h-4 w-4" />
+          <span>实时日志</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('audit')}
+          className={`px-4 py-2.5 font-bold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'audit'
+              ? 'border-ops-cyan text-ops-cyan'
+              : 'border-transparent text-ops-text-muted hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          <span>审计轨迹</span>
+        </button>
+      </div>
+
+      {/* Tab Content Panels */}
+      <div>
+        {/* Tab 1: Overview */}
+        {activeTab === 'overview' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Runtime Environment Info */}
+              <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
+                <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
+                  运行拓扑与 JDK 资产
+                </h3>
+
+                <div className="space-y-3 font-mono text-xs">
+                  <div className="flex justify-between py-2 border-b border-ops-border/60">
+                    <span className="text-ops-text-muted">纳管模式</span>
+                    <span className="text-white font-semibold">
+                      {service.supervision_mode === 'systemd' ? 'Linux Systemd Unit' : 'OpsHub Native Supervisor'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-ops-border/60">
+                    <span className="text-ops-text-muted">已选 JDK 资产</span>
+                    <span className="text-emerald-400 font-semibold">
+                      {jdk ? `${jdk.name} (${jdk.version_str || 'JDK'})` : '系统默认 JDK'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-ops-border/60">
+                    <span className="text-ops-text-muted">关联应用模板</span>
+                    <span className="text-ops-cyan font-semibold">
+                      {template ? template.name : `#${service.template_id}`}
+                    </span>
+                  </div>
+
+                  <div className="py-2">
+                    <span className="text-ops-text-muted block mb-1">安装部署根路径</span>
+                    <div className="rounded-lg bg-ops-bg p-2.5 text-[11px] text-ops-text-sub break-all select-all">
+                      {service.install_dir}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* JVM Parameter Strategy */}
+              <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
+                <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
+                  JVM 内存与系统调优参数
+                </h3>
+
+                <div className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-emerald-400 break-all select-all leading-relaxed">
+                  {service.jvm_options || '(未指定个性化 JVM 参数，将默认沿用模板配置)'}
+                </div>
+
+                <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold pt-2">
+                  环境变量 (Environment Variables)
+                </h3>
+                <pre className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-ops-text-sub whitespace-pre-wrap">
+                  {service.env_vars || '(无自定义环境变量注入)'}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Releases (Directive Highlight: Release history timeline & RollbackModal integration) */}
+        {activeTab === 'releases' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">发布历史与制品时间线</h3>
+                <p className="text-xs text-ops-text-muted font-mono mt-0.5">
+                  记录不可篡改的 7 步部署与回滚执行明细
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDeployModalVisible(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>部署新版本</span>
+              </button>
+            </div>
+
+            {releases.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-ops-border bg-ops-card/50 p-12 text-center space-y-3">
+                <Layers className="h-8 w-8 text-ops-text-muted mx-auto" />
+                <div className="text-sm font-bold text-white">暂无发布记录</div>
+                <p className="text-xs text-ops-text-muted font-mono">
+                  点击右上角“部署新版本”按钮，开始首次流水线发布。
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-ops-border bg-ops-card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="border-b border-ops-border bg-ops-bg/80 text-ops-text-muted">
+                      <tr>
+                        <th className="px-4 py-3">流水号</th>
+                        <th className="px-4 py-3">类型</th>
+                        <th className="px-4 py-3">对应制品 / 版本</th>
+                        <th className="px-4 py-3">执行操作人</th>
+                        <th className="px-4 py-3">状态</th>
+                        <th className="px-4 py-3">开始时间</th>
+                        <th className="px-4 py-3 text-right">回滚操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ops-border text-ops-text-sub">
+                      {releases.map((rec) => {
+                        const isDeploy = rec.action === 'DEPLOY';
+                        const isSuccess = rec.status === 'SUCCESS';
+                        const matchedArtifact = artifacts.find((a) => a.id === rec.artifact_id);
+                        const isCurrentActive = service.current_artifact_id === rec.artifact_id;
+
+                        return (
+                          <tr key={rec.id} className="hover:bg-ops-surface/50 transition-colors">
+                            <td className="px-4 py-3 font-bold text-white">#{rec.id}</td>
+
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  isDeploy
+                                    ? 'bg-cyan-950 border border-ops-cyan/40 text-ops-cyan'
+                                    : 'bg-amber-950 border border-amber-500/40 text-amber-400'
+                                }`}
+                              >
+                                {rec.action}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-white">
+                                {matchedArtifact ? matchedArtifact.filename : `制品 #${rec.artifact_id || '-'}`}
+                              </div>
+                              {matchedArtifact?.version_tag && (
+                                <div className="text-[10px] text-ops-text-muted">
+                                  Tag: {matchedArtifact.version_tag}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <div className="text-white">{rec.operator}</div>
+                              <div className="text-[10px] text-ops-text-muted">{rec.client_ip}</div>
+                            </td>
+
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  isSuccess
+                                    ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-400'
+                                    : 'bg-red-950/60 border border-red-500/40 text-red-400'
+                                }`}
+                              >
+                                {rec.status}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-3 text-ops-text-muted">
+                              {new Date(rec.started_at).toLocaleString()}
+                            </td>
+
+                            <td className="px-4 py-3 text-right">
+                              {matchedArtifact && !isCurrentActive && (
+                                <button
+                                  type="button"
+                                  onClick={() => openRollbackForArtifact(matchedArtifact)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors"
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  <span>一键回滚</span>
+                                </button>
+                              )}
+                              {isCurrentActive && (
+                                <span className="rounded px-2 py-0.5 text-[10px] bg-emerald-950 border border-emerald-500/30 text-emerald-400">
+                                  当前活跃
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Configs (Placeholder for Task 15 Monaco Editor) */}
+        {activeTab === 'configs' && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-ops-border bg-ops-card p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-950 border border-purple-500/30 text-purple-400">
+                  <FileCode2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">配置文件中心 (Config Center)</h3>
+                  <p className="text-xs text-ops-text-muted font-mono">
+                    自动扫描目标目录配置文件并支持在线版本修改与 .bak 安全备份
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-dashed border-ops-border bg-ops-bg/60 p-8 text-center space-y-2">
+                <FileText className="h-8 w-8 text-ops-text-muted mx-auto" />
+                <div className="text-xs font-semibold text-white">
+                  配置文件 Monaco 高级编辑器已准备接入 (Task 15)
+                </div>
+                <p className="text-[11px] font-mono text-ops-text-muted max-w-md mx-auto">
+                  支持 YAML/Properties 语法高亮、差异比对及自动备份还原。已扫描发现 {configFiles.length} 个配置文件。
+                </p>
+
+                {configFiles.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    {configFiles.map((f) => (
+                      <span
+                        key={f}
+                        className="rounded-md bg-slate-800 border border-ops-border px-2.5 py-1 text-xs font-mono text-ops-cyan"
+                      >
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Logs (Placeholder for Task 15 xterm) */}
+        {activeTab === 'logs' && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-ops-border bg-black p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-ops-border text-ops-cyan">
+                    <Terminal className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">实时控制台终端 (Live Terminal)</h3>
+                    <p className="text-xs text-ops-text-muted font-mono">
+                      基于 WebSocket 与 xterm.js 的全双工低延迟实时运维终端
+                    </p>
+                  </div>
+                </div>
+
+                <span className="rounded px-2.5 py-0.5 text-[10px] font-mono bg-cyan-950 border border-ops-cyan/30 text-ops-cyan">
+                  xterm.js 准备接入 (Task 15)
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-ops-border/60 bg-slate-950 p-6 font-mono text-xs text-slate-400 space-y-2">
+                <div className="text-emerald-400">
+                  [OpsHub Kernel] Tailer channel ready on /api/services/{service.id}/logs/ws
+                </div>
+                <div className="text-slate-500">
+                  日志持久化存储路径: {service.install_dir}/logs/console.log
+                </div>
+                <div className="text-slate-600 animate-pulse">
+                  等待 xterm 终端画布挂载并建立 WebSocket 流传输...
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: Audit (Audit logs table) */}
+        {activeTab === 'audit' && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-tight">服务操作审计日志</h3>
+              <p className="text-xs text-ops-text-muted font-mono mt-0.5">
+                记录对该服务实例的所有启动、停止、发布及回滚操作记录
+              </p>
+            </div>
+
+            {auditLogs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-ops-border bg-ops-card p-8 text-center text-xs font-mono text-ops-text-muted">
+                当前服务暂无审计轨迹记录
+              </div>
+            ) : (
+              <div className="rounded-xl border border-ops-border bg-ops-card overflow-hidden">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="border-b border-ops-border bg-ops-bg text-ops-text-muted">
+                    <tr>
+                      <th className="px-4 py-3">序号</th>
+                      <th className="px-4 py-3">操作动作</th>
+                      <th className="px-4 py-3">执行操作人</th>
+                      <th className="px-4 py-3">来源 IP</th>
+                      <th className="px-4 py-3">状态</th>
+                      <th className="px-4 py-3">时间</th>
+                      <th className="px-4 py-3">详情说明</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ops-border text-ops-text-sub">
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-ops-surface/50">
+                        <td className="px-4 py-3 text-white">#{log.id}</td>
+                        <td className="px-4 py-3 font-semibold text-ops-cyan">{log.action}</td>
+                        <td className="px-4 py-3 text-white">{log.operator}</td>
+                        <td className="px-4 py-3 text-ops-text-muted">{log.client_ip}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              log.status === 'SUCCESS' || log.status === 'RUNNING'
+                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-red-950 text-red-400 border border-red-500/30'
+                            }`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-ops-text-muted">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 truncate max-w-xs" title={log.details}>
+                          {log.details}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Deployment Wizard Modal */}
+      <DeployWizardModal
+        visible={deployModalVisible}
+        serviceId={service.id}
+        serviceName={service.name}
+        onClose={() => setDeployModalVisible(false)}
+        onSuccess={() => {
+          loadServiceData(true);
+        }}
+      />
+
+      {/* Rollback Confirmation Modal */}
+      {targetRollbackArtifact && (
+        <RollbackModal
+          visible={rollbackModalVisible}
+          serviceId={service.id}
+          serviceName={service.name}
+          currentArtifact={currentArtifact}
+          targetArtifact={targetRollbackArtifact}
+          onClose={() => {
+            setRollbackModalVisible(false);
+            setTargetRollbackArtifact(null);
+          }}
+          onSuccess={() => {
+            loadServiceData(true);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ServiceDetail;

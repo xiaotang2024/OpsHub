@@ -1,4 +1,4 @@
-import { Template, Service, JDKAsset } from '../types';
+import { Template, Service, JDKAsset, Artifact, DeployRecord, AuditLog, ServiceMetrics } from '../types';
 
 const API_BASE = '/api';
 
@@ -96,4 +96,78 @@ export const api = {
 
   // JDKs
   getJDKs: () => request<JDKAsset[]>('/jdks'),
+
+  // Releases & Deployment
+  getReleases: (serviceId: number) =>
+    request<DeployRecord[]>(`/services/${serviceId}/releases`),
+  deployService: (serviceId: number, artifactId: number) =>
+    request<DeployRecord>(`/services/${serviceId}/deploy`, {
+      method: 'POST',
+      body: JSON.stringify({ artifact_id: artifactId }),
+    }),
+  rollbackService: (serviceId: number, artifactId: number) =>
+    request<DeployRecord>(`/services/${serviceId}/rollback`, {
+      method: 'POST',
+      body: JSON.stringify({ artifact_id: artifactId }),
+    }),
+
+  // Artifacts
+  getArtifacts: (serviceId: number) =>
+    request<Artifact[]>(`/services/${serviceId}/artifacts`),
+  uploadArtifact: async (serviceId: number, formData: FormData): Promise<Artifact> => {
+    const token = localStorage.getItem('opshub_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE}/services/${serviceId}/artifacts`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      let errorMsg = `HTTP ${res.status} ${res.statusText}`;
+      try {
+        const errData = await res.json();
+        if (errData && errData.error) errorMsg = errData.error;
+      } catch {
+        // ignore
+      }
+      throw new Error(errorMsg);
+    }
+    return res.json();
+  },
+  deleteArtifact: (serviceId: number, artifactId: number) =>
+    request<{ message: string }>(`/services/${serviceId}/artifacts/${artifactId}`, {
+      method: 'DELETE',
+    }),
+
+  // Configs
+  getServiceConfigs: (serviceId: number, file?: string) =>
+    request<{ files?: string[]; file?: string; path?: string; content?: string }>(
+      `/services/${serviceId}/configs${file ? `?file=${encodeURIComponent(file)}` : ''}`
+    ),
+  saveServiceConfig: (serviceId: number, file: string, content: string) =>
+    request<{ message: string; file: string; backup?: string }>(`/services/${serviceId}/configs`, {
+      method: 'POST',
+      body: JSON.stringify({ file, content }),
+    }),
+
+  // Metrics
+  getServiceMetrics: (serviceId: number) =>
+    request<ServiceMetrics>(`/services/${serviceId}/metrics`),
+
+  // Audit Logs
+  getAuditLogs: (params: { target_type?: string; target_id?: string; page?: number; page_size?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.target_type) query.set('target_type', params.target_type);
+    if (params.target_id) query.set('target_id', params.target_id);
+    if (params.page) query.set('page', String(params.page));
+    if (params.page_size) query.set('page_size', String(params.page_size));
+    const qStr = query.toString();
+    return request<{ items: AuditLog[]; total: number; page: number; page_size: number }>(
+      `/audit-logs${qStr ? `?${qStr}` : ''}`
+    );
+  },
 };
+
