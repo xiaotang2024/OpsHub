@@ -43,8 +43,12 @@ export const ServiceFleet: React.FC = () => {
   // Optimistic tracking: serviceId -> action type ('start' | 'stop' | 'restart')
   const [inFlightActions, setInFlightActions] = useState<Record<number, string>>({});
 
-  // Details Drawer state
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  // Details Drawer state (tracked by ID so updates dynamically reflect when service state changes)
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const selectedService = useMemo(
+    () => services.find((s) => s.id === selectedServiceId) || null,
+    [services, selectedServiceId]
+  );
   const [copiedPort, setCopiedPort] = useState(false);
 
   const loadData = async (isBackground = false) => {
@@ -84,13 +88,18 @@ export const ServiceFleet: React.FC = () => {
     return { total: services.length, running, stopped, failed };
   }, [services]);
 
-  // Filtered services
+  // Filtered services with null-safe fallbacks
   const filteredServices = useMemo(() => {
+    const query = (searchQuery || '').toLowerCase();
     return services.filter((svc) => {
+      const name = (svc.name || '').toLowerCase();
+      const port = String(svc.port ?? '');
+      const installDir = (svc.install_dir || '').toLowerCase();
+
       const matchSearch =
-        svc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(svc.port).includes(searchQuery) ||
-        svc.install_dir.toLowerCase().includes(searchQuery.toLowerCase());
+        name.includes(query) ||
+        port.includes(query) ||
+        installDir.includes(query);
 
       const st = (svc.status || '').toUpperCase();
       let matchStatus = true;
@@ -184,7 +193,7 @@ export const ServiceFleet: React.FC = () => {
     }
     try {
       await api.deleteService(service.id);
-      setSelectedService(null);
+      setSelectedServiceId(null);
       await loadData(true);
     } catch (err: any) {
       alert(`删除服务失败: ${err.message}`);
@@ -441,7 +450,7 @@ export const ServiceFleet: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setSelectedService(svc)}
+                onClick={() => setSelectedServiceId(svc.id)}
                 className="group relative flex flex-col justify-between rounded-xl border border-ops-border bg-ops-card hover:border-ops-border-hover hover:bg-ops-card-hover transition-all duration-200 overflow-hidden shadow-lg cursor-pointer"
               >
                 {/* Card Header */}
@@ -550,7 +559,7 @@ export const ServiceFleet: React.FC = () => {
                   {/* Click-through details button */}
                   <button
                     type="button"
-                    onClick={() => setSelectedService(svc)}
+                    onClick={() => setSelectedServiceId(svc.id)}
                     className="flex items-center gap-1 text-xs text-ops-text-muted hover:text-ops-cyan transition-colors"
                   >
                     <span>详情</span>
@@ -566,13 +575,17 @@ export const ServiceFleet: React.FC = () => {
       {/* Service Details Drawer / Modal */}
       <AnimatePresence>
         {selectedService && (
-          <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
+            onClick={() => setSelectedServiceId(null)}
+          >
             <motion.div
+              onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, x: 400 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 400 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="relative w-full max-w-lg h-full bg-ops-surface border-l border-ops-border shadow-2xl flex flex-col overflow-hidden"
+              className="relative w-full max-w-lg h-full bg-ops-surface border-l border-ops-border shadow-2xl flex flex-col overflow-hidden cursor-default"
             >
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-5 border-b border-ops-border bg-ops-bg/80">
@@ -592,7 +605,7 @@ export const ServiceFleet: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedService(null)}
+                  onClick={() => setSelectedServiceId(null)}
                   className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border hover:text-white"
                 >
                   <X className="h-5 w-5" />
@@ -704,7 +717,7 @@ export const ServiceFleet: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedService(null)}
+                    onClick={() => setSelectedServiceId(null)}
                     className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white"
                   >
                     关闭

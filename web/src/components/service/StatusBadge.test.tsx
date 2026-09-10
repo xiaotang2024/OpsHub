@@ -16,8 +16,9 @@ describe('StatusBadge', () => {
   });
 
   it('renders stopped status with subtle indicator', () => {
-    render(<StatusBadge status="STOPPED" />);
+    const { container } = render(<StatusBadge status="STOPPED" />);
     expect(screen.getByText(/已停止/i)).toBeInTheDocument();
+    expect(container.querySelector('.bg-rose-500')).toBeInTheDocument();
   });
 
   it('renders failed status with alert beacon', () => {

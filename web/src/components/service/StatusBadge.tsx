@@ -134,7 +134,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-slate-900/60 text-slate-400 border border-slate-700/50 ${className}`}
         >
-          <span className="h-2 w-2 rounded-full bg-slate-500" />
+          <span className="h-2 w-2 rounded-full bg-rose-500" />
           {showText && <span>已停止</span>}
         </span>
       );

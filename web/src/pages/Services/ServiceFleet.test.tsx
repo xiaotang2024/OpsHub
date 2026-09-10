@@ -123,4 +123,32 @@ describe('ServiceFleet Component', () => {
       expect(api.stopService).toHaveBeenCalledWith(101);
     });
   });
+
+  it('opens details drawer on click and dismisses when backdrop is clicked', async () => {
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    const card = screen.getByText('order-center');
+    fireEvent.click(card);
+
+    expect(screen.getByText('服务实例详细运行态 & 部署参数')).toBeInTheDocument();
+
+    // Click backdrop
+    const backdrop = screen.getByText('服务实例详细运行态 & 部署参数').closest('.fixed.inset-0');
+    expect(backdrop).toBeInTheDocument();
+    if (backdrop) {
+      fireEvent.click(backdrop);
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByText('服务实例详细运行态 & 部署参数')).not.toBeInTheDocument();
+    });
+  });
 });

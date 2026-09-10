@@ -73,11 +73,16 @@ export const TemplateList: React.FC = () => {
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
+    const query = (searchQuery || '').toLowerCase();
     return templates.filter((tpl) => {
+      const name = (tpl.name || '').toLowerCase();
+      const installDir = (tpl.install_dir_pattern || '').toLowerCase();
+      const jvm = (tpl.jvm_options || '').toLowerCase();
+
       const matchSearch =
-        tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tpl.install_dir_pattern.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tpl.jvm_options.toLowerCase().includes(searchQuery.toLowerCase());
+        name.includes(query) ||
+        installDir.includes(query) ||
+        jvm.includes(query);
 
       const matchType = typeFilter === 'all' || tpl.type === typeFilter;
       return matchSearch && matchType;
