@@ -18,6 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../../api';
+import { InteractiveCanvasBackground } from './InteractiveCanvasBackground';
+import { OpsBot } from './OpsBot';
 
 export type AuthMode = 'login' | 'register' | 'forgot-password';
 
@@ -75,6 +77,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  const activeShowPassword =
+    mode === 'login'
+      ? showLoginPassword
+      : mode === 'register'
+      ? showRegPassword
+      : showForgotNewPassword;
 
   useEffect(() => {
     if (isOpen) {
@@ -261,7 +271,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
+        {/* Dynamic Interactive Constellation Background */}
+        <InteractiveCanvasBackground />
+
+        {/* Semi-transparent Backdrop overlay for depth */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -269,19 +282,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           onClick={() => {
             if (canDismiss && onClose) onClose();
           }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
         />
 
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-ops-border bg-ops-surface p-6 shadow-2xl z-10 max-h-[90vh] flex flex-col"
-        >
-          {/* Cyber Accent Border Top */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-cyan-500" />
+        {/* Modal Window Container with OpsBot Companion */}
+        <div className="relative w-full max-w-lg z-10 pt-10">
+          {/* Playful OpsBot sitting on the card */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
+            <OpsBot
+              isPasswordFocused={isPasswordFocused}
+              showPassword={activeShowPassword}
+              isLoading={loading || queryingQuestion}
+              isSuccess={!!successMsg}
+              hasError={!!error}
+            />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="relative w-full overflow-hidden rounded-2xl border border-ops-border bg-ops-surface/95 backdrop-blur-xl p-6 shadow-[0_12px_45px_rgba(0,0,0,0.7)] max-h-[82vh] flex flex-col"
+          >
+            {/* Cyber Accent Border Top */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-cyan-500" />
 
           {/* Close button if dismissible */}
           {canDismiss && onClose && (
@@ -432,6 +457,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         type={showLoginPassword ? 'text' : 'password'}
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
                         placeholder="请输入访问凭据密钥"
                         disabled={loading}
                         className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-10 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
@@ -540,6 +567,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         type={showRegPassword ? 'text' : 'password'}
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
                         placeholder="至少 6 位字符"
                         disabled={loading}
                         className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
@@ -564,6 +593,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         type={showRegPassword ? 'text' : 'password'}
                         value={regConfirmPassword}
                         onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
                         placeholder="重复输入密码"
                         disabled={loading}
                         className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
@@ -763,6 +794,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             type={showForgotNewPassword ? 'text' : 'password'}
                             value={forgotNewPassword}
                             onChange={(e) => setForgotNewPassword(e.target.value)}
+                            onFocus={() => setIsPasswordFocused(true)}
+                            onBlur={() => setIsPasswordFocused(false)}
                             placeholder="至少 6 位字符"
                             disabled={loading}
                             className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
@@ -787,6 +820,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             type={showForgotNewPassword ? 'text' : 'password'}
                             value={forgotConfirmPassword}
                             onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                            onFocus={() => setIsPasswordFocused(true)}
+                            onBlur={() => setIsPasswordFocused(false)}
                             placeholder="重复新密码"
                             disabled={loading}
                             className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
@@ -826,6 +861,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             )}
           </div>
         </motion.div>
+        </div>
       </div>
     </AnimatePresence>
   );
