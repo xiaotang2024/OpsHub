@@ -11,12 +11,22 @@ import (
 	"opshub/internal/model"
 )
 
+// reservedVars contains the list of system placeholders protected against being overwritten by custom environment variables.
+var reservedVars = map[string]bool{
+	"SERVICE_NAME": true,
+	"INSTALL_DIR":  true,
+	"PACKAGE_FILE": true,
+	"JAVA_BIN":     true,
+	"PORT":         true,
+	"JVM_OPTS":     true,
+}
+
 // JVMConfig represents the structured configuration for Java Virtual Machine parameters.
 type JVMConfig struct {
 	HeapMin  string `json:"heap_min,omitempty"`
 	HeapMax  string `json:"heap_max,omitempty"`
 	GC       string `json:"gc,omitempty"`
-	OOMDump  bool   `json:"oom_dump,omitempty"`
+	OOMDump  *bool  `json:"oom_dump,omitempty"`
 	DumpPath string `json:"dump_path,omitempty"`
 	Custom   string `json:"custom,omitempty"`
 }
@@ -63,7 +73,7 @@ func (cfg *JVMConfig) ToFlags() string {
 	}
 
 	// OOM Dump options
-	if cfg.OOMDump {
+	if cfg.OOMDump != nil && *cfg.OOMDump {
 		parts = append(parts, "-XX:+HeapDumpOnOutOfMemoryError")
 		if dumpPath := strings.TrimSpace(cfg.DumpPath); dumpPath != "" {
 			parts = append(parts, "-XX:HeapDumpPath="+dumpPath)
@@ -133,7 +143,7 @@ func (e *Engine) RenderStartCommand(tpl *model.Template, svc *model.Service, jdk
 	}
 
 	installDir := svc.InstallDir
-	if installDir == "" && tpl.InstallDirPattern != "" {
+	if installDir == "" {
 		installDir = e.RenderInstallDir(tpl.InstallDirPattern, svc.Name)
 	}
 
@@ -164,18 +174,21 @@ func (e *Engine) RenderStartCommand(tpl *model.Template, svc *model.Service, jdk
 		return "", fmt.Errorf("failed to render environment variables: %w", err)
 	}
 
-	// Build variable expansion map
-	vars := map[string]string{
-		"SERVICE_NAME": svc.Name,
-		"INSTALL_DIR":  installDir,
-		"PACKAGE_FILE": pkgPath,
-		"JAVA_BIN":     javaBin,
-		"PORT":         portStr,
-	}
+	// Build variable expansion map: custom envs prefixed with ENV_ and plain key (if not reserved)
+	vars := make(map[string]string)
 	for k, v := range mergedEnv {
 		vars["ENV_"+k] = v
-		vars[k] = v
+		if !reservedVars[k] {
+			vars[k] = v
+		}
 	}
+
+	// Reserved system variables always take precedence
+	vars["SERVICE_NAME"] = svc.Name
+	vars["INSTALL_DIR"] = installDir
+	vars["PACKAGE_FILE"] = pkgPath
+	vars["JAVA_BIN"] = javaBin
+	vars["PORT"] = portStr
 
 	// Expand variables inside JVM options (e.g. -XX:HeapDumpPath=${INSTALL_DIR}/logs/)
 	jvmOpts := e.ExpandVariables(mergedJVM.ToFlags(), vars)
@@ -218,7 +231,7 @@ func (e *Engine) RenderStopCommand(tpl *model.Template, svc *model.Service) (str
 	}
 
 	installDir := svc.InstallDir
-	if installDir == "" && tpl.InstallDirPattern != "" {
+	if installDir == "" {
 		installDir = e.RenderInstallDir(tpl.InstallDirPattern, svc.Name)
 	}
 
@@ -342,9 +355,11 @@ func parseJVMConfig(rawJSON string) (*JVMConfig, error) {
 		case "oomdump":
 			switch val := v.(type) {
 			case bool:
-				cfg.OOMDump = val
+				b := val
+				cfg.OOMDump = &b
 			case string:
-				cfg.OOMDump = strings.EqualFold(val, "true") || val == "1"
+				b := strings.EqualFold(val, "true") || val == "1"
+				cfg.OOMDump = &b
 			}
 		case "dumppath", "heapdumppath":
 			if s, ok := v.(string); ok {
@@ -375,9 +390,12 @@ func mergeJVMConfigs(tpl, svc *JVMConfig) *JVMConfig {
 		HeapMin:  tpl.HeapMin,
 		HeapMax:  tpl.HeapMax,
 		GC:       tpl.GC,
-		OOMDump:  tpl.OOMDump,
 		DumpPath: tpl.DumpPath,
 		Custom:   tpl.Custom,
+	}
+	if tpl.OOMDump != nil {
+		b := *tpl.OOMDump
+		merged.OOMDump = &b
 	}
 
 	if svc.HeapMin != "" {
@@ -389,8 +407,9 @@ func mergeJVMConfigs(tpl, svc *JVMConfig) *JVMConfig {
 	if svc.GC != "" {
 		merged.GC = svc.GC
 	}
-	if svc.OOMDump {
-		merged.OOMDump = true
+	if svc.OOMDump != nil {
+		b := *svc.OOMDump
+		merged.OOMDump = &b
 	}
 	if svc.DumpPath != "" {
 		merged.DumpPath = svc.DumpPath

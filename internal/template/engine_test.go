@@ -326,3 +326,54 @@ func TestEngine_AdditionalEdgeCases(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEngine_ReviewFindings(t *testing.T) {
+	engine := template.NewEngine()
+
+	// Finding 1: Ensure installDir always falls back to RenderInstallDir default (/opt/apps/${SERVICE_NAME})
+	// even if tpl.InstallDirPattern is empty and svc.InstallDir is empty.
+	tplEmptyPattern := &model.Template{
+		Type:              model.TemplateTypeGenericArchive,
+		InstallDirPattern: "", // empty
+	}
+	svcEmptyDir := &model.Service{
+		Name:       "default-dir-svc",
+		InstallDir: "", // empty
+	}
+	startCmd, err := engine.RenderStartCommand(tplEmptyPattern, svcEmptyDir, nil, "")
+	require.NoError(t, err)
+	assert.Equal(t, "/opt/apps/default-dir-svc/bin/startup.sh", startCmd)
+
+	stopCmd, err := engine.RenderStopCommand(tplEmptyPattern, svcEmptyDir)
+	require.NoError(t, err)
+	assert.Equal(t, "/opt/apps/default-dir-svc/bin/shutdown.sh", stopCmd)
+
+	// Finding 2: In mergeJVMConfigs, allow explicit oom_dump: false on the service to override oom_dump: true from the template
+	tplWithOOM := `{"heap_min":"512m","oom_dump":true,"dump_path":"/var/log/dump.hprof"}`
+	svcDisableOOM := `{"oom_dump":false}`
+	mergedJSON, err := engine.MergeJVMOptions(tplWithOOM, svcDisableOOM)
+	require.NoError(t, err)
+	flags := engine.ParseJVMOptions(mergedJSON)
+	assert.Contains(t, flags, "-Xms512m")
+	assert.NotContains(t, flags, "-XX:+HeapDumpOnOutOfMemoryError")
+
+	// Finding 3: Protect reserved system variables from being overwritten by custom environment variables
+	tplReserved := &model.Template{
+		Type:     "java_jar",
+		StartCmd: "echo name=${SERVICE_NAME} pkg=${PACKAGE_FILE} custom=${ENV_SERVICE_NAME}",
+		EnvVars:  `{"SERVICE_NAME":"malicious-name"}`,
+	}
+	svcReserved := &model.Service{
+		Name:       "real-service",
+		InstallDir: "/opt/apps/real-service",
+		EnvVars:    `{"PACKAGE_FILE":"fake-pkg","PORT":"99999"}`,
+		Port:       8080,
+	}
+	rendered, err := engine.RenderStartCommand(tplReserved, svcReserved, nil, "/opt/apps/real-service/app.jar")
+	require.NoError(t, err)
+	assert.Contains(t, rendered, "name=real-service")
+	assert.Contains(t, rendered, "pkg=/opt/apps/real-service/app.jar")
+	assert.Contains(t, rendered, "custom=malicious-name")
+	assert.NotContains(t, rendered, "name=malicious-name")
+}
+
+
