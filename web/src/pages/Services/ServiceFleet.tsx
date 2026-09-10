@@ -70,6 +70,14 @@ export const ServiceFleet: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    const handleAuthenticated = () => {
+      loadData();
+    };
+    window.addEventListener('opshub:authenticated', handleAuthenticated);
+    return () => {
+      window.removeEventListener('opshub:authenticated', handleAuthenticated);
+    };
   }, []);
 
   // Summary counts

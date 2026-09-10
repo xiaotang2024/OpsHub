@@ -13,7 +13,7 @@ describe('Shell Component', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/OpsHub/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/OpsHub/i)[0]).toBeInTheDocument();
     expect(screen.getByText(/服务列表/i)).toBeInTheDocument();
     expect(screen.getByText(/部署模板/i)).toBeInTheDocument();
     expect(screen.getByText(/JDK 资产/i)).toBeInTheDocument();

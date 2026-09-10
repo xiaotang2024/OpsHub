@@ -13,7 +13,10 @@ import {
   ChevronRight,
   Clock,
   User,
+  LogOut,
 } from 'lucide-react';
+import { LoginModal } from '../auth/LoginModal';
+import { api } from '../../api';
 
 interface ShellProps {
   children?: React.ReactNode;
@@ -55,6 +58,58 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const [currentUser, setCurrentUser] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('opshub_username') || (localStorage.getItem('opshub_token') ? 'admin' : null);
+  });
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('opshub_token');
+    if (!token) {
+      setIsLoginOpen(true);
+    } else {
+      api
+        .getMe()
+        .then((user) => {
+          if (user && user.username) {
+            setCurrentUser(user.username);
+            localStorage.setItem('opshub_username', user.username);
+          }
+        })
+        .catch(() => {
+          setIsLoginOpen(true);
+        });
+    }
+
+    const handleUnauthorized = () => {
+      localStorage.removeItem('opshub_token');
+      setCurrentUser(null);
+      setIsLoginOpen(true);
+    };
+
+    const handleAuthenticated = (e: any) => {
+      const u = e.detail?.username || 'admin';
+      setCurrentUser(u);
+      localStorage.setItem('opshub_username', u);
+      setIsLoginOpen(false);
+    };
+
+    window.addEventListener('opshub:unauthorized', handleUnauthorized);
+    window.addEventListener('opshub:authenticated', handleAuthenticated);
+    return () => {
+      window.removeEventListener('opshub:unauthorized', handleUnauthorized);
+      window.removeEventListener('opshub:authenticated', handleAuthenticated);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('opshub_token');
+    localStorage.removeItem('opshub_username');
+    setCurrentUser(null);
+    setIsLoginOpen(true);
+  };
 
   const currentNav = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));
   const activeTitle = currentNav ? currentNav.name : '控制台';
@@ -183,10 +238,30 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-white">运维管理员</span>
-                <span className="font-mono text-[10px] text-ops-cyan">Ops Admin</span>
+                <span className="font-mono text-[10px] text-ops-cyan">
+                  {currentUser ? `Ops Admin (${currentUser})` : 'Ops Admin'}
+                </span>
               </div>
             </div>
-            <span className="flex h-2 w-2 rounded-full bg-ops-emerald" title="在线" />
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="退出登录"
+                className="rounded p-1 text-ops-text-muted hover:bg-red-950/50 hover:text-red-400 transition-colors"
+                aria-label="退出登录"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsLoginOpen(true)}
+                className="text-[11px] font-mono text-ops-cyan hover:underline"
+              >
+                登录
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -239,6 +314,17 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
           {children || <Outlet />}
         </motion.main>
       </div>
+
+      {/* Global Login Authentication Modal */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        canDismiss={!!currentUser}
+        onClose={() => setIsLoginOpen(false)}
+        onSuccess={(token, username) => {
+          setCurrentUser(username);
+          setIsLoginOpen(false);
+        }}
+      />
     </div>
   );
 };

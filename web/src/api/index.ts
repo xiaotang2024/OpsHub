@@ -33,6 +33,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // ignore json parse error
     }
+
+    if (res.status === 401 && path !== '/auth/login' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('opshub:unauthorized'));
+    }
+
     throw new Error(errorMsg);
   }
 
@@ -169,5 +174,18 @@ export const api = {
       `/audit-logs${qStr ? `?${qStr}` : ''}`
     );
   },
+
+  // Auth
+  login: (username: string, password: string) =>
+    request<{ token: string; expires_at: number }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+  getMe: () => request<{ username: string; role: string }>('/auth/me'),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    }),
 };
 

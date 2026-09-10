@@ -128,6 +128,14 @@ export const ServiceDetail: React.FC = () => {
 
   useEffect(() => {
     loadServiceData();
+
+    const handleAuthenticated = () => {
+      loadServiceData();
+    };
+    window.addEventListener('opshub:authenticated', handleAuthenticated);
+    return () => {
+      window.removeEventListener('opshub:authenticated', handleAuthenticated);
+    };
   }, [loadServiceData]);
 
   // Current active artifact
