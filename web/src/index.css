@@ -23,35 +23,35 @@
   [data-theme="celadon-blue"] {
     color-scheme: dark;
     /* 天水雾蓝：天水碧 #5fa3b0 + 雾蓝 #2d5678 + 鲸灰 #475061 */
-    --ops-bg: #0c131a;
-    --ops-surface: #13202c;
-    --ops-card: #13202c;
-    --ops-card-hover: #1b2c3d;
-    --ops-border: #243a4e;
-    --ops-border-hover: #475061; /* 鲸灰 */
-    --ops-primary: #5fa3b0; /* 天水碧 */
-    --ops-primary-dim: rgba(95, 163, 176, 0.18);
-    --ops-primary-glow: rgba(95, 163, 176, 0.38);
-    --ops-text-main: #F4F8FA;
-    --ops-text-sub: #C8D7DE;
-    --ops-text-muted: #8FA2AF;
+    --ops-bg: #14222f;              /* 显著深雾蓝底色 */
+    --ops-surface: #1c3347;         /* 饱满雾蓝卡片表面 */
+    --ops-card: #1c3347;
+    --ops-card-hover: #25425c;      /* 雾蓝卡片悬浮高亮 */
+    --ops-border: #475061;          /* 鲸灰边框 */
+    --ops-border-hover: #5fa3b0;    /* 天水碧悬浮高亮 */
+    --ops-primary: #5fa3b0;         /* 天水碧高亮 */
+    --ops-primary-dim: rgba(95, 163, 176, 0.22);
+    --ops-primary-glow: rgba(95, 163, 176, 0.50);
+    --ops-text-main: #F8FCFE;
+    --ops-text-sub: #D0E2EC;
+    --ops-text-muted: #96B1C2;
   }
 
   [data-theme="purple-tea"] {
     color-scheme: dark;
     /* 木紫茶岩：木紫 #4b4e72 + 茶色 #aa5140 + 熔岩灰 #606165 */
-    --ops-bg: #13131c;
-    --ops-surface: #1e1e2c;
-    --ops-card: #1e1e2c;
-    --ops-card-hover: #29293b;
-    --ops-border: #353647;
-    --ops-border-hover: #606165; /* 熔岩灰 */
-    --ops-primary: #aa5140; /* 茶色高亮 */
-    --ops-primary-dim: rgba(170, 81, 64, 0.20);
-    --ops-primary-glow: rgba(170, 81, 64, 0.38);
-    --ops-text-main: #FAF6F5;
-    --ops-text-sub: #DBD5DA;
-    --ops-text-muted: #A39DA8;
+    --ops-bg: #1e1c2b;              /* 鲜明深木紫底色 */
+    --ops-surface: #2b273d;         /* 饱满木紫卡片表面 */
+    --ops-card: #2b273d;
+    --ops-card-hover: #38334f;      /* 木紫卡片悬浮高亮 */
+    --ops-border: #606165;          /* 熔岩灰边框 */
+    --ops-border-hover: #aa5140;    /* 茶色悬浮高亮 */
+    --ops-primary: #aa5140;         /* 茶色高亮 */
+    --ops-primary-dim: rgba(170, 81, 64, 0.28);
+    --ops-primary-glow: rgba(170, 81, 64, 0.55);
+    --ops-text-main: #FFFDFD;
+    --ops-text-sub: #E5DEE3;
+    --ops-text-muted: #B2A7B0;
   }
 
   body {
@@ -60,6 +60,11 @@
     margin: 0;
     padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  /* Smooth transition on theme switch */
+  body, aside, header, main {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   }
 
   /* Custom high-craft scrollbar */
@@ -81,14 +86,74 @@
 
 @layer utilities {
   .glow-cyan {
-    box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+    box-shadow: 0 0 14px var(--ops-primary-glow, rgba(6, 182, 212, 0.25));
   }
   .glow-emerald {
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
   }
   .glass-panel {
-    background: rgba(19, 27, 42, 0.85);
+    background: var(--ops-surface, rgba(19, 27, 42, 0.85));
     backdrop-filter: blur(12px);
-    border: 1px solid #1E293B;
+    border: 1px solid var(--ops-border, #1E293B);
   }
+}
+
+/* =========================================================
+   Theme Overrides: 天水雾蓝 (Mist & Celadon)
+   天水碧 #5fa3b0 + 雾蓝 #2d5678 + 鲸灰 #475061
+========================================================= */
+[data-theme="celadon-blue"] [class*="bg-cyan-950"],
+[data-theme="celadon-blue"] [class*="bg-cyan-900"] {
+  background-color: rgba(95, 163, 176, 0.20) !important;
+}
+
+[data-theme="celadon-blue"] [class*="hover:bg-cyan-400"]:hover {
+  background-color: #76b8c4 !important;
+}
+
+[data-theme="celadon-blue"] [class*="border-ops-cyan"] {
+  border-color: #5fa3b0 !important;
+}
+
+[data-theme="celadon-blue"] [class*="text-ops-cyan"] {
+  color: #5fa3b0 !important;
+}
+
+[data-theme="celadon-blue"] [class*="bg-ops-cyan"] {
+  background-color: #5fa3b0 !important;
+}
+
+[data-theme="celadon-blue"] [class*="shadow-cyan-glow"] {
+  box-shadow: 0 0 18px -2px rgba(95, 163, 176, 0.55) !important;
+}
+
+/* =========================================================
+   Theme Overrides: 木紫茶岩 (Wood & Terracotta)
+   木紫 #4b4e72 + 茶色 #aa5140 + 熔岩灰 #606165
+========================================================= */
+[data-theme="purple-tea"] [class*="bg-cyan-950"],
+[data-theme="purple-tea"] [class*="bg-cyan-900"] {
+  background-color: rgba(170, 81, 64, 0.25) !important;
+}
+
+[data-theme="purple-tea"] [class*="hover:bg-cyan-400"]:hover {
+  background-color: #c25f4c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="purple-tea"] [class*="border-ops-cyan"] {
+  border-color: #aa5140 !important;
+}
+
+[data-theme="purple-tea"] [class*="text-ops-cyan"] {
+  color: #aa5140 !important;
+}
+
+[data-theme="purple-tea"] [class*="bg-ops-cyan"] {
+  background-color: #aa5140 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="purple-tea"] [class*="shadow-cyan-glow"] {
+  box-shadow: 0 0 18px -2px rgba(170, 81, 64, 0.60) !important;
 }

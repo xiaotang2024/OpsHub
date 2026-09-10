@@ -70,6 +70,7 @@ export const ThemePicker: React.FC = () => {
     setCurrentTheme(themeId);
     if (typeof window !== 'undefined') {
       document.documentElement.setAttribute('data-theme', themeId);
+      document.body.setAttribute('data-theme', themeId);
       localStorage.setItem('opshub_theme', themeId);
       window.dispatchEvent(new CustomEvent('opshub:theme-changed', { detail: { theme: themeId } }));
     }
@@ -78,6 +79,7 @@ export const ThemePicker: React.FC = () => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       document.documentElement.setAttribute('data-theme', currentTheme);
+      document.body.setAttribute('data-theme', currentTheme);
     }
   }, [currentTheme]);
 
