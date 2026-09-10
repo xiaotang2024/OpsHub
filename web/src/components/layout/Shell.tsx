@@ -16,8 +16,10 @@ import {
   LogOut,
 } from 'lucide-react';
 import { LoginModal } from '../auth/LoginModal';
+import { UserProfileModal } from '../auth/UserProfileModal';
 import { ThemePicker } from '../theme/ThemePicker';
 import { api } from '../../api';
+import { UserProfile } from '../../types';
 
 interface ShellProps {
   children?: React.ReactNode;
@@ -64,7 +66,9 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('opshub_username') || (localStorage.getItem('opshub_token') ? 'admin' : null);
   });
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('opshub_token');
@@ -76,6 +80,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
         .then((user) => {
           if (user && user.username) {
             setCurrentUser(user.username);
+            setUserProfile(user);
             localStorage.setItem('opshub_username', user.username);
           }
         })
@@ -86,13 +91,21 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
 
     const handleUnauthorized = () => {
       localStorage.removeItem('opshub_token');
+      localStorage.removeItem('opshub_username');
       setCurrentUser(null);
+      setUserProfile(null);
       setIsLoginOpen(true);
+      setIsProfileOpen(false);
     };
 
     const handleAuthenticated = (e: any) => {
       const u = e.detail?.username || 'admin';
       setCurrentUser(u);
+      if (e.detail?.user) {
+        setUserProfile(e.detail.user);
+      } else {
+        api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+      }
       localStorage.setItem('opshub_username', u);
       setIsLoginOpen(false);
     };
@@ -109,7 +122,9 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     localStorage.removeItem('opshub_token');
     localStorage.removeItem('opshub_username');
     setCurrentUser(null);
+    setUserProfile(null);
     setIsLoginOpen(true);
+    setIsProfileOpen(false);
   };
 
   const currentNav = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));
@@ -232,36 +247,46 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
 
         {/* User profile & session footer */}
         <div className="border-t border-ops-border p-3 bg-ops-bg/50">
-          <div className="flex items-center justify-between rounded-lg border border-ops-border bg-ops-surface p-2.5 hover:border-ops-border-hover transition-colors">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-cyan-900 to-slate-800 text-ops-cyan border border-ops-cyan/30">
+          <div
+            onClick={() => {
+              if (currentUser) {
+                setIsProfileOpen(true);
+              } else {
+                setIsLoginOpen(true);
+              }
+            }}
+            className="flex items-center justify-between rounded-lg border border-ops-border bg-ops-surface p-2.5 hover:border-ops-cyan/50 hover:bg-ops-surface/80 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-cyan-900 to-slate-800 text-ops-cyan border border-ops-cyan/30 group-hover:shadow-cyan-glow transition-all">
                 <User className="h-4 w-4" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-semibold text-white">运维管理员</span>
-                <span className="font-mono text-[10px] text-ops-cyan">
-                  {currentUser ? `Ops Admin (${currentUser})` : 'Ops Admin'}
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-white truncate">
+                  {userProfile?.nickname || (userProfile?.role === 'admin' ? '超级管理员' : userProfile ? '运维操作员' : '运维管理员')}
+                </span>
+                <span className="font-mono text-[10px] text-ops-cyan truncate">
+                  {currentUser ? `@${currentUser}` : 'Ops Admin'}
                 </span>
               </div>
             </div>
             {currentUser ? (
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLogout();
+                }}
                 title="退出登录"
-                className="rounded p-1 text-ops-text-muted hover:bg-red-950/50 hover:text-red-400 transition-colors"
+                className="rounded p-1 text-ops-text-muted hover:bg-red-950/50 hover:text-red-400 transition-colors shrink-0"
                 aria-label="退出登录"
               >
                 <LogOut className="h-4 w-4" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setIsLoginOpen(true)}
-                className="text-[11px] font-mono text-ops-cyan hover:underline"
-              >
+              <span className="text-[11px] font-mono text-ops-cyan hover:underline shrink-0">
                 登录
-              </button>
+              </span>
             )}
           </div>
         </div>
@@ -326,7 +351,18 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
         onSuccess={(token, username) => {
           setCurrentUser(username);
           setIsLoginOpen(false);
+          api.getMe().then((p) => setUserProfile(p)).catch(() => {});
         }}
+      />
+
+      {/* User Personal Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => {
+          setIsProfileOpen(false);
+          api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+        }}
+        onLogout={handleLogout}
       />
     </div>
   );

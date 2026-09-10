@@ -1,4 +1,16 @@
-import { Template, Service, JDKAsset, Artifact, DeployRecord, AuditLog, ServiceMetrics } from '../types';
+import {
+  Template,
+  Service,
+  JDKAsset,
+  Artifact,
+  DeployRecord,
+  AuditLog,
+  ServiceMetrics,
+  UserProfile,
+  RegisterPayload,
+  ResetPasswordPayload,
+  UpdateProfilePayload,
+} from '../types';
 
 const API_BASE = '/api';
 
@@ -34,7 +46,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       // ignore json parse error
     }
 
-    if (res.status === 401 && path !== '/auth/login' && typeof window !== 'undefined') {
+    const publicAuthPaths = ['/auth/login', '/auth/register', '/auth/security-question', '/auth/reset-password'];
+    if (res.status === 401 && !publicAuthPaths.some((p) => path.startsWith(p)) && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('opshub:unauthorized'));
     }
 
@@ -194,11 +207,31 @@ export const api = {
 
   // Auth
   login: (username: string, password: string) =>
-    request<{ token: string; expires_at: number }>('/auth/login', {
+    request<{ token: string; user?: UserProfile }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
-  getMe: () => request<{ username: string; role: string }>('/auth/me'),
+  register: (payload: RegisterPayload) =>
+    request<{ token: string; user: UserProfile; message?: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getSecurityQuestion: (username: string) =>
+    request<{ username: string; security_question: string }>(
+      `/auth/security-question?username=${encodeURIComponent(username)}`
+    ),
+  resetPassword: (payload: ResetPasswordPayload) =>
+    request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getMe: () => request<UserProfile>('/auth/me'),
+  getProfile: () => request<UserProfile>('/auth/profile'),
+  updateProfile: (payload: UpdateProfilePayload) =>
+    request<UserProfile>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
   changePassword: (oldPassword: string, newPassword: string) =>
     request<{ message: string }>('/auth/change-password', {
       method: 'POST',

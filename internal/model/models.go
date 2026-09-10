@@ -45,8 +45,23 @@ const (
 
 // User roles
 const (
-	RoleAdmin = "admin"
+	RoleAdmin    = "admin"
+	RoleOperator = "operator"
 )
+
+// User represents an authenticated operator or administrator.
+type User struct {
+	ID                 int64     `json:"id" db:"id"`
+	Username           string    `json:"username" db:"username"`
+	PasswordHash       string    `json:"-" db:"password_hash"`
+	Role               string    `json:"role" db:"role"`
+	Nickname           string    `json:"nickname" db:"nickname"`
+	Email              string    `json:"email" db:"email"`
+	SecurityQuestion   string    `json:"security_question,omitempty" db:"security_question"`
+	SecurityAnswerHash string    `json:"-" db:"security_answer_hash"`
+	CreatedAt          time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
+}
 
 // JDKAsset represents a registered or discovered JDK installation.
 type JDKAsset struct {
@@ -134,11 +149,3 @@ type AuditLog struct {
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
-// User represents an administrator or system user account.
-type User struct {
-	ID           int64     `json:"id" db:"id"`
-	Username     string    `json:"username" db:"username"`
-	PasswordHash string    `json:"-" db:"password_hash"`
-	Role         string    `json:"role" db:"role"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-}

@@ -62,10 +62,13 @@ func (s *AuthService) InitAdminIfNeeded() (string, error) {
 	}
 
 	_, err = s.db.Exec(
-		"INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+		"INSERT INTO users (username, password_hash, role, nickname, security_question, security_answer_hash) VALUES (?, ?, ?, ?, ?, ?)",
 		"admin",
 		string(hash),
 		model.RoleAdmin,
+		"系统管理员",
+		"OpsHub 初始系统口令密保（答案为服务端首次启动生成的初始口令）",
+		string(hash),
 	)
 	if err != nil {
 		return "", fmt.Errorf("insert admin user failed: %w", err)
@@ -201,6 +204,251 @@ func (s *AuthService) ResetPassword(username, newPassword string) error {
 	)
 	if err != nil {
 		return fmt.Errorf("update user password failed: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
+}
+
+// Register registers a new user with RoleOperator, hashed password, and security question.
+func (s *AuthService) Register(username, password, nickname, email, securityQuestion, securityAnswer string) (*model.User, error) {
+	username = strings.TrimSpace(username)
+	nickname = strings.TrimSpace(nickname)
+	email = strings.TrimSpace(email)
+	securityQuestion = strings.TrimSpace(securityQuestion)
+	securityAnswer = strings.TrimSpace(securityAnswer)
+
+	if len(username) < 3 {
+		return nil, errors.New("username must be at least 3 characters")
+	}
+	if len(password) < 6 {
+		return nil, errors.New("password must be at least 6 characters")
+	}
+	if securityQuestion == "" {
+		return nil, errors.New("security question cannot be empty")
+	}
+	if securityAnswer == "" {
+		return nil, errors.New("security answer cannot be empty")
+	}
+
+	if nickname == "" {
+		nickname = username
+	}
+
+	var exists int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", username).Scan(&exists)
+	if err != nil {
+		return nil, fmt.Errorf("check username failed: %w", err)
+	}
+	if exists > 0 {
+		return nil, errors.New("username already exists")
+	}
+
+	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password failed: %w", err)
+	}
+
+	normalizedAnswer := strings.ToLower(securityAnswer)
+	answerHash, err := bcrypt.GenerateFromPassword([]byte(normalizedAnswer), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash security answer failed: %w", err)
+	}
+
+	now := time.Now()
+	res, err := s.db.Exec(
+		`INSERT INTO users (username, password_hash, role, nickname, email, security_question, security_answer_hash, created_at, updated_at) 
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		username,
+		string(passHash),
+		model.RoleOperator,
+		nickname,
+		email,
+		securityQuestion,
+		string(answerHash),
+		now,
+		now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert user failed: %w", err)
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.User{
+		ID:               id,
+		Username:         username,
+		Role:             model.RoleOperator,
+		Nickname:         nickname,
+		Email:            email,
+		SecurityQuestion: securityQuestion,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}, nil
+}
+
+// GetSecurityQuestion retrieves the security question for a given username.
+func (s *AuthService) GetSecurityQuestion(username string) (string, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return "", errors.New("username cannot be empty")
+	}
+
+	var question string
+	err := s.db.QueryRow("SELECT security_question FROM users WHERE username = ?", username).Scan(&question)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", errors.New("user not found")
+		}
+		return "", fmt.Errorf("query security question failed: %w", err)
+	}
+
+	if strings.TrimSpace(question) == "" {
+		return "", errors.New("no security question configured for this user")
+	}
+
+	return question, nil
+}
+
+// ResetPasswordWithSecurityAnswer verifies the answer to the security question and resets the password.
+func (s *AuthService) ResetPasswordWithSecurityAnswer(username, answer, newPassword string) error {
+	username = strings.TrimSpace(username)
+	answer = strings.TrimSpace(answer)
+
+	if username == "" {
+		return errors.New("username cannot be empty")
+	}
+	if answer == "" {
+		return errors.New("security answer cannot be empty")
+	}
+	if len(newPassword) < 6 {
+		return errors.New("new password must be at least 6 characters")
+	}
+
+	var answerHash string
+	err := s.db.QueryRow("SELECT security_answer_hash FROM users WHERE username = ?", username).Scan(&answerHash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("user not found")
+		}
+		return fmt.Errorf("query user failed: %w", err)
+	}
+
+	if strings.TrimSpace(answerHash) == "" {
+		return errors.New("no security question configured for this user")
+	}
+
+	normalizedAnswer := strings.ToLower(answer)
+	if err := bcrypt.CompareHashAndPassword([]byte(answerHash), []byte(normalizedAnswer)); err != nil {
+		return errors.New("incorrect security answer")
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash new password failed: %w", err)
+	}
+
+	_, err = s.db.Exec("UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?", string(newHash), username)
+	if err != nil {
+		return fmt.Errorf("update user password failed: %w", err)
+	}
+
+	return nil
+}
+
+// GetProfile retrieves detailed profile information for a user.
+func (s *AuthService) GetProfile(username string) (*model.User, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
+	}
+
+	var u model.User
+	err := s.db.QueryRow(
+		"SELECT id, username, role, nickname, email, security_question, created_at, updated_at FROM users WHERE username = ?",
+		username,
+	).Scan(&u.ID, &u.Username, &u.Role, &u.Nickname, &u.Email, &u.SecurityQuestion, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("user not found")
+		}
+		return nil, fmt.Errorf("query user profile failed: %w", err)
+	}
+
+	return &u, nil
+}
+
+// UpdateProfile updates the nickname and email for a given user.
+func (s *AuthService) UpdateProfile(username, nickname, email string) error {
+	username = strings.TrimSpace(username)
+	nickname = strings.TrimSpace(nickname)
+	email = strings.TrimSpace(email)
+
+	if username == "" {
+		return errors.New("username cannot be empty")
+	}
+	if nickname == "" {
+		nickname = username
+	}
+
+	res, err := s.db.Exec(
+		"UPDATE users SET nickname = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+		nickname,
+		email,
+		username,
+	)
+	if err != nil {
+		return fmt.Errorf("update user profile failed: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
+}
+
+// SetSecurityQuestion updates the security question and answer for a user.
+func (s *AuthService) SetSecurityQuestion(username, question, answer string) error {
+	username = strings.TrimSpace(username)
+	question = strings.TrimSpace(question)
+	answer = strings.TrimSpace(answer)
+
+	if username == "" {
+		return errors.New("username cannot be empty")
+	}
+	if question == "" || answer == "" {
+		return errors.New("security question and answer cannot be empty")
+	}
+
+	normalizedAnswer := strings.ToLower(answer)
+	answerHash, err := bcrypt.GenerateFromPassword([]byte(normalizedAnswer), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash answer failed: %w", err)
+	}
+
+	res, err := s.db.Exec(
+		"UPDATE users SET security_question = ?, security_answer_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+		question,
+		string(answerHash),
+		username,
+	)
+	if err != nil {
+		return fmt.Errorf("update security question failed: %w", err)
 	}
 
 	rows, err := res.RowsAffected()

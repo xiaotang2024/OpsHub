@@ -107,3 +107,35 @@ export interface ServiceMetrics {
   uptime: string;
 }
 
+export interface UserProfile {
+  id?: number;
+  username: string;
+  role: 'admin' | 'operator' | string;
+  nickname?: string;
+  email?: string;
+  security_question?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RegisterPayload {
+  username: string;
+  password: string;
+  nickname?: string;
+  email?: string;
+  security_question: string;
+  security_answer: string;
+}
+
+export interface ResetPasswordPayload {
+  username: string;
+  security_answer: string;
+  new_password: string;
+}
+
+export interface UpdateProfilePayload {
+  nickname: string;
+  email: string;
+}
+
+

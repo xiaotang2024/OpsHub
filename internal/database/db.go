@@ -96,8 +96,13 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'admin',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    role TEXT NOT NULL DEFAULT 'operator',
+    nickname TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    security_question TEXT DEFAULT '',
+    security_answer_hash TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `
 
@@ -116,5 +121,56 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("execute schema ddl failed: %w", err)
 	}
 
+	if err := migrateUsersTable(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate users table failed: %w", err)
+	}
+
 	return db, nil
+}
+
+func migrateUsersTable(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(users)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	existingCols := make(map[string]bool)
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			colType   string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		existingCols[name] = true
+	}
+
+	migrations := []struct {
+		colName string
+		colDef  string
+	}{
+		{"nickname", "TEXT DEFAULT ''"},
+		{"email", "TEXT DEFAULT ''"},
+		{"security_question", "TEXT DEFAULT ''"},
+		{"security_answer_hash", "TEXT DEFAULT ''"},
+		{"updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"},
+	}
+
+	for _, m := range migrations {
+		if !existingCols[m.colName] {
+			alterSQL := fmt.Sprintf("ALTER TABLE users ADD COLUMN %s %s", m.colName, m.colDef)
+			if _, err := db.Exec(alterSQL); err != nil {
+				return fmt.Errorf("add column %s failed: %w", m.colName, err)
+			}
+		}
+	}
+
+	return nil
 }

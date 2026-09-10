@@ -168,6 +168,9 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 		// 1. Public endpoints (No authentication required)
 		apiGroup.GET("/system/health", systemHandler.Health)
 		apiGroup.POST("/auth/login", authHandler.Login)
+		apiGroup.POST("/auth/register", authHandler.Register)
+		apiGroup.GET("/auth/security-question", authHandler.GetSecurityQuestion)
+		apiGroup.POST("/auth/reset-password", authHandler.ResetPassword)
 
 		// 2. Protected endpoints (Authentication and Audit required)
 		protected := apiGroup.Group("")
@@ -177,6 +180,8 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			// Auth
 			protected.POST("/auth/change-password", authHandler.ChangePassword)
 			protected.GET("/auth/me", authHandler.Me)
+			protected.GET("/auth/profile", authHandler.GetProfile)
+			protected.PUT("/auth/profile", authHandler.UpdateProfile)
 
 			// System & Audit
 			protected.GET("/system/metrics", systemHandler.Metrics)

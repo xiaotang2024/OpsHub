@@ -151,6 +151,75 @@ func TestRouter_AuthFlow(t *testing.T) {
 	assert.Equal(t, http.StatusOK, wNewPass.Code)
 }
 
+func TestRouter_RegisterResetAndProfile(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// 1. Register new operator
+	regPayload := `{
+		"username": "tester_ops",
+		"password": "opsPassword123",
+		"nickname": "测试运维员",
+		"email": "tester@opshub.dev",
+		"security_question": "最喜欢的编程语言？",
+		"security_answer": "Golang"
+	}`
+	wReg := doRequest(f.router, "POST", "/api/auth/register", "", bytes.NewBufferString(regPayload))
+	assert.Equal(t, http.StatusCreated, wReg.Code)
+
+	var regResp map[string]interface{}
+	err := json.Unmarshal(wReg.Body.Bytes(), &regResp)
+	require.NoError(t, err)
+	opsToken, ok := regResp["token"].(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, opsToken)
+
+	// 2. View Profile with opsToken
+	wProfile := doRequest(f.router, "GET", "/api/auth/profile", opsToken, nil)
+	assert.Equal(t, http.StatusOK, wProfile.Code)
+	var profile map[string]interface{}
+	err = json.Unmarshal(wProfile.Body.Bytes(), &profile)
+	require.NoError(t, err)
+	assert.Equal(t, "tester_ops", profile["username"])
+	assert.Equal(t, "测试运维员", profile["nickname"])
+	assert.Equal(t, "tester@opshub.dev", profile["email"])
+	assert.Equal(t, "operator", profile["role"])
+
+	// 3. Update Profile
+	updatePayload := `{"nickname":"高级运维专家","email":"senior_ops@opshub.dev"}`
+	wUpdate := doRequest(f.router, "PUT", "/api/auth/profile", opsToken, bytes.NewBufferString(updatePayload))
+	assert.Equal(t, http.StatusOK, wUpdate.Code)
+
+	// Verify update in Me endpoint
+	wMe := doRequest(f.router, "GET", "/api/auth/me", opsToken, nil)
+	assert.Equal(t, http.StatusOK, wMe.Code)
+	assert.Contains(t, wMe.Body.String(), "高级运维专家")
+
+	// 4. Get Security Question
+	wQ := doRequest(f.router, "GET", "/api/auth/security-question?username=tester_ops", "", nil)
+	assert.Equal(t, http.StatusOK, wQ.Code)
+	var qResp map[string]interface{}
+	err = json.Unmarshal(wQ.Body.Bytes(), &qResp)
+	require.NoError(t, err)
+	assert.Equal(t, "最喜欢的编程语言？", qResp["security_question"])
+
+	// 5. Reset Password with Security Answer
+	resetPayload := `{
+		"username": "tester_ops",
+		"security_answer": "golang",
+		"new_password": "newSecureOpsPass999"
+	}`
+	wReset := doRequest(f.router, "POST", "/api/auth/reset-password", "", bytes.NewBufferString(resetPayload))
+	assert.Equal(t, http.StatusOK, wReset.Code)
+
+	// Old pass fails
+	wFail := doRequest(f.router, "POST", "/api/auth/login", "", bytes.NewBufferString(`{"username":"tester_ops","password":"opsPassword123"}`))
+	assert.Equal(t, http.StatusUnauthorized, wFail.Code)
+
+	// New pass succeeds
+	wSuccess := doRequest(f.router, "POST", "/api/auth/login", "", bytes.NewBufferString(`{"username":"tester_ops","password":"newSecureOpsPass999"}`))
+	assert.Equal(t, http.StatusOK, wSuccess.Code)
+}
+
 func TestRouter_SystemMetricsAndAuditLogs(t *testing.T) {
 	f := setupTestRouter(t)
 
