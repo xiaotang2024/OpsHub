@@ -40,6 +40,9 @@ import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
 import { DeployWizardModal } from '../../components/deploy/DeployWizardModal';
 import { RollbackModal } from '../../components/deploy/RollbackModal';
+import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryCard';
+import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
+import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
 
 type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
 
@@ -469,6 +472,15 @@ export const ServiceDetail: React.FC = () => {
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-5">
+            {/* Live Process Telemetry Gauges Card */}
+            <ProcessTelemetryCard
+              pid={service.pid}
+              cpuPercent={metrics?.cpu_percent ?? 0}
+              memoryRssMb={metrics?.memory_rss_mb ?? 0}
+              uptime={metrics?.uptime || (isRunning ? '在线' : '离线')}
+              status={service.status}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Runtime Environment Info */}
               <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
@@ -655,10 +667,10 @@ export const ServiceDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 3: Configs (Placeholder for Task 15 Monaco Editor) */}
+        {/* Tab 3: Configs */}
         {activeTab === 'configs' && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-ops-border bg-ops-card p-6 space-y-4">
+            <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-950 border border-purple-500/30 text-purple-400">
                   <FileCode2 className="h-5 w-5" />
@@ -666,71 +678,43 @@ export const ServiceDetail: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-bold text-white">配置文件中心 (Config Center)</h3>
                   <p className="text-xs text-ops-text-muted font-mono">
-                    自动扫描目标目录配置文件并支持在线版本修改与 .bak 安全备份
+                    在线修改 Spring Boot / JVM 配置，支持版本差异比对与 .bak 安全快照备份
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-dashed border-ops-border bg-ops-bg/60 p-8 text-center space-y-2">
-                <FileText className="h-8 w-8 text-ops-text-muted mx-auto" />
-                <div className="text-xs font-semibold text-white">
-                  配置文件 Monaco 高级编辑器已准备接入 (Task 15)
-                </div>
-                <p className="text-[11px] font-mono text-ops-text-muted max-w-md mx-auto">
-                  支持 YAML/Properties 语法高亮、差异比对及自动备份还原。已扫描发现 {configFiles.length} 个配置文件。
-                </p>
-
-                {configFiles.length > 0 && (
-                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                    {configFiles.map((f) => (
-                      <span
-                        key={f}
-                        className="rounded-md bg-slate-800 border border-ops-border px-2.5 py-1 text-xs font-mono text-ops-cyan"
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ConfigDiffEditor
+                serviceId={service.id}
+                files={configFiles.length > 0 ? configFiles : ['application.yml']}
+                onSaveSuccess={() => {
+                  loadServiceData(true);
+                }}
+              />
             </div>
           </div>
         )}
 
-        {/* Tab 4: Logs (Placeholder for Task 15 xterm) */}
+        {/* Tab 4: Logs */}
         {activeTab === 'logs' && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-ops-border bg-black p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-ops-border text-ops-cyan">
-                    <Terminal className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">实时控制台终端 (Live Terminal)</h3>
-                    <p className="text-xs text-ops-text-muted font-mono">
-                      基于 WebSocket 与 xterm.js 的全双工低延迟实时运维终端
-                    </p>
-                  </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-ops-border text-ops-cyan">
+                  <Terminal className="h-5 w-5" />
                 </div>
-
-                <span className="rounded px-2.5 py-0.5 text-[10px] font-mono bg-cyan-950 border border-ops-cyan/30 text-ops-cyan">
-                  xterm.js 准备接入 (Task 15)
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-ops-border/60 bg-slate-950 p-6 font-mono text-xs text-slate-400 space-y-2">
-                <div className="text-emerald-400">
-                  [OpsHub Kernel] Tailer channel ready on /api/services/{service.id}/logs/ws
-                </div>
-                <div className="text-slate-500">
-                  日志持久化存储路径: {service.install_dir}/logs/console.log
-                </div>
-                <div className="text-slate-600 animate-pulse">
-                  等待 xterm 终端画布挂载并建立 WebSocket 流传输...
+                <div>
+                  <h3 className="text-sm font-bold text-white">实时控制台终端 (Live Terminal)</h3>
+                  <p className="text-xs text-ops-text-muted font-mono">
+                    基于 WebSocket 与 xterm.js 的全双工低延迟实时运维终端
+                  </p>
                 </div>
               </div>
             </div>
+
+            <LiveLogViewer
+              serviceId={service.id}
+              serviceName={service.name}
+            />
           </div>
         )}
 

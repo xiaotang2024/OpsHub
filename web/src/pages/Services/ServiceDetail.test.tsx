@@ -212,5 +212,31 @@ describe('ServiceDetail Component', () => {
     expect(screen.getByText(/一键版本回滚确认/i)).toBeInTheDocument();
     expect(screen.getAllByText('order-center-v1.0.jar').length).toBeGreaterThanOrEqual(1);
   });
+
+  it('integrates ProcessTelemetryCard, ConfigDiffEditor, and LiveLogViewer into corresponding tabs', async () => {
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    // Overview has ProcessTelemetryCard
+    expect(screen.getByText(/进程实时遥测/i)).toBeInTheDocument();
+    expect(screen.getByTestId('cpu-gauge')).toBeInTheDocument();
+    expect(screen.getByTestId('mem-gauge')).toBeInTheDocument();
+
+    // Configs tab has ConfigDiffEditor with warning banner
+    const configsTab = screen.getByRole('button', { name: /配置文件/i });
+    fireEvent.click(configsTab);
+    expect(screen.getByText(/修改后需重启服务以使配置生效/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /保存修改/i })).toBeInTheDocument();
+
+    // Logs tab has LiveLogViewer with toolbar
+    const logsTab = screen.getByRole('button', { name: /实时日志/i });
+    fireEvent.click(logsTab);
+    expect(screen.getByText(/OPSHUB CONSOLE/i)).toBeInTheDocument();
+    expect(screen.getByTestId('ws-status-badge')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /auto-scroll/i })).toBeInTheDocument();
+  });
 });
 
