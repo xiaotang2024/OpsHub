@@ -1,42 +1,16 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Shell } from './components/layout/Shell';
+import { ServiceFleet } from './pages/Services/ServiceFleet';
+import { TemplateList } from './pages/Templates/TemplateList';
 
 export const App: React.FC = () => {
   return (
     <Shell>
       <Routes>
         <Route path="/" element={<Navigate to="/services" replace />} />
-        <Route
-          path="/services"
-          element={
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl font-bold tracking-tight text-white">服务列表 / Services</h1>
-                  <p className="text-xs text-ops-text-muted font-mono mt-1">集群纳管的 JVM 生产服务实例列表与运行状态</p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-ops-border bg-ops-card p-8 text-center text-sm text-ops-text-muted">
-                服务列表准备就绪 (Task 13 接入)
-              </div>
-            </div>
-          }
-        />
-        <Route
-          path="/templates"
-          element={
-            <div className="space-y-4">
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-white">部署模板 / Templates</h1>
-                <p className="text-xs text-ops-text-muted font-mono mt-1">JVM 参数策略、健康检查与部署流程预定义模板</p>
-              </div>
-              <div className="rounded-xl border border-ops-border bg-ops-card p-8 text-center text-sm text-ops-text-muted">
-                模板工作台准备就绪 (Task 13 接入)
-              </div>
-            </div>
-          }
-        />
+        <Route path="/services" element={<ServiceFleet />} />
+        <Route path="/templates" element={<TemplateList />} />
         <Route
           path="/jdks"
           element={
