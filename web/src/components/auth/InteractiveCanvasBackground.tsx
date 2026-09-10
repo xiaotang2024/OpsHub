@@ -18,7 +18,13 @@ const PARTICLE_COLORS = [
   '#a855f7', // purple
 ];
 
-export const InteractiveCanvasBackground: React.FC = () => {
+export interface InteractiveCanvasBackgroundProps {
+  transparent?: boolean;
+}
+
+export const InteractiveCanvasBackground: React.FC<InteractiveCanvasBackgroundProps> = ({
+  transparent = false,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -86,23 +92,25 @@ export const InteractiveCanvasBackground: React.FC = () => {
       ctx.clearRect(0, 0, width, height);
 
       // 1. Draw atmospheric background gradient
-      if (typeof ctx.createRadialGradient === 'function') {
-        const bgGradient = ctx.createRadialGradient(
-          width * 0.5,
-          height * 0.4,
-          50,
-          width * 0.5,
-          height * 0.5,
-          Math.max(width, height) * 0.8
-        );
-        bgGradient.addColorStop(0, '#0a101d');
-        bgGradient.addColorStop(0.5, '#060a12');
-        bgGradient.addColorStop(1, '#020408');
-        ctx.fillStyle = bgGradient;
-      } else {
-        ctx.fillStyle = '#060a12';
+      if (!transparent) {
+        if (typeof ctx.createRadialGradient === 'function') {
+          const bgGradient = ctx.createRadialGradient(
+            width * 0.5,
+            height * 0.4,
+            50,
+            width * 0.5,
+            height * 0.5,
+            Math.max(width, height) * 0.8
+          );
+          bgGradient.addColorStop(0, '#0a101d');
+          bgGradient.addColorStop(0.5, '#060a12');
+          bgGradient.addColorStop(1, '#020408');
+          ctx.fillStyle = bgGradient;
+        } else {
+          ctx.fillStyle = '#060a12';
+        }
+        ctx.fillRect(0, 0, width, height);
       }
-      ctx.fillRect(0, 0, width, height);
 
       // 2. Draw subtle interactive mouse ambient aura spotlight
       if (mouse.isHovering && typeof ctx.createRadialGradient === 'function') {
@@ -194,13 +202,13 @@ export const InteractiveCanvasBackground: React.FC = () => {
       window.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [transparent]);
 
   return (
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0 block w-full h-full"
-      style={{ background: '#030712' }}
+      style={{ background: transparent ? 'transparent' : '#030712' }}
     />
   );
 };

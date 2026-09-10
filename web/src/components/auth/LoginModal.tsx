@@ -296,11 +296,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-        {/* Dynamic Interactive Constellation Background */}
-        <InteractiveCanvasBackground />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-gradient-to-br from-[#0b1226] via-[#080e1c] to-[#040711]">
+        {/* Deep Cyber Aurora Ambient Glowing Lights */}
+        <div className="fixed -top-36 -left-36 w-[520px] h-[520px] rounded-full bg-cyan-500/15 blur-[120px] pointer-events-none" />
+        <div className="fixed -bottom-36 -right-36 w-[580px] h-[580px] rounded-full bg-indigo-600/18 blur-[130px] pointer-events-none" />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] rounded-full bg-purple-900/10 blur-[150px] pointer-events-none" />
 
-        {/* Semi-transparent Backdrop overlay for depth */}
+        {/* Dynamic Interactive Constellation Background (Transparent overlay) */}
+        <InteractiveCanvasBackground transparent={true} />
+
+        {/* Subtle Semi-transparent Backdrop overlay for depth */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -308,7 +313,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           onClick={() => {
             if (canDismiss && onClose) onClose();
           }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 bg-[#030610]/25 backdrop-blur-[1.5px]"
         />
 
         {/* Dual-Panel Split Modal Card */}
@@ -318,7 +323,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 14 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="relative w-full overflow-hidden rounded-2xl border border-ops-border/80 bg-ops-surface/95 backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.85)] grid grid-cols-1 lg:grid-cols-12 max-h-[92vh]"
+            className="relative w-full overflow-hidden rounded-2xl border border-cyan-500/25 bg-[#0a1122]/95 backdrop-blur-2xl shadow-[0_25px_80px_rgba(6,182,212,0.14),0_15px_40px_rgba(0,0,0,0.85)] grid grid-cols-1 lg:grid-cols-12 max-h-[92vh]"
           >
             {/* Top Accent Gradient Border */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-ops-cyan to-emerald-400 z-30" />
@@ -336,7 +341,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             )}
 
             {/* ================= LEFT PANEL: CareerCompass 4-Character Stage ================= */}
-            <div className="relative hidden lg:flex lg:col-span-5 flex-col justify-between p-8 overflow-hidden bg-slate-950/80 border-r border-ops-border/60 select-none">
+            <div className="relative hidden lg:flex lg:col-span-5 flex-col justify-between p-8 overflow-hidden bg-gradient-to-b from-[#091228] to-[#060b1b] border-r border-ops-border/60 select-none">
               {/* Dynamic Breathing Gradient Background with Tech Grid */}
               <AnimatedGradientBackground showGrid={true} />
 
@@ -377,9 +382,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
 
             {/* ================= RIGHT PANEL: Form Controls & Switcher ================= */}
-            <div className="col-span-1 lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto max-h-[92vh]">
+            <div className="col-span-1 lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto max-h-[92vh] bg-gradient-to-b from-[#0e1628]/90 via-[#0a101d]/95 to-[#080d18]/95">
               {/* Mobile compact character stage */}
-              <div className="lg:hidden relative mb-4 flex items-end justify-center h-[170px] overflow-hidden rounded-xl bg-slate-950/60 border border-ops-border/60">
+              <div className="lg:hidden relative mb-4 flex items-end justify-center h-[170px] overflow-hidden rounded-xl bg-gradient-to-b from-[#091228] to-[#060b1b] border border-cyan-500/20">
                 <AnimatedGradientBackground showGrid={false} />
                 <div className="relative z-10">
                   <AnimatedCharacters
@@ -392,9 +397,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               </div>
 
               {/* Mode Switcher Tabs */}
-              <div className="flex items-center justify-between border-b border-ops-border/80 pb-3 mb-4 shrink-0">
+              <div className="flex items-center justify-between border-b border-cyan-950/60 pb-3 mb-4 shrink-0">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-950/60 border border-ops-cyan/30 text-ops-cyan">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-950/70 border border-ops-cyan/30 text-ops-cyan shadow-cyan-glow">
                     {mode === 'login' && <Terminal className="h-4 w-4" />}
                     {mode === 'register' && <UserPlus className="h-4 w-4" />}
                     {mode === 'forgot-password' && <KeyRound className="h-4 w-4" />}
@@ -409,7 +414,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex items-center gap-1 rounded-lg bg-ops-bg/90 p-1 border border-ops-border/60 text-xs font-mono">
+                <div className="flex items-center gap-1 rounded-lg bg-[#060b16]/90 p-1 border border-cyan-950/60 text-xs font-mono">
                   <button
                     type="button"
                     onClick={() => switchMode('login')}
@@ -475,7 +480,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 {mode === 'login' && (
                   <div className="space-y-4">
                     {/* Tip Notice */}
-                    <div className="rounded-lg border border-cyan-900/50 bg-cyan-950/30 p-3 text-xs text-cyan-200/90 leading-relaxed font-sans">
+                    <div className="rounded-lg border border-cyan-800/40 bg-gradient-to-r from-cyan-950/50 to-blue-950/40 p-3 text-xs text-cyan-200/90 leading-relaxed font-sans shadow-sm">
                       <span className="font-semibold text-ops-cyan">💡 初始管理员提示：</span>
                       管理员初始口令已在首次启动时于终端打印，默认管理员账号为{' '}
                       <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-white">admin</code>。
