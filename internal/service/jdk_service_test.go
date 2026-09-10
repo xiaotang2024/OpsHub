@@ -259,6 +259,8 @@ func TestJDKService_ScanSystemJDKs_WithJavaHome(t *testing.T) {
 	defer db.Close()
 
 	svc := service.NewJDKService(db)
+	// Isolate scan directories so unit tests don't scan and execute host machine JDK binaries
+	svc.SetScanDirs(filepath.Join(tmpDir, "empty-scan"))
 
 	fakeJavaHome := filepath.Join(tmpDir, "custom-jdk-8")
 	binDir := filepath.Join(fakeJavaHome, "bin")
@@ -271,16 +273,11 @@ func TestJDKService_ScanSystemJDKs_WithJavaHome(t *testing.T) {
 	discovered, err := svc.ScanSystemJDKs()
 	require.NoError(t, err)
 
-	var found bool
-	for _, asset := range discovered {
-		if asset.JavaHome == fakeJavaHome && asset.VersionStr == "1.8.0_381" {
-			found = true
-			assert.True(t, asset.IsSystem)
-			assert.Equal(t, fakeJavaBin, asset.BinPath)
-			break
-		}
-	}
-	assert.True(t, found, "Expected ScanSystemJDKs to discover JDK from JAVA_HOME")
+	require.Len(t, discovered, 1)
+	assert.Equal(t, fakeJavaHome, discovered[0].JavaHome)
+	assert.Equal(t, fakeJavaBin, discovered[0].BinPath)
+	assert.Equal(t, "1.8.0_381", discovered[0].VersionStr)
+	assert.True(t, discovered[0].IsSystem)
 }
 
 func TestParseJavaVersion(t *testing.T) {

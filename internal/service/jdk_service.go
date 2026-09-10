@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"opshub/internal/model"
@@ -305,17 +306,31 @@ func inspectJDKDir(dir string) (*model.JDKAsset, bool) {
 	}, true
 }
 
+func runJavaCmd(ctx context.Context, binPath string, args ...string) []byte {
+	cmd := exec.CommandContext(ctx, binPath, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process != nil && cmd.Process.Pid > 0 {
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return nil
+	}
+	cmd.WaitDelay = 500 * time.Millisecond
+
+	out, _ := cmd.CombinedOutput()
+	return out
+}
+
 func detectJavaVersion(binPath string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binPath, "-version")
-	out, err := cmd.CombinedOutput()
-	if err != nil && len(out) == 0 {
+	out := runJavaCmd(ctx, binPath, "-version")
+	if len(out) == 0 {
 		// Fallback: try executing with no args
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel2()
-		out, _ = exec.CommandContext(ctx2, binPath).CombinedOutput()
+		out = runJavaCmd(ctx2, binPath)
 	}
 
 	return ParseJavaVersion(string(out))
