@@ -12,19 +12,14 @@ export interface AnimatedGradientBackgroundProps {
   containerClassName?: string;
   topOffset?: number;
   showGrid?: boolean;
+  variant?: 'cyber' | 'celadon-blue';
 }
 
 export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProps> = ({
   startingGap = 120,
   breathing = true,
-  gradientColors = [
-    '#0d1b3e',
-    '#1e1b4b',
-    '#0e2a47',
-    '#1a103c',
-    '#0b1329',
-    '#060913',
-  ],
+  variant = 'celadon-blue',
+  gradientColors,
   gradientStops = [20, 45, 65, 80, 92, 100],
   animationSpeed = 0.04,
   breathingRange = 10,
@@ -33,6 +28,12 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
   topOffset = 0,
   showGrid = true,
 }) => {
+  const activeGradientColors =
+    gradientColors ||
+    (variant === 'celadon-blue'
+      ? ['#1c384d', '#2d5678', '#163346', '#122a3b', '#0f202e', '#08141f']
+      : ['#0d1b3e', '#1e1b4b', '#0e2a47', '#1a103c', '#0b1329', '#060913']);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
       width += directionWidth * animationSpeed;
 
       const gradientStopsString = gradientStops
-        .map((stop, index) => `${gradientColors[index] || '#050811'} ${stop}%`)
+        .map((stop, index) => `${activeGradientColors[index] || '#050811'} ${stop}%`)
         .join(', ');
 
       const gradient = `radial-gradient(${width}% ${width + topOffset}% at 50% 25%, ${gradientStopsString})`;
@@ -65,7 +66,7 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
     return () => {
       cancelAnimationFrame(animationFrame);
     };
-  }, [startingGap, breathing, gradientColors, gradientStops, animationSpeed, breathingRange, topOffset]);
+  }, [startingGap, breathing, activeGradientColors, gradientStops, animationSpeed, breathingRange, topOffset]);
 
   return (
     <motion.div
@@ -96,9 +97,19 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
       )}
 
       {/* Ambient glowing orbs for depth */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
-      <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
+      {variant === 'celadon-blue' ? (
+        <>
+          <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#5fa3b0]/24 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#2d5678]/30 blur-3xl pointer-events-none" />
+          <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-[#475061]/25 blur-3xl pointer-events-none" />
+        </>
+      ) : (
+        <>
+          <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-cyan-500/20 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" />
+          <div className="absolute top-2/3 left-1/3 w-64 h-64 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
+        </>
+      )}
     </motion.div>
   );
 };
