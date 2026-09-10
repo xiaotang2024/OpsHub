@@ -276,22 +276,52 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 		return
 	}
 
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	installDir := strings.TrimSpace(req.InstallDir)
+	if installDir == "" {
+		installDir = svc.InstallDir
+	}
+
+	templateID := svc.TemplateID
+	if req.TemplateID > 0 {
+		if _, err := h.getTemplate(c.Request.Context(), req.TemplateID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid template_id: " + err.Error()})
+			return
+		}
+		templateID = req.TemplateID
+	}
+
+	supervisionMode := strings.TrimSpace(req.SupervisionMode)
+	if supervisionMode == "" {
+		supervisionMode = svc.SupervisionMode
+	}
+
 	now := time.Now().UTC()
 	query := `
 		UPDATE services SET
-			name = ?, install_dir = ?, port = ?, jdk_id = ?,
+			name = ?, template_id = ?, install_dir = ?, port = ?, jdk_id = ?,
 			jvm_options = ?, env_vars = ?, supervision_mode = ?,
 			updated_at = ?
 		WHERE id = ?
 	`
 	res, err := h.db.ExecContext(c.Request.Context(), query,
 		name,
-		strings.TrimSpace(req.InstallDir),
+		templateID,
+		installDir,
 		req.Port,
 		req.JDKID,
 		req.JVMOptions,
 		req.EnvVars,
-		strings.TrimSpace(req.SupervisionMode),
+		supervisionMode,
 		now,
 		id,
 	)
@@ -366,6 +396,94 @@ func (h *ServiceHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "service deleted successfully"})
 }
 
+func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Service) error {
+	if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
+		return errors.New("service is already running")
+	}
+	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
+		if active, _ := h.systemdSupervisor.IsActive(ctx, svc.Name); active {
+			return errors.New("service is already running")
+		}
+	}
+
+	tpl, err := h.getTemplate(ctx, svc.TemplateID)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	var jdk *model.JDKAsset
+	if svc.JDKID != nil && *svc.JDKID > 0 {
+		jdk, _ = h.getJDK(ctx, *svc.JDKID)
+	} else if tpl.DefaultJDKID != nil && *tpl.DefaultJDKID > 0 {
+		jdk, _ = h.getJDK(ctx, *tpl.DefaultJDKID)
+	}
+
+	installDir := svc.InstallDir
+	if strings.TrimSpace(installDir) == "" {
+		installDir = h.engine.RenderInstallDir(tpl.InstallDirPattern, svc.Name)
+	}
+	targetFile := filepath.Join(installDir, "app.jar")
+
+	startCmd, err := h.engine.RenderStartCommand(tpl, svc, jdk, targetFile)
+	if err != nil {
+		return fmt.Errorf("failed to render start command: %w", err)
+	}
+
+	envMap, err := h.engine.RenderEnvVars(tpl, svc)
+	if err != nil {
+		return fmt.Errorf("failed to render env vars: %w", err)
+	}
+	var envSlice []string
+	for k, v := range envMap {
+		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	logFile := filepath.Join(installDir, "logs", "console.log")
+	_ = os.MkdirAll(filepath.Dir(logFile), 0755)
+
+	var newPID int
+	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
+		unitContent := h.systemdSupervisor.RenderUnit(svc.Name, installDir, startCmd)
+		if err := h.systemdSupervisor.InstallAndStart(ctx, svc.Name, unitContent); err != nil {
+			return fmt.Errorf("start systemd service failed: %w", err)
+		}
+	} else {
+		pid, err := h.supervisor.Start(ctx, installDir, startCmd, envSlice, logFile)
+		if err != nil {
+			return fmt.Errorf("start supervisor failed: %w", err)
+		}
+		newPID = pid
+	}
+
+	_, _ = h.db.ExecContext(ctx,
+		"UPDATE services SET status = ?, pid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		model.ServiceStatusRunning, newPID, svc.ID,
+	)
+
+	svc.Status = model.ServiceStatusRunning
+	svc.PID = newPID
+	return nil
+}
+
+func (h *ServiceHandler) stopServiceInstance(ctx context.Context, svc *model.Service) error {
+	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
+		_ = h.systemdSupervisor.Stop(ctx, svc.Name)
+	} else if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
+		if err := h.supervisor.Stop(ctx, svc.PID, 10*time.Second); err != nil {
+			return fmt.Errorf("stop service failed: %w", err)
+		}
+	}
+
+	_, _ = h.db.ExecContext(ctx,
+		"UPDATE services SET status = ?, pid = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		model.ServiceStatusStopped, svc.ID,
+	)
+
+	svc.Status = model.ServiceStatusStopped
+	svc.PID = 0
+	return nil
+}
+
 // Start launches a stopped service instance.
 // POST /api/services/:id/start
 func (h *ServiceHandler) Start(c *gin.Context) {
@@ -385,81 +503,16 @@ func (h *ServiceHandler) Start(c *gin.Context) {
 		return
 	}
 
-	// Check if already running
-	if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "service is already running"})
-		return
-	}
-	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
-		if active, _ := h.systemdSupervisor.IsActive(c.Request.Context(), svc.Name); active {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "service is already running"})
+	if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+		if strings.Contains(err.Error(), "already running") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-	}
-
-	tpl, err := h.getTemplate(c.Request.Context(), svc.TemplateID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "template not found: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var jdk *model.JDKAsset
-	if svc.JDKID != nil && *svc.JDKID > 0 {
-		jdk, _ = h.getJDK(c.Request.Context(), *svc.JDKID)
-	} else if tpl.DefaultJDKID != nil && *tpl.DefaultJDKID > 0 {
-		jdk, _ = h.getJDK(c.Request.Context(), *tpl.DefaultJDKID)
-	}
-
-	installDir := svc.InstallDir
-	if strings.TrimSpace(installDir) == "" {
-		installDir = h.engine.RenderInstallDir(tpl.InstallDirPattern, svc.Name)
-	}
-	targetFile := filepath.Join(installDir, "app.jar")
-
-	startCmd, err := h.engine.RenderStartCommand(tpl, svc, jdk, targetFile)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to render start command: " + err.Error()})
-		return
-	}
-
-	envMap, err := h.engine.RenderEnvVars(tpl, svc)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to render env vars: " + err.Error()})
-		return
-	}
-	var envSlice []string
-	for k, v := range envMap {
-		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	logFile := filepath.Join(installDir, "logs", "console.log")
-	_ = os.MkdirAll(filepath.Dir(logFile), 0755)
-
-	var newPID int
-	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
-		unitContent := h.systemdSupervisor.RenderUnit(svc.Name, installDir, startCmd)
-		if err := h.systemdSupervisor.InstallAndStart(c.Request.Context(), svc.Name, unitContent); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "start systemd service failed: " + err.Error()})
-			return
-		}
-	} else {
-		pid, err := h.supervisor.Start(c.Request.Context(), installDir, startCmd, envSlice, logFile)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "start supervisor failed: " + err.Error()})
-			return
-		}
-		newPID = pid
-	}
-
-	_, _ = h.db.ExecContext(c.Request.Context(),
-		"UPDATE services SET status = ?, pid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		model.ServiceStatusRunning, newPID, id,
-	)
-
-	middleware.SetAudit(c, "START", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Started service %s (PID %d)", svc.Name, newPID))
-
-	svc.Status = model.ServiceStatusRunning
-	svc.PID = newPID
+	middleware.SetAudit(c, "START", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Started service %s (PID %d)", svc.Name, svc.PID))
 	c.JSON(http.StatusOK, svc)
 }
 
@@ -482,35 +535,48 @@ func (h *ServiceHandler) Stop(c *gin.Context) {
 		return
 	}
 
-	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
-		_ = h.systemdSupervisor.Stop(c.Request.Context(), svc.Name)
-	} else if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
-		if err := h.supervisor.Stop(c.Request.Context(), svc.PID, 10*time.Second); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "stop service failed: " + err.Error()})
-			return
-		}
+	if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	_, _ = h.db.ExecContext(c.Request.Context(),
-		"UPDATE services SET status = ?, pid = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		model.ServiceStatusStopped, id,
-	)
-
 	middleware.SetAudit(c, "STOP", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Stopped service %s", svc.Name))
-
-	svc.Status = model.ServiceStatusStopped
-	svc.PID = 0
 	c.JSON(http.StatusOK, svc)
 }
 
 // Restart stops then starts the service.
 // POST /api/services/:id/restart
 func (h *ServiceHandler) Restart(c *gin.Context) {
-	h.Stop(c)
-	if c.IsAborted() {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
 		return
 	}
-	h.Start(c)
+
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 1. Stop if running
+	if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "stop before restart failed: " + err.Error()})
+		return
+	}
+
+	// 2. Start new instance
+	if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "start on restart failed: " + err.Error()})
+		return
+	}
+
+	middleware.SetAudit(c, "RESTART", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Restarted service %s (PID %d)", svc.Name, svc.PID))
+	c.JSON(http.StatusOK, svc)
 }
 
 // GetConfigs reads a configuration file or lists available configuration files.
@@ -529,6 +595,11 @@ func (h *ServiceHandler) GetConfigs(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if svc.InstallDir == "" || !filepath.IsAbs(svc.InstallDir) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service install_dir is invalid or not an absolute path"})
 		return
 	}
 
@@ -589,6 +660,11 @@ func (h *ServiceHandler) SaveConfig(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if svc.InstallDir == "" || !filepath.IsAbs(svc.InstallDir) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service install_dir is invalid or not an absolute path"})
 		return
 	}
 

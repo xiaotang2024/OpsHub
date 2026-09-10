@@ -451,3 +451,126 @@ func TestRouter_WebSocketLogStreaming(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(msg), "line")
 }
+
+func TestRouter_ServiceRestartSingleResponse(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// Create template & service with a fake runnable jar
+	svcDir := filepath.Join(f.tmpDir, "restart-svc")
+	require.NoError(t, os.MkdirAll(svcDir, 0755))
+	jarFile := filepath.Join(svcDir, "app.jar")
+	require.NoError(t, os.WriteFile(jarFile, []byte("fake-jar"), 0644))
+
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, start_cmd) 
+		VALUES (30, 'tpl-restart', 'java_jar', '`+svcDir+`', 'native', 'sleep 10')`)
+	require.NoError(t, err)
+
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (30, 'restart-svc', 30, '`+svcDir+`', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	// Start service
+	wStart := doRequest(f.router, "POST", "/api/services/30/start", f.token, nil)
+	assert.Equal(t, http.StatusOK, wStart.Code)
+
+	// Restart service
+	wRestart := doRequest(f.router, "POST", "/api/services/30/restart", f.token, nil)
+	assert.Equal(t, http.StatusOK, wRestart.Code)
+
+	// Verify exactly ONE JSON object is present (no duplicate {...}{...} response)
+	dec := json.NewDecoder(bytes.NewReader(wRestart.Body.Bytes()))
+	var svc model.Service
+	err = dec.Decode(&svc)
+	require.NoError(t, err)
+	assert.Equal(t, model.ServiceStatusRunning, svc.Status)
+	assert.False(t, dec.More(), "expected exactly one JSON response payload from restart endpoint")
+
+	// Cleanup
+	_ = doRequest(f.router, "POST", "/api/services/30/stop", f.token, nil)
+}
+
+func TestRouter_ServiceUpdate_PreserveInstallDirAndTemplateValidation(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// Create two templates
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode) 
+		VALUES (40, 'tpl-40', 'java_jar', '/opt/apps/40', 'native'), (41, 'tpl-41', 'java_jar', '/opt/apps/41', 'native')`)
+	require.NoError(t, err)
+
+	initialInstallDir := filepath.Join(f.tmpDir, "initial-install-dir")
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (40, 'svc-40', 40, '`+initialInstallDir+`', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	// 1. Update with empty install_dir -> should preserve existing install_dir
+	updatePayload1 := `{"name": "svc-40-renamed", "install_dir": ""}`
+	wUpdate1 := doRequest(f.router, "PUT", "/api/services/40", f.token, bytes.NewBufferString(updatePayload1))
+	assert.Equal(t, http.StatusOK, wUpdate1.Code)
+	var updated1 model.Service
+	require.NoError(t, json.Unmarshal(wUpdate1.Body.Bytes(), &updated1))
+	assert.Equal(t, "svc-40-renamed", updated1.Name)
+	assert.Equal(t, initialInstallDir, updated1.InstallDir)
+
+	// 2. Update with invalid template_id -> 400 Bad Request
+	updatePayload2 := `{"name": "svc-40-renamed", "template_id": 99999}`
+	wUpdate2 := doRequest(f.router, "PUT", "/api/services/40", f.token, bytes.NewBufferString(updatePayload2))
+	assert.Equal(t, http.StatusBadRequest, wUpdate2.Code)
+
+	// 3. Update with valid template_id (41) -> updates successfully
+	updatePayload3 := `{"name": "svc-40-renamed", "template_id": 41}`
+	wUpdate3 := doRequest(f.router, "PUT", "/api/services/40", f.token, bytes.NewBufferString(updatePayload3))
+	assert.Equal(t, http.StatusOK, wUpdate3.Code)
+	var updated3 model.Service
+	require.NoError(t, json.Unmarshal(wUpdate3.Body.Bytes(), &updated3))
+	assert.Equal(t, int64(41), updated3.TemplateID)
+}
+
+func TestRouter_ConfigRelativeInstallDirValidation(t *testing.T) {
+	f := setupTestRouter(t)
+
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode) 
+		VALUES (50, 'tpl-50', 'java_jar', '/opt/apps/50', 'native')`)
+	require.NoError(t, err)
+
+	// Relative install_dir
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (50, 'svc-50', 50, 'relative/dir', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	// GET config with relative install_dir should fail with 400
+	wGet := doRequest(f.router, "GET", "/api/services/50/configs?file=app.yml", f.token, nil)
+	assert.Equal(t, http.StatusBadRequest, wGet.Code)
+	assert.Contains(t, wGet.Body.String(), "install_dir is invalid or not an absolute path")
+
+	// POST config with relative install_dir should fail with 400
+	wSave := doRequest(f.router, "POST", "/api/services/50/configs", f.token, bytes.NewBufferString(`{"file":"app.yml","content":"foo: bar"}`))
+	assert.Equal(t, http.StatusBadRequest, wSave.Code)
+	assert.Contains(t, wSave.Body.String(), "install_dir is invalid or not an absolute path")
+}
+
+func TestRouter_CORSCredentialsAndOrigin(t *testing.T) {
+	f := setupTestRouter(t)
+
+	origin := "https://console.opshub.internal"
+
+	// 1. GET with Origin header
+	req, _ := http.NewRequest("GET", "/api/system/health", nil)
+	req.Header.Set("Origin", origin)
+	w := httptest.NewRecorder()
+	f.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, origin, w.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
+
+	// 2. OPTIONS preflight with Origin header
+	reqOptions, _ := http.NewRequest("OPTIONS", "/api/services", nil)
+	reqOptions.Header.Set("Origin", origin)
+	wOptions := httptest.NewRecorder()
+	f.router.ServeHTTP(wOptions, reqOptions)
+
+	assert.Equal(t, http.StatusNoContent, wOptions.Code)
+	assert.Equal(t, origin, wOptions.Header().Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", wOptions.Header().Get("Access-Control-Allow-Credentials"))
+}
+
