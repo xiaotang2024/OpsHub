@@ -254,13 +254,6 @@ func (p *DeployPipeline) executePipeline(
 		return finalize(fmt.Errorf("render start command failed: %w", err))
 	}
 
-	// Handle test / mock jar payloads (e.g. PK-fake-jar-content)
-	if fileHeader, readErr := os.ReadFile(targetFile); readErr == nil {
-		if strings.HasPrefix(string(fileHeader), "PK-fake") && strings.TrimSpace(tpl.StartCmd) == "" {
-			startCmd = "sh -c 'trap \"exit 0\" TERM; while true; do sleep 0.5; done'"
-		}
-	}
-
 	envMap, err := p.engine.RenderEnvVars(tpl, svc)
 	if err != nil {
 		logStep(5, "Failed to render environment variables: %v", err)
@@ -293,9 +286,10 @@ func (p *DeployPipeline) executePipeline(
 		newPID = pid
 	}
 
+	// Do NOT update current_artifact_id here; wait until Step 6 health probe passes
 	_, _ = p.db.ExecContext(ctx,
-		"UPDATE services SET status = ?, pid = ?, current_artifact_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-		model.ServiceStatusStarting, newPID, art.ID, svc.ID,
+		"UPDATE services SET status = ?, pid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		model.ServiceStatusStarting, newPID, svc.ID,
 	)
 	logStep(5, "Service started successfully with PID %d (command: %s)", newPID, startCmd)
 
@@ -330,35 +324,35 @@ func (p *DeployPipeline) executePipeline(
 
 				// Relaunch the previous version
 				prevCmd, _ := p.engine.RenderStartCommand(tpl, svc, jdk, targetFile)
-				if fileHeader, readErr := os.ReadFile(targetFile); readErr == nil {
-					if strings.HasPrefix(string(fileHeader), "PK-fake") && strings.TrimSpace(tpl.StartCmd) == "" {
-						prevCmd = "sh -c 'trap \"exit 0\" TERM; while true; do sleep 0.5; done'"
-					}
-				}
 
 				if svc.SupervisionMode == model.SupervisionModeSystemd && p.systemdSupervisor != nil {
 					prevUnit := p.systemdSupervisor.RenderUnit(svc.Name, installDir, prevCmd)
 					_ = p.systemdSupervisor.InstallAndStart(ctx, svc.Name, prevUnit)
+					_, _ = p.db.ExecContext(ctx,
+						"UPDATE services SET status = ?, current_artifact_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+						model.ServiceStatusFailed, svc.CurrentArtifactID, svc.ID,
+					)
 				} else {
 					prevPID, _ := p.supervisor.Start(ctx, installDir, prevCmd, envSlice, logFile)
 					_, _ = p.db.ExecContext(ctx,
-						"UPDATE services SET status = ?, pid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-						model.ServiceStatusFailed, prevPID, svc.ID,
+						"UPDATE services SET status = ?, pid = ?, current_artifact_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+						model.ServiceStatusFailed, prevPID, svc.CurrentArtifactID, svc.ID,
 					)
 				}
 				logStep(6, "Previous package relaunched after rollback")
 			}
+		} else {
+			// No backup available: service remains stopped/failed with pid = 0
+			_, _ = p.db.ExecContext(ctx,
+				"UPDATE services SET status = ?, pid = 0, current_artifact_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+				model.ServiceStatusFailed, svc.CurrentArtifactID, svc.ID,
+			)
 		}
-
-		_, _ = p.db.ExecContext(ctx,
-			"UPDATE services SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-			model.ServiceStatusFailed, svc.ID,
-		)
 
 		return finalize(fmt.Errorf("health check failed: %w", probeErr))
 	}
 
-	// Health check passed!
+	// Health check passed! Only now update current_artifact_id and status to RUNNING
 	_, _ = p.db.ExecContext(ctx,
 		"UPDATE services SET status = ?, pid = ?, current_artifact_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 		model.ServiceStatusRunning, newPID, art.ID, svc.ID,
@@ -424,6 +418,20 @@ func (p *DeployPipeline) runPreflightCheck(
 			_ = ln.Close()
 		}
 	}
+
+	// 5. Check target artifact file exists, is a regular file, and is readable
+	info, err := os.Stat(art.StoragePath)
+	if err != nil {
+		return fmt.Errorf("artifact file not found at %s: %w", art.StoragePath, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("artifact at %s is not a regular file", art.StoragePath)
+	}
+	f, err := os.Open(art.StoragePath)
+	if err != nil {
+		return fmt.Errorf("artifact file at %s is not readable: %w", art.StoragePath, err)
+	}
+	_ = f.Close()
 
 	return nil
 }

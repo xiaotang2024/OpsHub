@@ -259,10 +259,7 @@ func (s *ArtifactService) Delete(ctx context.Context, id int64) error {
 		return ErrArtifactInUse
 	}
 
-	// Remove physical file
-	_ = os.Remove(artifact.StoragePath)
-
-	// Remove DB record
+	// Remove DB record first
 	res, err := s.db.ExecContext(ctx, "DELETE FROM artifacts WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete artifact %d failed: %w", id, err)
@@ -271,6 +268,9 @@ func (s *ArtifactService) Delete(ctx context.Context, id int64) error {
 	if rows == 0 {
 		return ErrArtifactNotFound
 	}
+
+	// Remove physical file after successful DB deletion
+	_ = os.Remove(artifact.StoragePath)
 
 	return nil
 }
@@ -302,8 +302,9 @@ func (s *ArtifactService) EnforceRetention(ctx context.Context, serviceID int64)
 			continue
 		}
 
-		_ = os.Remove(a.StoragePath)
-		_, _ = s.db.ExecContext(ctx, "DELETE FROM artifacts WHERE id = ?", a.ID)
+		if _, err := s.db.ExecContext(ctx, "DELETE FROM artifacts WHERE id = ?", a.ID); err == nil {
+			_ = os.Remove(a.StoragePath)
+		}
 	}
 
 	return nil

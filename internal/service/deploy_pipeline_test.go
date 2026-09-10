@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"database/sql"
 	"net"
 	"os"
 	"path/filepath"
@@ -29,10 +30,10 @@ func TestDeployPipeline_FullFlow(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "demo-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	fakeJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(fakeJar, []byte("PK-fake-jar-content"), 0644))
+	require.NoError(t, os.WriteFile(fakeJar, []byte("fake-jar-content"), 0644))
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't1', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't1', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
@@ -57,6 +58,13 @@ func TestDeployPipeline_FullFlow(t *testing.T) {
 	// Verify target file copied
 	deployedFile := filepath.Join(installDir, "app.jar")
 	assert.FileExists(t, deployedFile)
+
+	// Verify current_artifact_id updated to 1
+	var currentArtID sql.NullInt64
+	err = db.QueryRow("SELECT current_artifact_id FROM services WHERE id = 1").Scan(&currentArtID)
+	require.NoError(t, err)
+	assert.True(t, currentArtID.Valid)
+	assert.Equal(t, int64(1), currentArtID.Int64)
 }
 
 func TestDeployPipeline_PreflightCheck_PortConflict(t *testing.T) {
@@ -71,7 +79,7 @@ func TestDeployPipeline_PreflightCheck_PortConflict(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "port-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	fakeJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(fakeJar, []byte("PK-fake-jar-content"), 0644))
+	require.NoError(t, os.WriteFile(fakeJar, []byte("fake-jar-content"), 0644))
 
 	// Occupy a port with an external listener
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -79,8 +87,8 @@ func TestDeployPipeline_PreflightCheck_PortConflict(t *testing.T) {
 	defer ln.Close()
 	occupiedPort := ln.Addr().(*net.TCPAddr).Port
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-port', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-port', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, port, supervision_mode, status) 
@@ -116,14 +124,14 @@ func TestDeployPipeline_PreflightCheck_JDKNotFound(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "jdk-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	fakeJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(fakeJar, []byte("PK-fake-jar-content"), 0644))
+	require.NoError(t, os.WriteFile(fakeJar, []byte("fake-jar-content"), 0644))
 
 	_, err = db.Exec(`INSERT INTO jdk_assets (id, name, java_home, bin_path, version_str, is_system)
 		VALUES (1, 'missing-jdk', '/opt/non-existent-jdk', '/opt/non-existent-jdk/bin/java', '17', 0)`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-jdk', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-jdk', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, jdk_id, install_dir, supervision_mode, status) 
@@ -147,6 +155,42 @@ func TestDeployPipeline_PreflightCheck_JDKNotFound(t *testing.T) {
 	assert.Equal(t, "FAILED", rec.Status)
 }
 
+func TestDeployPipeline_PreflightCheck_ArtifactNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	installDir := filepath.Join(tmpDir, "apps", "missing-art-svc")
+	require.NoError(t, os.MkdirAll(installDir, 0755))
+
+	nonExistentFile := filepath.Join(tmpDir, "non-existent-package.jar")
+
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-art-missing', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (1, 'missing-art-svc', 1, '` + installDir + `', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO artifacts (id, service_id, filename, file_size, sha256, storage_path, version_tag) 
+		VALUES (1, 1, 'missing.jar', 100, 'fake-sha', '` + nonExistentFile + `', 'v1.0')`)
+	require.NoError(t, err)
+
+	pipeline := service.NewDeployPipeline(
+		db,
+		supervisor.NewNativeSupervisor(),
+		prober.NewProber(),
+		template.NewEngine(),
+	)
+
+	rec, err := pipeline.Deploy(context.Background(), 1, 1, "admin")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "artifact file not found")
+	assert.Equal(t, "FAILED", rec.Status)
+}
+
 func TestDeployPipeline_HealthCheckFailure_AutoRollback(t *testing.T) {
 	tmpDir := t.TempDir()
 	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
@@ -158,16 +202,16 @@ func TestDeployPipeline_HealthCheckFailure_AutoRollback(t *testing.T) {
 
 	// Existing package app.jar that will be backed up
 	existingJar := filepath.Join(installDir, "app.jar")
-	require.NoError(t, os.WriteFile(existingJar, []byte("PK-fake-previous-version"), 0644))
+	require.NoError(t, os.WriteFile(existingJar, []byte("previous-version-content"), 0644))
 
 	pkgDir := filepath.Join(tmpDir, "packages", "rollback-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	newJar := filepath.Join(pkgDir, "demo-v2.jar")
-	require.NoError(t, os.WriteFile(newJar, []byte("PK-fake-v2-jar"), 0644))
+	require.NoError(t, os.WriteFile(newJar, []byte("v2-jar-content"), 0644))
 
 	// Health check config points to a non-existent port with very short timeout (200ms)
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-rb', 'java_jar', '` + installDir + `', 'native', '{"type":"http","port":59999,"path":"/health","timeout":200000000}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-rb', 'java_jar', '` + installDir + `', 'native', '{"type":"http","port":59999,"path":"/health","timeout":200000000}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status, current_artifact_id) 
@@ -196,11 +240,67 @@ func TestDeployPipeline_HealthCheckFailure_AutoRollback(t *testing.T) {
 	// Verify app.jar was rolled back to previous content
 	content, readErr := os.ReadFile(existingJar)
 	require.NoError(t, readErr)
-	assert.Equal(t, "PK-fake-previous-version", string(content))
+	assert.Equal(t, "previous-version-content", string(content))
 
 	// Verify backup file app.jar.prev exists
 	backupFile := filepath.Join(installDir, "backup", "app.jar.prev")
 	assert.FileExists(t, backupFile)
+
+	// Verify current_artifact_id retains previous ID 1 (not upgraded to 2)
+	var currentArtID sql.NullInt64
+	err = db.QueryRow("SELECT current_artifact_id FROM services WHERE id = 1").Scan(&currentArtID)
+	require.NoError(t, err)
+	assert.True(t, currentArtID.Valid)
+	assert.Equal(t, int64(1), currentArtID.Int64)
+}
+
+func TestDeployPipeline_HealthCheckFailure_NoBackup(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	installDir := filepath.Join(tmpDir, "apps", "fresh-fail-svc")
+	require.NoError(t, os.MkdirAll(installDir, 0755))
+
+	pkgDir := filepath.Join(tmpDir, "packages", "fresh-fail-svc")
+	require.NoError(t, os.MkdirAll(pkgDir, 0755))
+	pkgJar := filepath.Join(pkgDir, "demo-v1.jar")
+	require.NoError(t, os.WriteFile(pkgJar, []byte("fresh-fail-jar"), 0644))
+
+	// Health check config points to non-existent port
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-nobak', 'java_jar', '` + installDir + `', 'native', '{"type":"http","port":59998,"path":"/health","timeout":200000000}', 'sleep 30')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status, current_artifact_id) 
+		VALUES (1, 'fresh-fail-svc', 1, '` + installDir + `', 'native', 'STOPPED', NULL)`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO artifacts (id, service_id, filename, file_size, sha256, storage_path, version_tag) 
+		VALUES (1, 1, 'demo-v1.jar', 100, 'fake-sha1', '` + pkgJar + `', 'v1.0')`)
+	require.NoError(t, err)
+
+	pipeline := service.NewDeployPipeline(
+		db,
+		supervisor.NewNativeSupervisor(),
+		prober.NewProber(),
+		template.NewEngine(),
+	)
+
+	rec, err := pipeline.Deploy(context.Background(), 1, 1, "admin")
+	require.Error(t, err)
+	assert.Equal(t, "FAILED", rec.Status)
+
+	// Since hasBackup is false (initial deploy failed), status should be FAILED and pid 0
+	var status string
+	var pid int
+	var currentArtID sql.NullInt64
+	err = db.QueryRow("SELECT status, pid, current_artifact_id FROM services WHERE id = 1").Scan(&status, &pid, &currentArtID)
+	require.NoError(t, err)
+	assert.Equal(t, "FAILED", status)
+	assert.Equal(t, 0, pid)
+	assert.False(t, currentArtID.Valid)
 }
 
 func TestDeployPipeline_Rollback_Manual(t *testing.T) {
@@ -215,10 +315,10 @@ func TestDeployPipeline_Rollback_Manual(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "manual-rb")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	histJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(histJar, []byte("PK-fake-jar-v1-hist"), 0644))
+	require.NoError(t, os.WriteFile(histJar, []byte("jar-v1-hist"), 0644))
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-mrb', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-mrb', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
@@ -243,7 +343,7 @@ func TestDeployPipeline_Rollback_Manual(t *testing.T) {
 
 	content, err := os.ReadFile(filepath.Join(installDir, "app.jar"))
 	require.NoError(t, err)
-	assert.Equal(t, "PK-fake-jar-v1-hist", string(content))
+	assert.Equal(t, "jar-v1-hist", string(content))
 }
 
 func TestDeployPipeline_StopRunningService(t *testing.T) {
@@ -258,15 +358,15 @@ func TestDeployPipeline_StopRunningService(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "stop-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	fakeJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(fakeJar, []byte("PK-fake-jar-content"), 0644))
+	require.NoError(t, os.WriteFile(fakeJar, []byte("fake-jar-content"), 0644))
 
 	sup := supervisor.NewNativeSupervisor()
 	oldPID, err := sup.Start(context.Background(), installDir, "sleep 30", nil, "")
 	require.NoError(t, err)
 	assert.True(t, sup.IsRunning(oldPID))
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-stop', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-stop', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status, pid) 
@@ -304,10 +404,10 @@ func TestDeployPipeline_AuditAndDeployRecords(t *testing.T) {
 	pkgDir := filepath.Join(tmpDir, "packages", "audit-svc")
 	require.NoError(t, os.MkdirAll(pkgDir, 0755))
 	fakeJar := filepath.Join(pkgDir, "demo-v1.jar")
-	require.NoError(t, os.WriteFile(fakeJar, []byte("PK-fake-jar-content"), 0644))
+	require.NoError(t, os.WriteFile(fakeJar, []byte("fake-jar-content"), 0644))
 
-	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config) 
-		VALUES (1, 't-audit', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}')`)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (1, 't-audit', 'java_jar', '` + installDir + `', 'native', '{"type":"process"}', 'sleep 30')`)
 	require.NoError(t, err)
 
 	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
