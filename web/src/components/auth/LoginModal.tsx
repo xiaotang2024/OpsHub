@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Terminal,
@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Loader2,
   CheckCircle2,
   HelpCircle,
   Mail,
@@ -19,7 +18,9 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { InteractiveCanvasBackground } from './InteractiveCanvasBackground';
-import { OpsBot } from './OpsBot';
+import { AnimatedGradientBackground } from './AnimatedGradientBackground';
+import { AnimatedCharacters } from './AnimatedCharacters';
+import { InteractiveHoverButton } from '../ui/InteractiveHoverButton';
 
 export type AuthMode = 'login' | 'register' | 'forgot-password';
 
@@ -77,7 +78,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  // Animated Characters interactive states
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerTyping = () => {
+    setIsTyping(true);
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    typingTimerRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 900);
+  };
 
   const activeShowPassword =
     mode === 'login'
@@ -86,6 +100,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       ? showRegPassword
       : showForgotNewPassword;
 
+  const activePasswordLength =
+    mode === 'login'
+      ? loginPassword.length
+      : mode === 'register'
+      ? regPassword.length
+      : forgotNewPassword.length;
+
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
@@ -93,6 +114,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setSuccessMsg(null);
     }
   }, [isOpen, initialMode]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -182,37 +211,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         security_answer: regAnswer.trim(),
       });
 
+      setSuccessMsg('注册成功！正在为您自动登录系统...');
       if (res && res.token) {
         localStorage.setItem('opshub_token', res.token);
-        setSuccessMsg('注册成功，正在为您自动登录...');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('opshub:authenticated', {
+              detail: { username: res.user?.username || regUsername.trim(), user: res.user },
+            })
+          );
+        }
         setTimeout(() => {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('opshub:authenticated', {
-                detail: { username: regUsername.trim(), user: res.user },
-              })
-            );
-          }
           if (onSuccess) {
-            onSuccess(res.token, regUsername.trim());
+            onSuccess(res.token, res.user?.username || regUsername.trim());
           }
         }, 1000);
-      } else {
-        setSuccessMsg('注册成功，请使用新账号登录');
-        setTimeout(() => switchMode('login'), 1500);
       }
     } catch (err: any) {
-      setError(err.message || '注册失败，请检查填写内容');
+      setError(err.message || '注册失败，该用户名可能已被占用');
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. Query Security Question for Forgot Password
+  // 3. Forgot Password - Step 1: Query Security Question
   const handleQueryQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotUsername.trim()) {
-      setError('请输入要找回密码的用户名');
+      setError('请输入需要找回密码的用户名');
       return;
     }
 
@@ -223,20 +249,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       if (res && res.security_question) {
         setRetrievedQuestion(res.security_question);
       } else {
-        setError('未能查询到该用户的密保安全问题');
+        setError('该用户尚未设置安全密保问题，请联系系统超级管理员进行离线口令重置');
       }
     } catch (err: any) {
-      setError(err.message || '查询密保问题失败，用户可能不存在或未设置密保');
+      setError(err.message || '未找到该用户或密保信息');
     } finally {
       setQueryingQuestion(false);
     }
   };
 
-  // 4. Submit Reset Password
+  // 4. Forgot Password - Step 2: Reset Password
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotAnswer.trim()) {
-      setError('请输入密保安全答案');
+      setError('请输入密保安全问题答案');
       return;
     }
     if (!forgotNewPassword || forgotNewPassword.length < 6) {
@@ -270,7 +296,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
         {/* Dynamic Interactive Constellation Background */}
         <InteractiveCanvasBackground />
 
@@ -282,585 +308,608 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           onClick={() => {
             if (canDismiss && onClose) onClose();
           }}
-          className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         />
 
-        {/* Modal Window Container with OpsBot Companion */}
-        <div className="relative w-full max-w-lg z-10 pt-10">
-          {/* Playful OpsBot sitting on the card */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20">
-            <OpsBot
-              isPasswordFocused={isPasswordFocused}
-              showPassword={activeShowPassword}
-              isLoading={loading || queryingQuestion}
-              isSuccess={!!successMsg}
-              hasError={!!error}
-            />
-          </div>
-
+        {/* Dual-Panel Split Modal Card */}
+        <div className="relative w-full max-w-5xl z-10 my-auto">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 14 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full overflow-hidden rounded-2xl border border-ops-border bg-ops-surface/95 backdrop-blur-xl p-6 shadow-[0_12px_45px_rgba(0,0,0,0.7)] max-h-[82vh] flex flex-col"
+            exit={{ opacity: 0, scale: 0.95, y: 14 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="relative w-full overflow-hidden rounded-2xl border border-ops-border/80 bg-ops-surface/95 backdrop-blur-2xl shadow-[0_20px_70px_rgba(0,0,0,0.85)] grid grid-cols-1 lg:grid-cols-12 max-h-[92vh]"
           >
-            {/* Cyber Accent Border Top */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-emerald-500 to-cyan-500" />
+            {/* Top Accent Gradient Border */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-ops-cyan to-emerald-400 z-30" />
 
-          {/* Close button if dismissible */}
-          {canDismiss && onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-border/60 transition-colors"
-              aria-label="关闭"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-
-          {/* Header */}
-          <div className="flex items-center gap-3.5 mb-4 shrink-0">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-950/70 border border-ops-cyan/40 text-ops-cyan shadow-cyan-glow">
-              {mode === 'login' && <Terminal className="h-6 w-6" />}
-              {mode === 'register' && <UserPlus className="h-6 w-6" />}
-              {mode === 'forgot-password' && <KeyRound className="h-6 w-6" />}
-              <div className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-ops-emerald animate-ping" />
-              <div className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-ops-emerald" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold tracking-wide text-white">
-                  {mode === 'login' && 'OpsHub 控制台登录'}
-                  {mode === 'register' && '注册 OpsHub 账号'}
-                  {mode === 'forgot-password' && '重置与找回密码'}
-                </h2>
-                <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[10px] font-mono text-ops-cyan border border-ops-cyan/30">
-                  {mode === 'login' ? 'AUTH' : mode === 'register' ? 'REGISTER' : 'RECOVERY'}
-                </span>
-              </div>
-              <p className="text-xs text-ops-text-muted font-mono mt-0.5">
-                {mode === 'login' && '请输入凭证以验证身份并获取访问 Token'}
-                {mode === 'register' && '注册新账号，默认分配普通运维操作员 (operator) 权限'}
-                {mode === 'forgot-password' && '通过验证预设密保安全问题重新设置访问密码'}
-              </p>
-            </div>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="flex rounded-lg border border-ops-border bg-ops-bg/60 p-1 mb-4 shrink-0 text-xs font-mono">
-            <button
-              type="button"
-              onClick={() => switchMode('login')}
-              className={`flex-1 py-1.5 rounded-md font-semibold transition-all ${
-                mode === 'login'
-                  ? 'bg-ops-surface text-ops-cyan shadow-sm border border-ops-cyan/30'
-                  : 'text-ops-text-muted hover:text-white'
-              }`}
-            >
-              账号登录
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('register')}
-              className={`flex-1 py-1.5 rounded-md font-semibold transition-all ${
-                mode === 'register'
-                  ? 'bg-ops-surface text-ops-cyan shadow-sm border border-ops-cyan/30'
-                  : 'text-ops-text-muted hover:text-white'
-              }`}
-            >
-              用户注册
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode('forgot-password')}
-              className={`flex-1 py-1.5 rounded-md font-semibold transition-all ${
-                mode === 'forgot-password'
-                  ? 'bg-ops-surface text-ops-cyan shadow-sm border border-ops-cyan/30'
-                  : 'text-ops-text-muted hover:text-white'
-              }`}
-            >
-              忘记密码
-            </button>
-          </div>
-
-          {/* Feedback Messages */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300 shrink-0"
-            >
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-              <span className="font-mono">{error}</span>
-            </motion.div>
-          )}
-
-          {successMsg && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-3 text-xs text-emerald-300 shrink-0"
-            >
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span className="font-mono">{successMsg}</span>
-            </motion.div>
-          )}
-
-          {/* Scrollable Form Content */}
-          <div className="flex-1 overflow-y-auto pr-1">
-            {/* 1. LOGIN MODE */}
-            {mode === 'login' && (
-              <div className="space-y-4">
-                {/* Tip Notice */}
-                <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/30 p-3 text-xs text-cyan-200/90 leading-relaxed font-sans">
-                  <span className="font-semibold text-ops-cyan">💡 初始管理员提示：</span>
-                  管理员初始口令已在首次启动时于终端打印，默认管理员账号为{' '}
-                  <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-white">admin</code>。
-                </div>
-
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-mono text-ops-text-muted mb-1.5">
-                      用户名 / Username
-                    </label>
-                    <div className="relative flex items-center">
-                      <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
-                      <input
-                        type="text"
-                        value={loginUsername}
-                        onChange={(e) => setLoginUsername(e.target.value)}
-                        placeholder="admin"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-3 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-mono text-ops-text-muted">
-                        密码 / Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => switchMode('forgot-password')}
-                        className="text-xs font-mono text-ops-cyan hover:underline"
-                      >
-                        忘记密码？
-                      </button>
-                    </div>
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-3 h-4 w-4 text-ops-text-muted" />
-                      <input
-                        type={showLoginPassword ? 'text' : 'password'}
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        onFocus={() => setIsPasswordFocused(true)}
-                        onBlur={() => setIsPasswordFocused(false)}
-                        placeholder="请输入访问凭据密钥"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-10 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowLoginPassword(!showLoginPassword)}
-                        className="absolute right-3 text-ops-text-muted hover:text-white transition-colors"
-                        aria-label={showLoginPassword ? '隐藏密码' : '显示密码'}
-                      >
-                        {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-ops-cyan px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-cyan-glow"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="font-mono">正在验证凭据...</span>
-                      </>
-                    ) : (
-                      <span className="font-mono">确认登录 / Login</span>
-                    )}
-                  </button>
-
-                  <div className="pt-2 text-center text-xs text-ops-text-muted">
-                    还没有运维账号？{' '}
-                    <button
-                      type="button"
-                      onClick={() => switchMode('register')}
-                      className="font-semibold text-ops-cyan hover:underline"
-                    >
-                      立即注册新用户
-                    </button>
-                  </div>
-                </form>
-              </div>
+            {/* Close button if dismissible */}
+            {canDismiss && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-border/60 transition-colors z-40"
+                aria-label="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
 
-            {/* 2. REGISTER MODE */}
-            {mode === 'register' && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                      用户名 / Username <span className="text-red-400">*</span>
-                    </label>
-                    <div className="relative flex items-center">
-                      <User className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
-                      <input
-                        type="text"
-                        value={regUsername}
-                        onChange={(e) => setRegUsername(e.target.value)}
-                        placeholder="例如: devops_john"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
-                      />
-                    </div>
-                  </div>
+            {/* ================= LEFT PANEL: CareerCompass 4-Character Stage ================= */}
+            <div className="relative hidden lg:flex lg:col-span-5 flex-col justify-between p-8 overflow-hidden bg-slate-950/80 border-r border-ops-border/60 select-none">
+              {/* Dynamic Breathing Gradient Background with Tech Grid */}
+              <AnimatedGradientBackground showGrid={true} />
 
-                  <div>
-                    <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                      真实姓名 / 昵称 (选填)
-                    </label>
-                    <input
-                      type="text"
-                      value={regNickname}
-                      onChange={(e) => setRegNickname(e.target.value)}
-                      placeholder="例如: 张三 (运维一组成员)"
-                      disabled={loading}
-                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
-                    />
-                  </div>
+              {/* Brand Header */}
+              <div className="relative z-20 flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-950/80 border border-ops-cyan/50 text-ops-cyan shadow-cyan-glow">
+                  <Terminal className="h-6 w-6" />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                    电子邮箱 / Email (选填)
-                  </label>
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
-                    <input
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="ops@company.com"
-                      disabled={loading}
-                      className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
-                    />
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-lg text-white tracking-wide">OpsHub Gateway</span>
+                    <span className="rounded bg-ops-cyan/20 px-1.5 py-0.5 text-[10px] font-mono text-ops-cyan border border-ops-cyan/30">
+                      v1.0
+                    </span>
+                  </div>
+                  <p className="text-xs text-ops-text-muted font-mono mt-0.5">企业级轻量自动化运维平台</p>
+                </div>
+              </div>
+
+              {/* Character Stage: 4 Interactive Characters */}
+              <div className="relative z-20 flex-1 flex items-end justify-center min-h-[350px] pb-2">
+                <AnimatedCharacters
+                  isTyping={isTyping}
+                  showPassword={activeShowPassword}
+                  passwordLength={activePasswordLength}
+                  scale={0.82}
+                />
+              </div>
+
+              {/* Footer interactive hints */}
+              <div className="relative z-20 flex items-center justify-between text-xs text-ops-text-muted font-mono border-t border-white/10 pt-3.5">
+                <div className="flex items-center gap-1.5 text-ops-cyan">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>实时交互 · 视线拟态感知</span>
+                </div>
+                <span className="text-gray-500">Security Gateway</span>
+              </div>
+            </div>
+
+            {/* ================= RIGHT PANEL: Form Controls & Switcher ================= */}
+            <div className="col-span-1 lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto max-h-[92vh]">
+              {/* Mobile compact character stage */}
+              <div className="lg:hidden relative mb-4 flex items-end justify-center h-[170px] overflow-hidden rounded-xl bg-slate-950/60 border border-ops-border/60">
+                <AnimatedGradientBackground showGrid={false} />
+                <div className="relative z-10">
+                  <AnimatedCharacters
+                    isTyping={isTyping}
+                    showPassword={activeShowPassword}
+                    passwordLength={activePasswordLength}
+                    scale={0.44}
+                  />
+                </div>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className="flex items-center justify-between border-b border-ops-border/80 pb-3 mb-4 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-950/60 border border-ops-cyan/30 text-ops-cyan">
+                    {mode === 'login' && <Terminal className="h-4 w-4" />}
+                    {mode === 'register' && <UserPlus className="h-4 w-4" />}
+                    {mode === 'forgot-password' && <KeyRound className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white tracking-wide">
+                      {mode === 'login' && 'OpsHub 控制台登录'}
+                      {mode === 'register' && '注册 OpsHub 账号'}
+                      {mode === 'forgot-password' && '重置与找回密码'}
+                    </h2>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                      设置登录密码 <span className="text-red-400">*</span>
-                    </label>
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
-                      <input
-                        type={showRegPassword ? 'text' : 'password'}
-                        value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
-                        onFocus={() => setIsPasswordFocused(true)}
-                        onBlur={() => setIsPasswordFocused(false)}
-                        placeholder="至少 6 位字符"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute right-2.5 text-ops-text-muted hover:text-white"
-                      >
-                        {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                      确认密码 <span className="text-red-400">*</span>
-                    </label>
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
-                      <input
-                        type={showRegPassword ? 'text' : 'password'}
-                        value={regConfirmPassword}
-                        onChange={(e) => setRegConfirmPassword(e.target.value)}
-                        onFocus={() => setIsPasswordFocused(true)}
-                        onBlur={() => setIsPasswordFocused(false)}
-                        placeholder="重复输入密码"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Security Question Section */}
-                <div className="rounded-xl border border-ops-border/80 bg-ops-bg/40 p-3 space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-ops-cyan font-mono">
-                    <HelpCircle className="h-3.5 w-3.5" />
-                    <span>密保安全验证设置（用于找回密码）</span>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                      选择密保安全问题 <span className="text-red-400">*</span>
-                    </label>
-                    <select
-                      value={selectedQuestion}
-                      onChange={(e) => setSelectedQuestion(e.target.value)}
-                      disabled={loading}
-                      className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
-                    >
-                      {PRESET_QUESTIONS.map((q) => (
-                        <option key={q} value={q} className="bg-slate-900 text-white">
-                          {q}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedQuestion === '自定义密保问题...' && (
-                    <div>
-                      <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                        自定义密保安全问题 <span className="text-red-400">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={customQuestion}
-                        onChange={(e) => setCustomQuestion(e.target.value)}
-                        placeholder="例如: 您的大学室友名字是什么？"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                      密保问题答案 <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={regAnswer}
-                      onChange={(e) => setRegAnswer(e.target.value)}
-                      placeholder="请准确牢记，找回密码时需完全匹配"
-                      disabled={loading}
-                      className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-ops-cyan px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 transition-colors shadow-cyan-glow"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>正在创建运维账号...</span>
-                    </>
-                  ) : (
-                    <span>立即注册并登录</span>
-                  )}
-                </button>
-
-                <div className="text-center text-xs text-ops-text-muted">
-                  已有平台账号？{' '}
+                {/* Tabs */}
+                <div className="flex items-center gap-1 rounded-lg bg-ops-bg/90 p-1 border border-ops-border/60 text-xs font-mono">
                   <button
                     type="button"
                     onClick={() => switchMode('login')}
-                    className="font-semibold text-ops-cyan hover:underline"
+                    className={`rounded-md px-2.5 py-1 transition-all ${
+                      mode === 'login'
+                        ? 'bg-ops-cyan/20 text-ops-cyan font-bold border border-ops-cyan/40 shadow-sm'
+                        : 'text-ops-text-muted hover:text-white'
+                    }`}
                   >
-                    返回登录
+                    登录
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('register')}
+                    className={`rounded-md px-2.5 py-1 transition-all ${
+                      mode === 'register'
+                        ? 'bg-ops-cyan/20 text-ops-cyan font-bold border border-ops-cyan/40 shadow-sm'
+                        : 'text-ops-text-muted hover:text-white'
+                    }`}
+                  >
+                    用户注册
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot-password')}
+                    className={`rounded-md px-2.5 py-1 transition-all ${
+                      mode === 'forgot-password'
+                        ? 'bg-ops-cyan/20 text-ops-cyan font-bold border border-ops-cyan/40 shadow-sm'
+                        : 'text-ops-text-muted hover:text-white'
+                    }`}
+                  >
+                    忘记密码
                   </button>
                 </div>
-              </form>
-            )}
+              </div>
 
-            {/* 3. FORGOT PASSWORD MODE */}
-            {mode === 'forgot-password' && (
-              <div className="space-y-4">
-                {/* Step 1: Input username and fetch question */}
-                {!retrievedQuestion ? (
-                  <form onSubmit={handleQueryQuestion} className="space-y-4">
-                    <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/20 p-3 text-xs text-cyan-200/80 leading-relaxed">
-                      第一步：请输入您的平台登录用户名，系统将检索您在注册时绑定的密保安全问题。
+              {/* Alert Feedback Messages */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-3 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-950/40 p-2.5 text-xs text-red-300 shrink-0"
+                >
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span className="font-mono">{error}</span>
+                </motion.div>
+              )}
+
+              {successMsg && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-2.5 text-xs text-emerald-300 shrink-0"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="font-mono">{successMsg}</span>
+                </motion.div>
+              )}
+
+              {/* Scrollable Form Area */}
+              <div className="flex-1 overflow-y-auto pr-1">
+                {/* 1. LOGIN MODE */}
+                {mode === 'login' && (
+                  <div className="space-y-4">
+                    {/* Tip Notice */}
+                    <div className="rounded-lg border border-cyan-900/50 bg-cyan-950/30 p-3 text-xs text-cyan-200/90 leading-relaxed font-sans">
+                      <span className="font-semibold text-ops-cyan">💡 初始管理员提示：</span>
+                      管理员初始口令已在首次启动时于终端打印，默认管理员账号为{' '}
+                      <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-white">admin</code>。
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-mono text-ops-text-muted mb-1.5">
-                        目标用户名 / Target Username
-                      </label>
-                      <div className="relative flex items-center">
-                        <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                    <form onSubmit={handleLoginSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-mono text-ops-text-muted mb-1.5">
+                          用户名 / Username
+                        </label>
+                        <div className="relative flex items-center">
+                          <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                          <input
+                            type="text"
+                            value={loginUsername}
+                            onChange={(e) => {
+                              setLoginUsername(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="admin"
+                            disabled={loading}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-3 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-mono text-ops-text-muted">
+                            密码 / Password
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => switchMode('forgot-password')}
+                            className="text-xs font-mono text-ops-cyan hover:underline"
+                          >
+                            忘记密码？
+                          </button>
+                        </div>
+                        <div className="relative flex items-center">
+                          <Lock className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                          <input
+                            type={showLoginPassword ? 'text' : 'password'}
+                            value={loginPassword}
+                            onChange={(e) => {
+                              setLoginPassword(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="请输入访问凭据密钥"
+                            disabled={loading}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-10 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowLoginPassword(!showLoginPassword)}
+                            className="absolute right-3 text-ops-text-muted hover:text-white transition-colors"
+                            aria-label={showLoginPassword ? '隐藏密码' : '显示密码'}
+                          >
+                            {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <InteractiveHoverButton
+                        type="submit"
+                        loading={loading}
+                        text="确认登录 / Login"
+                        className="mt-3 bg-gradient-to-r from-ops-cyan to-emerald-500 font-semibold text-slate-950 hover:from-cyan-400 hover:to-emerald-400"
+                      />
+
+                      <div className="pt-2 text-center text-xs text-ops-text-muted">
+                        还没有运维账号？{' '}
+                        <button
+                          type="button"
+                          onClick={() => switchMode('register')}
+                          className="font-semibold text-ops-cyan hover:underline"
+                        >
+                          立即注册新用户
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* 2. REGISTER MODE */}
+                {mode === 'register' && (
+                  <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                          用户名 / Username <span className="text-red-400">*</span>
+                        </label>
+                        <div className="relative flex items-center">
+                          <User className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                          <input
+                            type="text"
+                            value={regUsername}
+                            onChange={(e) => {
+                              setRegUsername(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="例如: devops_john"
+                            disabled={loading}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                          真实姓名 / 昵称 (选填)
+                        </label>
                         <input
                           type="text"
-                          value={forgotUsername}
-                          onChange={(e) => setForgotUsername(e.target.value)}
-                          placeholder="例如: devops_john"
-                          disabled={queryingQuestion}
-                          className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-3 py-2 text-sm text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none"
+                          value={regNickname}
+                          onChange={(e) => {
+                            setRegNickname(e.target.value);
+                            triggerTyping();
+                          }}
+                          placeholder="例如: 张三"
+                          disabled={loading}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
                         />
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={queryingQuestion}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-ops-cyan px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 transition-colors shadow-cyan-glow"
-                    >
-                      {queryingQuestion ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>正在检索安全密保...</span>
-                        </>
-                      ) : (
-                        <span>下一步：检索密保问题</span>
-                      )}
-                    </button>
-
-                    <div className="text-center text-xs text-ops-text-muted">
-                      记起密码了？{' '}
-                      <button
-                        type="button"
-                        onClick={() => switchMode('login')}
-                        className="font-semibold text-ops-cyan hover:underline"
-                      >
-                        返回登录
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  /* Step 2: Answer question and reset password */
-                  <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-ops-text-muted">
-                        当前找回账号: <strong className="text-white">{forgotUsername}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRetrievedQuestion(null);
-                          setForgotAnswer('');
-                        }}
-                        className="text-xs font-mono text-ops-cyan hover:underline"
-                      >
-                        更换账号
-                      </button>
-                    </div>
-
-                    <div className="rounded-xl border border-ops-cyan/30 bg-cyan-950/30 p-3.5 space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-ops-cyan font-mono">
-                        <HelpCircle className="h-4 w-4 shrink-0" />
-                        <span>验证密保安全问题：</span>
-                      </div>
-                      <p className="text-xs text-white font-mono font-medium pl-5">
-                        {retrievedQuestion}
-                      </p>
-                    </div>
-
                     <div>
                       <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                        请输入密保答案 <span className="text-red-400">*</span>
+                        电子邮箱 / Email (选填)
                       </label>
-                      <input
-                        type="text"
-                        value={forgotAnswer}
-                        onChange={(e) => setForgotAnswer(e.target.value)}
-                        placeholder="请输入注册时填写的密保答案"
-                        disabled={loading}
-                        className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
-                      />
+                      <div className="relative flex items-center">
+                        <Mail className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                        <input
+                          type="email"
+                          value={regEmail}
+                          onChange={(e) => {
+                            setRegEmail(e.target.value);
+                            triggerTyping();
+                          }}
+                          placeholder="ops@company.com"
+                          disabled={loading}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                          设定新密码 <span className="text-red-400">*</span>
+                          设置登录密码 <span className="text-red-400">*</span>
                         </label>
                         <div className="relative flex items-center">
                           <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
                           <input
-                            type={showForgotNewPassword ? 'text' : 'password'}
-                            value={forgotNewPassword}
-                            onChange={(e) => setForgotNewPassword(e.target.value)}
-                            onFocus={() => setIsPasswordFocused(true)}
-                            onBlur={() => setIsPasswordFocused(false)}
+                            type={showRegPassword ? 'text' : 'password'}
+                            value={regPassword}
+                            onChange={(e) => {
+                              setRegPassword(e.target.value);
+                              triggerTyping();
+                            }}
                             placeholder="至少 6 位字符"
                             disabled={loading}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
                           />
                           <button
                             type="button"
-                            onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                            onClick={() => setShowRegPassword(!showRegPassword)}
                             className="absolute right-2.5 text-ops-text-muted hover:text-white"
                           >
-                            {showForgotNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                           </button>
                         </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                          确认新密码 <span className="text-red-400">*</span>
+                          确认密码 <span className="text-red-400">*</span>
                         </label>
                         <div className="relative flex items-center">
                           <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
                           <input
-                            type={showForgotNewPassword ? 'text' : 'password'}
-                            value={forgotConfirmPassword}
-                            onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                            onFocus={() => setIsPasswordFocused(true)}
-                            onBlur={() => setIsPasswordFocused(false)}
-                            placeholder="重复新密码"
+                            type={showRegPassword ? 'text' : 'password'}
+                            value={regConfirmPassword}
+                            onChange={(e) => {
+                              setRegConfirmPassword(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="重复输入密码"
                             disabled={loading}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
                           />
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-ops-cyan px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 transition-colors shadow-cyan-glow"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          <span>正在重置登录凭据...</span>
-                        </>
-                      ) : (
-                        <span>确认重置并更新密码</span>
-                      )}
-                    </button>
+                    {/* Security Question Section */}
+                    <div className="rounded-xl border border-ops-border/80 bg-ops-bg/40 p-3 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-ops-cyan font-mono">
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        <span>密保安全验证设置（用于找回密码）</span>
+                      </div>
 
-                    <div className="text-center text-xs text-ops-text-muted">
+                      <div>
+                        <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
+                          选择密保安全问题 <span className="text-red-400">*</span>
+                        </label>
+                        <select
+                          value={selectedQuestion}
+                          onChange={(e) => setSelectedQuestion(e.target.value)}
+                          disabled={loading}
+                          className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                        >
+                          {PRESET_QUESTIONS.map((q) => (
+                            <option key={q} value={q} className="bg-slate-900 text-white">
+                              {q}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedQuestion === '自定义密保问题...' && (
+                        <div>
+                          <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
+                            自定义密保安全问题 <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={customQuestion}
+                            onChange={(e) => {
+                              setCustomQuestion(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="例如: 您的大学室友名字是什么？"
+                            disabled={loading}
+                            className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
+                          密保问题答案 <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={regAnswer}
+                          onChange={(e) => {
+                            setRegAnswer(e.target.value);
+                            triggerTyping();
+                          }}
+                          placeholder="请准确牢记，答案区分大小写"
+                          disabled={loading}
+                          className="w-full rounded-lg border border-ops-border bg-ops-surface px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <InteractiveHoverButton
+                      type="submit"
+                      loading={loading}
+                      text="立即注册并登录 / Register"
+                      className="mt-2 bg-gradient-to-r from-ops-cyan to-emerald-500 font-semibold text-slate-950 hover:from-cyan-400 hover:to-emerald-400"
+                    />
+
+                    <div className="text-center text-xs text-ops-text-muted pt-1">
+                      已有账号？{' '}
                       <button
                         type="button"
                         onClick={() => switchMode('login')}
-                        className="inline-flex items-center gap-1 text-ops-cyan hover:underline"
+                        className="font-semibold text-ops-cyan hover:underline"
                       >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        <span>返回登录界面</span>
+                        直接登录
                       </button>
                     </div>
                   </form>
                 )}
+
+                {/* 3. FORGOT PASSWORD MODE */}
+                {mode === 'forgot-password' && (
+                  <div className="space-y-3.5">
+                    {!retrievedQuestion ? (
+                      /* Step 1: Query username's security question */
+                      <form onSubmit={handleQueryQuestion} className="space-y-3.5">
+                        <div className="rounded-lg border border-ops-border/70 bg-ops-bg/50 p-3 text-xs text-ops-text-muted leading-relaxed font-sans">
+                          请输入您注册时填写的账号用户名。系统将检索该账号绑定的安全密保问题，验证正确后即可直接重置密码。
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                            找回账号的用户名 / Username <span className="text-red-400">*</span>
+                          </label>
+                          <div className="relative flex items-center">
+                            <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                            <input
+                              type="text"
+                              value={forgotUsername}
+                              onChange={(e) => {
+                                setForgotUsername(e.target.value);
+                                triggerTyping();
+                              }}
+                              placeholder="例如: devops_john"
+                              disabled={queryingQuestion}
+                              className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-3 py-2 text-xs text-white font-mono placeholder:text-gray-600 focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan"
+                            />
+                          </div>
+                        </div>
+
+                        <InteractiveHoverButton
+                          type="submit"
+                          loading={queryingQuestion}
+                          text="检索密保问题"
+                          className="mt-2 bg-gradient-to-r from-ops-cyan to-emerald-500 font-semibold text-slate-950 hover:from-cyan-400 hover:to-emerald-400"
+                        />
+
+                        <div className="text-center text-xs text-ops-text-muted pt-2">
+                          想起密码了？{' '}
+                          <button
+                            type="button"
+                            onClick={() => switchMode('login')}
+                            className="font-semibold text-ops-cyan hover:underline"
+                          >
+                            返回登录
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      /* Step 2: Answer question and reset password */
+                      <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
+                        <div className="flex items-center justify-between pb-1">
+                          <span className="text-xs font-mono text-ops-cyan">
+                            当前账号: <span className="text-white font-semibold">{forgotUsername}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRetrievedQuestion(null)}
+                            className="flex items-center gap-1 text-[11px] font-mono text-ops-text-muted hover:text-white"
+                          >
+                            <ArrowLeft className="h-3 w-3" />
+                            重新输入账号
+                          </button>
+                        </div>
+
+                        {/* Retrieved Question Box */}
+                        <div className="rounded-xl border border-ops-cyan/30 bg-cyan-950/20 p-3 space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-ops-cyan font-mono font-semibold">
+                            <HelpCircle className="h-3.5 w-3.5" />
+                            <span>密保安全问题:</span>
+                          </div>
+                          <div className="text-sm text-white font-sans pl-5">{retrievedQuestion}</div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                            密保问题答案 / Security Answer <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={forgotAnswer}
+                            onChange={(e) => {
+                              setForgotAnswer(e.target.value);
+                              triggerTyping();
+                            }}
+                            placeholder="请输入注册时填写的密保答案"
+                            disabled={loading}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                              设置新密码 <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative flex items-center">
+                              <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                              <input
+                                type={showForgotNewPassword ? 'text' : 'password'}
+                                value={forgotNewPassword}
+                                onChange={(e) => {
+                                  setForgotNewPassword(e.target.value);
+                                  triggerTyping();
+                                }}
+                                placeholder="至少 6 位字符"
+                                disabled={loading}
+                                className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-8 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                                className="absolute right-2.5 text-ops-text-muted hover:text-white"
+                              >
+                                {showForgotNewPassword ? (
+                                  <EyeOff className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                              确认新密码 <span className="text-red-400">*</span>
+                            </label>
+                            <div className="relative flex items-center">
+                              <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                              <input
+                                type={showForgotNewPassword ? 'text' : 'password'}
+                                value={forgotConfirmPassword}
+                                onChange={(e) => {
+                                  setForgotConfirmPassword(e.target.value);
+                                  triggerTyping();
+                                }}
+                                placeholder="重复新密码"
+                                disabled={loading}
+                                className="w-full rounded-lg border border-ops-border bg-ops-bg pl-8 pr-3 py-1.5 text-xs text-white font-mono focus:border-ops-cyan focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <InteractiveHoverButton
+                          type="submit"
+                          loading={loading}
+                          text="确认重置并更新密码"
+                          className="mt-2 bg-gradient-to-r from-ops-cyan to-emerald-500 font-semibold text-slate-950 hover:from-cyan-400 hover:to-emerald-400"
+                        />
+                      </form>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </AnimatePresence>
