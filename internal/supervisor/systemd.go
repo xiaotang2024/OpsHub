@@ -6,8 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+// serviceNameRegex strictly permits alphanumeric characters, underscores, and hyphens.
+var serviceNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // DefaultUnitDir is the default directory for systemd system units.
 const DefaultUnitDir = "/etc/systemd/system"
@@ -73,18 +77,17 @@ func (s *SystemdSupervisor) RenderUnit(serviceName, dir, execStart string) strin
 }
 
 // normalizeServiceName validates and standardizes a systemd service unit filename.
+// It enforces that the base service name contains only alphanumeric characters, underscores, or dashes.
 func normalizeServiceName(serviceName string) (string, error) {
 	trimmed := strings.TrimSpace(serviceName)
 	if trimmed == "" {
 		return "", fmt.Errorf("service name cannot be empty")
 	}
-	if filepath.Base(trimmed) != trimmed || strings.Contains(trimmed, "/") || strings.Contains(trimmed, "\\") {
-		return "", fmt.Errorf("invalid service name: %s", serviceName)
+	baseName := strings.TrimSuffix(trimmed, ".service")
+	if !serviceNameRegex.MatchString(baseName) {
+		return "", fmt.Errorf("invalid service name %q: must match ^[a-zA-Z0-9_-]+$", serviceName)
 	}
-	if !strings.HasSuffix(trimmed, ".service") {
-		trimmed += ".service"
-	}
-	return trimmed, nil
+	return baseName + ".service", nil
 }
 
 // InstallAndStart writes the unit file to unitDir, reloads systemd, enables and starts the service.
@@ -173,7 +176,7 @@ func (s *SystemdSupervisor) IsActive(ctx context.Context, serviceName string) (b
 	switch state {
 	case "active":
 		return true, nil
-	case "inactive", "failed", "deactivating", "dead", "unknown", "not-found":
+	case "inactive", "failed", "activating", "deactivating", "reloading", "maintenance", "dead", "unknown", "not-found":
 		return false, nil
 	}
 
@@ -181,7 +184,6 @@ func (s *SystemdSupervisor) IsActive(ctx context.Context, serviceName string) (b
 		return false, fmt.Errorf("systemctl is-active %s failed: %w (output: %s)", unitName, err, state)
 	}
 
-	// Any other state (e.g. activating, reloading) is not considered active
 	return false, nil
 }
 

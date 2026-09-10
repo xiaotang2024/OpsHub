@@ -187,6 +187,23 @@ func TestSystemdSupervisor_IsActive(t *testing.T) {
 		assert.False(t, active)
 	})
 
+	t.Run("transitional states with non-zero exit code", func(t *testing.T) {
+		transitionalStates := []string{"activating", "reloading", "maintenance", "deactivating"}
+		for _, state := range transitionalStates {
+			t.Run(state, func(t *testing.T) {
+				runner := newMockRunner()
+				runner.handlers["is-active"] = func(args []string) ([]byte, error) {
+					return []byte(state + "\n"), errors.New("exit status 3")
+				}
+				sup := supervisor.NewSystemdSupervisor("/tmp/test-units", runner.Run)
+
+				active, err := sup.IsActive(context.Background(), "web-service")
+				require.NoError(t, err, "state %s should return nil error", state)
+				assert.False(t, active)
+			})
+		}
+	})
+
 	t.Run("runner command execution error", func(t *testing.T) {
 		runner := newMockRunner()
 		runner.handlers["is-active"] = func(args []string) ([]byte, error) {
@@ -199,6 +216,7 @@ func TestSystemdSupervisor_IsActive(t *testing.T) {
 		assert.False(t, active)
 	})
 }
+
 
 func TestSystemdSupervisor_Uninstall(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -256,6 +274,26 @@ func TestSystemdSupervisor_ValidationAndErrors(t *testing.T) {
 		_, err := sup.IsActive(ctx, "/etc/shadow")
 		assert.Error(t, err)
 		assert.Error(t, sup.Uninstall(ctx, "a/b/c"))
+	})
+
+	t.Run("invalid service name characters", func(t *testing.T) {
+		invalidNames := []string{
+			"order service",
+			"order\nservice",
+			"order;ls",
+			"order$name",
+			".service",
+			"bad/name",
+			"name with\ttab",
+		}
+		for _, name := range invalidNames {
+			assert.Error(t, sup.InstallAndStart(ctx, name, "content"), "name %q should be rejected", name)
+			assert.Error(t, sup.Stop(ctx, name), "name %q should be rejected", name)
+			assert.Error(t, sup.Restart(ctx, name), "name %q should be rejected", name)
+			_, err := sup.IsActive(ctx, name)
+			assert.Error(t, err, "name %q should be rejected", name)
+			assert.Error(t, sup.Uninstall(ctx, name), "name %q should be rejected", name)
+		}
 	})
 
 	t.Run("empty unit content", func(t *testing.T) {
