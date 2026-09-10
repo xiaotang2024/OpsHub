@@ -353,3 +353,22 @@ func TestProber_WaitUntilHealthy_ImmediateSuccess(t *testing.T) {
 	assert.Less(t, time.Since(start), 200*time.Millisecond)
 }
 
+func TestProber_HTTPLargeResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// Send 1MB of payload
+		buf := make([]byte, 1024*1024)
+		_, _ = w.Write(buf)
+	}))
+	defer server.Close()
+
+	p := prober.NewProber()
+	ok, err := p.Probe(context.Background(), prober.HealthCheckConfig{
+		Type: "http",
+		URL:  server.URL,
+	})
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+

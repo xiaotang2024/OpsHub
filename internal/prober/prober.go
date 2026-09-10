@@ -182,7 +182,7 @@ func (p *DefaultProber) probeHTTP(ctx context.Context, cfg HealthCheckConfig) (b
 		return false, nil
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
 		_ = resp.Body.Close()
 	}()
 
@@ -239,16 +239,16 @@ func (p *DefaultProber) probeProcess(ctx context.Context, cfg HealthCheckConfig)
 		}
 		if errors.Is(err, syscall.EPERM) {
 			// Process exists but owned by another user
-			return isProcessAlive(cfg.PID), nil
+			return isProcessAlive(ctx, cfg.PID), nil
 		}
 		return false, nil
 	}
 
-	return isProcessAlive(cfg.PID), nil
+	return isProcessAlive(ctx, cfg.PID), nil
 }
 
 // isProcessAlive checks whether the process is alive and not in a zombie/defunct state.
-func isProcessAlive(pid int) bool {
+func isProcessAlive(ctx context.Context, pid int) bool {
 	// 1. Linux /proc/<pid>/stat
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
 	if data, err := os.ReadFile(statPath); err == nil {
@@ -257,18 +257,23 @@ func isProcessAlive(pid int) bool {
 		}
 	}
 
-	// 2. macOS / BSD / fallback using ps
-	cmd := exec.Command("ps", "-o", "state=", "-p", strconv.Itoa(pid))
+	// 2. macOS / BSD / fallback using ps with context
+	cmd := exec.CommandContext(ctx, "ps", "-o", "state=", "-p", strconv.Itoa(pid))
 	out, err := cmd.Output()
-	if err == nil {
-		state := strings.TrimSpace(string(out))
-		if state == "" || strings.HasPrefix(state, "Z") {
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			// ps exited with non-zero exit code (process does not exist)
 			return false
 		}
+		// If ps command itself is not found or non-exit error, fall back to signal 0 success
 		return true
 	}
 
-	// 3. Fallback: if ps is unavailable, rely on signal 0 success
+	state := strings.TrimSpace(string(out))
+	if state == "" || strings.HasPrefix(state, "Z") {
+		return false
+	}
 	return true
 }
 
