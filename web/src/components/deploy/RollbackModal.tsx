@@ -39,7 +39,7 @@ function formatTimeDelta(targetDateStr: string, currentDateStr?: string) {
   try {
     const target = new Date(targetDateStr).getTime();
     const current = currentDateStr ? new Date(currentDateStr).getTime() : Date.now();
-    const diffSec = Math.floor((current - target) / 1000);
+    const diffSec = Math.max(0, Math.floor((current - target) / 1000));
     if (diffSec < 60) return `${diffSec} 秒前`;
     if (diffSec < 3600) return `${Math.floor(diffSec / 60)} 分钟前`;
     if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} 小时前`;

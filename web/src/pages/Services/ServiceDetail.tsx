@@ -797,18 +797,20 @@ export const ServiceDetail: React.FC = () => {
       </div>
 
       {/* Deployment Wizard Modal */}
-      <DeployWizardModal
-        visible={deployModalVisible}
-        serviceId={service.id}
-        serviceName={service.name}
-        onClose={() => setDeployModalVisible(false)}
-        onSuccess={() => {
-          loadServiceData(true);
-        }}
-      />
+      {deployModalVisible && (
+        <DeployWizardModal
+          visible={deployModalVisible}
+          serviceId={service.id}
+          serviceName={service.name}
+          onClose={() => setDeployModalVisible(false)}
+          onSuccess={() => {
+            loadServiceData(true);
+          }}
+        />
+      )}
 
       {/* Rollback Confirmation Modal */}
-      {targetRollbackArtifact && (
+      {rollbackModalVisible && targetRollbackArtifact && (
         <RollbackModal
           visible={rollbackModalVisible}
           serviceId={service.id}
@@ -824,6 +826,7 @@ export const ServiceDetail: React.FC = () => {
           }}
         />
       )}
+
     </div>
   );
 };

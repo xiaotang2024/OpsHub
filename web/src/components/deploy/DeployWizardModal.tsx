@@ -127,6 +127,26 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
+  // Reset all modal state whenever visible changes
+  useEffect(() => {
+    if (visible) {
+      setActiveStep(externalCurrentStep ?? 1);
+      setPipelineRunning(false);
+      setPipelineFinished(false);
+      setPipelineError(null);
+      setFile(null);
+      setVersionTag('');
+      setHashProgress(0);
+      setFileSha256('');
+      setIsComputingHash(false);
+      setElapsedSeconds(0);
+      setStepDurations({});
+      setPipelineLogs([]);
+      setIsLogExpanded(false);
+      setArtifactTab('upload');
+    }
+  }, [visible, externalCurrentStep]);
+
   // Sync external currentStep if provided
   useEffect(() => {
     if (externalCurrentStep !== undefined) {
@@ -176,7 +196,6 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [pipelineLogs, isLogExpanded]);
-
 
   if (!visible) return null;
 
@@ -228,6 +247,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
     }
 
     let targetArtifactId = selectedArtifactId;
+    let stepProgressionInterval: any = null;
 
     setPipelineRunning(true);
     setPipelineError(null);
@@ -266,7 +286,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
       }
 
       // Step progression simulation during backend execution
-      const stepProgressionInterval = setInterval(() => {
+      stepProgressionInterval = setInterval(() => {
         setActiveStep((prev) => {
           if (prev < 6) return prev + 1;
           return prev;
@@ -279,16 +299,35 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
       ]);
 
       const record = await api.deployService(serviceId, targetArtifactId);
-      clearInterval(stepProgressionInterval);
+
+      if (stepProgressionInterval) {
+        clearInterval(stepProgressionInterval);
+        stepProgressionInterval = null;
+      }
+
+      if (record.output_log) {
+        const lines = record.output_log.split('\n').filter(Boolean);
+        setPipelineLogs((prev) => [...prev, ...lines]);
+      }
+
+      // Verify record.status
+      if (record.status && record.status !== 'SUCCESS') {
+        setPipelineFinished(false);
+        setPipelineRunning(false);
+        const errMsg = record.output_log || `部署失败 (状态: ${record.status})`;
+        setPipelineError(errMsg);
+        setPipelineLogs((prev) => [
+          ...prev,
+          `[${new Date().toLocaleTimeString()}] ❌ 部署失败 (状态: ${record.status})`,
+        ]);
+        return;
+      }
 
       setActiveStep(7);
       setPipelineFinished(true);
       setPipelineRunning(false);
 
-      if (record.output_log) {
-        const lines = record.output_log.split('\n').filter(Boolean);
-        setPipelineLogs((prev) => [...prev, ...lines]);
-      } else {
+      if (!record.output_log) {
         setPipelineLogs((prev) => [
           ...prev,
           `[${new Date().toLocaleTimeString()}] 🎉 部署流水线全部 7 步顺利完成，服务已正常上线！`,
@@ -299,14 +338,25 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         onSuccess(record);
       }
     } catch (err: any) {
+      if (stepProgressionInterval) {
+        clearInterval(stepProgressionInterval);
+        stepProgressionInterval = null;
+      }
       setPipelineRunning(false);
+      setPipelineFinished(false);
       setPipelineError(err.message || '部署流水线执行失败');
       setPipelineLogs((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] ❌ 异常中断: ${err.message || '部署失败'}`,
       ]);
+    } finally {
+      if (stepProgressionInterval) {
+        clearInterval(stepProgressionInterval);
+        stepProgressionInterval = null;
+      }
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">

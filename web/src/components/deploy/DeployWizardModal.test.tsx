@@ -139,4 +139,77 @@ describe('DeployWizardModal', () => {
       expect(screen.getByText(/部署成功/i)).toBeInTheDocument();
     });
   });
+
+  it('handles deployment failure when record.status is not SUCCESS', async () => {
+    (api.deployService as any).mockResolvedValueOnce({
+      id: 100,
+      service_id: 10,
+      artifact_id: 2,
+      action: 'DEPLOY',
+      operator: 'admin',
+      client_ip: '127.0.0.1',
+      status: 'FAILED',
+      output_log: '[12:00:00.000] Step 1: Pre-flight check passed\n[12:00:05.000] Step 6: Health check timed out',
+      started_at: '2026-09-10T12:00:00Z',
+    });
+
+    render(
+      <DeployWizardModal
+        visible={true}
+        serviceId={10}
+        serviceName="order-service"
+        onClose={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText(/选择已有历史版本/i));
+    await waitFor(() => {
+      expect(screen.getByText('order-service-v1.1.jar')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('order-service-v1.1.jar'));
+
+    const deployBtn = screen.getByRole('button', { name: /开始执行 7 步部署/i });
+    fireEvent.click(deployBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('流水线异常中断')).toBeInTheDocument();
+      expect(screen.getByText('流水线异常中断').parentElement).toHaveTextContent(/Health check timed out/i);
+    });
+    expect(screen.queryByText(/部署成功/i)).not.toBeInTheDocument();
+  });
+
+
+
+
+  it('resets state when visible becomes false and true again', async () => {
+    const { rerender } = render(
+      <DeployWizardModal
+        visible={true}
+        serviceName="order-service"
+        currentStep={4}
+        onClose={() => {}}
+      />
+    );
+
+    // Re-render as invisible then visible with currentStep 1
+    rerender(
+      <DeployWizardModal
+        visible={false}
+        serviceName="order-service"
+        onClose={() => {}}
+      />
+    );
+
+    rerender(
+      <DeployWizardModal
+        visible={true}
+        serviceName="order-service"
+        currentStep={1}
+        onClose={() => {}}
+      />
+    );
+
+    expect(screen.getByText(/1. 预检/i)).toBeInTheDocument();
+  });
 });
+
