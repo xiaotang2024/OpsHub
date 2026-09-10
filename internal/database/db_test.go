@@ -57,3 +57,24 @@ func TestInitDB_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, count, 7)
 }
+
+func TestInitDB_ForeignKeysEnforced(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	db, err := database.InitDB(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Verify foreign_keys pragma is ON
+	var fkEnabled int
+	err = db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
+	require.NoError(t, err)
+	assert.Equal(t, 1, fkEnabled)
+
+	// Attempt to insert a service referencing a non-existent template_id
+	_, err = db.Exec(`INSERT INTO services (name, template_id, install_dir, supervision_mode, status) 
+		VALUES ('orphan-svc', 999999, '/opt/apps/orphan', 'native', 'STOPPED')`)
+	require.Error(t, err, "inserting record with invalid foreign key should fail")
+}
+
