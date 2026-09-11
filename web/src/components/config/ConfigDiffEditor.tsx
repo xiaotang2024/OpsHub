@@ -190,8 +190,8 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 }) => {
   // Custom user-added config names
   const [customNames, setCustomNames] = useState<string[]>([]);
-  const [isAddingName, setIsAddingName] = useState<boolean>(false);
-  const [customInputName, setCustomInputName] = useState<string>('');
+  const [isCustomName, setIsCustomName] = useState<boolean>(false);
+  const [customName, setCustomName] = useState<string>('');
 
   // Initial name and suffix parsed from first file in props if present
   const [selectedName, setSelectedName] = useState<string>(() => {
@@ -242,8 +242,17 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
   // Derive full current file name
   const selectedFile = useMemo(() => {
+    if (isCustomName) {
+      const trimmed = customName.trim();
+      if (!trimmed) return `未命名.${selectedExt}`;
+      const lastDot = trimmed.lastIndexOf('.');
+      if (lastDot > 0) {
+        return trimmed;
+      }
+      return `${trimmed}.${selectedExt}`;
+    }
     return `${selectedName}.${selectedExt}`;
-  }, [selectedName, selectedExt]);
+  }, [isCustomName, customName, selectedName, selectedExt]);
 
   // Initialize once if files are loaded asynchronously
   useEffect(() => {
@@ -289,10 +298,10 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   );
 
   useEffect(() => {
-    if (selectedFile) {
+    if (!isCustomName && selectedFile) {
       loadFileContent(selectedFile);
     }
-  }, [selectedFile, loadFileContent]);
+  }, [isCustomName, selectedFile, loadFileContent]);
 
   const hasChanges = useMemo(
     () => originalContent !== modifiedContent,
@@ -334,31 +343,37 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     setSelectedExt(newExt);
   };
 
-  const handleConfirmAddName = () => {
-    const trimmed = customInputName.trim();
-    if (!trimmed) {
-      setError('配置名称不能为空');
-      return;
-    }
-    if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('..')) {
-      setError('配置名称不能包含路径分隔符');
-      return;
-    }
-    const lastDot = trimmed.lastIndexOf('.');
-    if (lastDot > 0) {
-      const base = trimmed.slice(0, lastDot);
-      const ext = trimmed.slice(lastDot + 1).toLowerCase();
-      setCustomNames((prev) => (prev.includes(base) ? prev : [...prev, base]));
-      setSelectedName(base);
-      if (ext) {
-        setSelectedExt(ext);
+  const handleCustomNameBlur = () => {
+    const trimmed = customName.trim();
+    if (trimmed) {
+      const targetFile = trimmed.includes('.') ? trimmed : `${trimmed}.${selectedExt}`;
+      if (existingFiles.has(targetFile)) {
+        loadFileContent(targetFile);
       }
-    } else {
-      setCustomNames((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
-      setSelectedName(trimmed);
     }
-    setIsAddingName(false);
-    setError(null);
+  };
+
+  const canSave = useMemo(() => {
+    if (saving || loading) return false;
+    if (isCustomName) {
+      return customName.trim().length > 0;
+    }
+    return hasChanges || isNewFile;
+  }, [saving, loading, isCustomName, customName, hasChanges, isNewFile]);
+
+  const handleSaveClick = () => {
+    if (isCustomName) {
+      const trimmed = customName.trim();
+      if (!trimmed) {
+        setError('请输入自定义配置名称');
+        return;
+      }
+      if (trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('..')) {
+        setError('配置名称不能包含路径分隔符');
+        return;
+      }
+    }
+    setConfirmModalOpen(true);
   };
 
   const handleConfirmSave = async () => {
@@ -366,13 +381,33 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     setSaving(true);
     setError(null);
     try {
-      const res = await api.saveServiceConfig(serviceId, selectedFile, modifiedContent);
+      let finalName = selectedName;
+      let finalExt = selectedExt;
+
+      if (isCustomName) {
+        const trimmed = customName.trim();
+        const lastDot = trimmed.lastIndexOf('.');
+        if (lastDot > 0) {
+          finalName = trimmed.slice(0, lastDot);
+          const ext = trimmed.slice(lastDot + 1).toLowerCase();
+          if (ext) finalExt = ext;
+        } else {
+          finalName = trimmed;
+        }
+        setCustomNames((prev) => (prev.includes(finalName) ? prev : [...prev, finalName]));
+        setSelectedName(finalName);
+        setSelectedExt(finalExt);
+        setIsCustomName(false);
+      }
+
+      const fileToSave = `${finalName}.${finalExt}`;
+      const res = await api.saveServiceConfig(serviceId, fileToSave, modifiedContent);
       setOriginalContent(modifiedContent);
       setIsNewFile(false);
-      existingFiles.add(selectedFile);
-      const bakPath = res.backup || `${selectedFile}.bak`;
+      existingFiles.add(fileToSave);
+      const bakPath = res.backup || `${fileToSave}.bak`;
       setBackupMessage(`已成功生成安全备份: ${bakPath}`);
-      onSaveSuccess?.(selectedFile);
+      onSaveSuccess?.(fileToSave);
     } catch (err: any) {
       setError(err.message || '保存配置文件失败');
     } finally {
@@ -454,32 +489,74 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           {/* Part 1: Select Name */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-ops-text-muted font-mono">名称:</span>
-            <div className="relative">
-              <select
-                aria-label="config-name-select"
-                data-testid="config-name-select"
-                value={selectedName}
-                onChange={(e) => {
-                  if (e.target.value === '__custom__') {
-                    setIsAddingName(true);
-                    setCustomInputName('');
-                  } else {
-                    handleNameChange(e.target.value);
-                  }
-                }}
-                className="bg-slate-900 border border-ops-border rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-7 cursor-pointer"
-              >
-                {nameList.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-                <option value="__custom__">+ 自定义名称...</option>
-              </select>
-              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-                ▼
+            {!isCustomName ? (
+              <div className="relative">
+                <select
+                  aria-label="config-name-select"
+                  data-testid="config-name-select"
+                  value={selectedName}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomName(true);
+                      setCustomName('');
+                      setIsNewFile(true);
+                      setOriginalContent('');
+                      setModifiedContent('');
+                      setError(null);
+                    } else {
+                      handleNameChange(e.target.value);
+                    }
+                  }}
+                  className="bg-slate-900 border border-ops-border rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-7 cursor-pointer"
+                >
+                  {nameList.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                  <option value="__custom__">自定义名称</option>
+                </select>
+                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                  ▼
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  data-testid="config-custom-name-input"
+                  aria-label="config-custom-name-input"
+                  value={customName}
+                  onChange={(e) => {
+                    setCustomName(e.target.value);
+                    setError(null);
+                  }}
+                  onBlur={handleCustomNameBlur}
+                  placeholder="输入自定义名称"
+                  className="bg-slate-950 border border-ops-cyan rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:outline-none w-36 shadow-sm shadow-cyan-500/10"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsCustomName(false);
+                      setCustomName('');
+                      setError(null);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomName(false);
+                    setCustomName('');
+                    setError(null);
+                  }}
+                  className="p-1 text-ops-text-muted hover:text-white transition-colors"
+                  title="返回名称列表"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Dot Separator */}
@@ -514,7 +591,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             className="hidden sm:inline-flex items-center px-2 py-1 rounded bg-slate-900 border border-ops-border/80 text-ops-cyan font-mono text-xs font-semibold"
             title="当前选中的完整配置文件名"
           >
-            {selectedFile}
+            {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
           </span>
 
           <button
@@ -525,52 +602,6 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
-
-          {/* Add custom name inline form */}
-          {!isAddingName ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingName(true);
-                setCustomInputName('');
-              }}
-              title="添加自定义配置名称 (例如 bootstrap)"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-cyan hover:bg-cyan-950/40 hover:border-ops-cyan text-xs transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>添加名称</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="text"
-                value={customInputName}
-                onChange={(e) => setCustomInputName(e.target.value)}
-                placeholder="例如: bootstrap"
-                className="bg-slate-950 border border-ops-cyan rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:outline-none w-32"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirmAddName();
-                  if (e.key === 'Escape') setIsAddingName(false);
-                }}
-              />
-              <button
-                type="button"
-                onClick={handleConfirmAddName}
-                className="px-2 py-1 rounded bg-ops-cyan text-slate-950 font-bold hover:bg-cyan-400 text-xs transition-colors"
-              >
-                确定
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddingName(false)}
-                className="p-1 text-ops-text-muted hover:text-white"
-                title="取消"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
 
           {isNewFile && (
             <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300">
@@ -663,8 +694,8 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
           <button
             type="button"
-            disabled={!hasChanges || saving || loading}
-            onClick={() => setConfirmModalOpen(true)}
+            disabled={!canSave}
+            onClick={handleSaveClick}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
           >
             {saving ? (

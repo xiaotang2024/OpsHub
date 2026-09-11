@@ -207,34 +207,53 @@ describe('ConfigDiffEditor', () => {
     });
   });
 
-  it('allows adding a custom config name such as bootstrap and validates name input', async () => {
+  it('allows selecting "自定义名称", typing name and saving directly', async () => {
     render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('config-name-select')).toHaveValue('application');
     });
 
-    // Click "添加名称"
-    const addBtn = screen.getByRole('button', { name: /添加名称/i });
-    fireEvent.click(addBtn);
+    // Select "自定义名称" from dropdown
+    fireEvent.change(screen.getByTestId('config-name-select'), {
+      target: { value: '__custom__' },
+    });
 
-    const input = screen.getByPlaceholderText(/bootstrap/i);
+    const input = screen.getByTestId('config-custom-name-input');
     expect(input).toBeInTheDocument();
 
-    // Try path traversal
+    // Type invalid name with path traversal and attempt save
     fireEvent.change(input, { target: { value: '../bad_name' } });
-    const confirmBtn = screen.getByRole('button', { name: /确定/i });
-    fireEvent.click(confirmBtn);
-
+    const saveBtn = screen.getByRole('button', { name: /保存修改/i });
+    fireEvent.click(saveBtn);
     expect(screen.getByText(/配置名称不能包含路径分隔符/i)).toBeInTheDocument();
 
-    // Now enter valid bootstrap
+    // Now type valid name: bootstrap
     fireEvent.change(input, { target: { value: 'bootstrap' } });
+    expect(screen.getByTestId('config-current-filename')).toHaveTextContent('bootstrap.yml');
+
+    // Type config content into editor
+    const textarea = screen.getByTestId('config-editor-textarea');
+    fireEvent.change(textarea, { target: { value: 'spring:\n  application:\n    name: demo\n' } });
+
+    // Directly click save
+    fireEvent.click(saveBtn);
+
+    // Confirm modal appears
+    const confirmBtn = screen.getByRole('button', { name: /确认保存/i });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => {
+      expect(api.saveServiceConfig).toHaveBeenCalledWith(
+        10,
+        'bootstrap.yml',
+        'spring:\n  application:\n    name: demo\n'
+      );
+    });
+
+    // Custom name is now in the dropdown list and selected
+    await waitFor(() => {
       expect(screen.getByTestId('config-name-select')).toHaveValue('bootstrap');
-      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('bootstrap.yml');
     });
   });
 
