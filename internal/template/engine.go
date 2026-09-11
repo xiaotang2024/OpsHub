@@ -269,15 +269,16 @@ func (e *Engine) RenderUnpackCommand(pkgPath string, targetDir string) string {
 	return fmt.Sprintf("tar -zxvf %s -C %s --strip-components=1", pkgPath, targetDir)
 }
 
-// RenderEnvVars combines template-level and service-level environment variables JSON strings.
+// RenderEnvVars combines template-level and service-level environment variables.
+// It supports both JSON formatted maps (e.g. {"K":"V"}) and multiline KEY=VALUE format.
 // Service variables override template variables.
 func (e *Engine) RenderEnvVars(tpl *model.Template, svc *model.Service) (map[string]string, error) {
 	result := make(map[string]string)
 
 	if tpl != nil && strings.TrimSpace(tpl.EnvVars) != "" && strings.TrimSpace(tpl.EnvVars) != "{}" {
-		var tplEnv map[string]string
-		if err := json.Unmarshal([]byte(tpl.EnvVars), &tplEnv); err != nil {
-			return nil, fmt.Errorf("invalid template env_vars JSON: %w", err)
+		tplEnv, err := parseEnvVars(tpl.EnvVars, false)
+		if err != nil {
+			return nil, err
 		}
 		for k, v := range tplEnv {
 			result[k] = v
@@ -285,9 +286,9 @@ func (e *Engine) RenderEnvVars(tpl *model.Template, svc *model.Service) (map[str
 	}
 
 	if svc != nil && strings.TrimSpace(svc.EnvVars) != "" && strings.TrimSpace(svc.EnvVars) != "{}" {
-		var svcEnv map[string]string
-		if err := json.Unmarshal([]byte(svc.EnvVars), &svcEnv); err != nil {
-			return nil, fmt.Errorf("invalid service env_vars JSON: %w", err)
+		svcEnv, err := parseEnvVars(svc.EnvVars, true)
+		if err != nil {
+			return nil, err
 		}
 		for k, v := range svcEnv {
 			result[k] = v
@@ -295,6 +296,67 @@ func (e *Engine) RenderEnvVars(tpl *model.Template, svc *model.Service) (map[str
 	}
 
 	return result, nil
+}
+
+// parseEnvVars parses environment variable definitions from either JSON format (e.g. {"K":"V"})
+// or line-by-line KEY=VALUE format.
+func parseEnvVars(raw string, isService bool) (map[string]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "{}" {
+		return make(map[string]string), nil
+	}
+
+	target := "template"
+	if isService {
+		target = "service"
+	}
+
+	// 1. If it starts with '{', attempt JSON unmarshaling first
+	if strings.HasPrefix(raw, "{") {
+		var envMap map[string]string
+		if err := json.Unmarshal([]byte(raw), &envMap); err == nil {
+			return envMap, nil
+		}
+	}
+
+	// 2. Otherwise try parsing line-by-line KEY=VALUE or KEY: VALUE format
+	lines := strings.Split(raw, "\n")
+	envMap := make(map[string]string)
+	parsedCount := 0
+	hasInvalidFormat := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		sepIdx := strings.Index(line, "=")
+		if sepIdx == -1 {
+			sepIdx = strings.Index(line, ":")
+		}
+		if sepIdx > 0 {
+			k := strings.TrimSpace(line[:sepIdx])
+			v := strings.TrimSpace(line[sepIdx+1:])
+			if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
+				v = v[1 : len(v)-1]
+			}
+			envMap[k] = v
+			parsedCount++
+		} else {
+			hasInvalidFormat = true
+		}
+	}
+
+	if parsedCount > 0 && !hasInvalidFormat {
+		return envMap, nil
+	}
+
+	// 3. Fallback to json.Unmarshal to report standard error
+	var fallback map[string]string
+	if err := json.Unmarshal([]byte(raw), &fallback); err != nil {
+		return nil, fmt.Errorf("invalid %s env_vars JSON: %w", target, err)
+	}
+	return fallback, nil
 }
 
 // ExpandVariables replaces ${VAR} placeholders with corresponding values from the vars map.

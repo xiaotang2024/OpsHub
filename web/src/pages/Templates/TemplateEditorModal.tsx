@@ -52,6 +52,24 @@ function parseMemoryMB(arg: string, prefix: string): number | null {
   return val;
 }
 
+function formatEnvVarsForDisplay(raw?: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return Object.entries(parsed)
+          .map(([k, v]) => `${k}=${v}`)
+          .join('\n');
+      }
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
 export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   isOpen,
   onClose,
@@ -61,20 +79,20 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 }) => {
   // Basic metadata
   const [name, setName] = useState('');
-  const [type, setType] = useState('java_jar');
+  const [type, setType] = useState<Template['type']>('java_jar');
   const [defaultJdkId, setDefaultJdkId] = useState<number | undefined>(undefined);
   const [installDirPattern, setInstallDirPattern] = useState('/opt/apps/${SERVICE_NAME}');
-  const [supervisionMode, setSupervisionMode] = useState('native');
+  const [supervisionMode, setSupervisionMode] = useState<Template['supervision_mode']>('native');
   const [startCmd, setStartCmd] = useState('');
   const [stopCmd, setStopCmd] = useState('');
   const [envVars, setEnvVars] = useState('SPRING_PROFILES_ACTIVE=prod');
   const [uninstallRules, setUninstallRules] = useState('{"keep_logs": true, "backup_config": true}');
 
   // Visual JVM Tuner states
-  const [heapMin, setHeapMin] = useState(512); // MB
-  const [heapMax, setHeapMax] = useState(1024); // MB
-  const [gcStrategy, setGcStrategy] = useState<GCStrategy>('G1');
-  const [extraJvmArgs, setExtraJvmArgs] = useState('-XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8');
+  const [heapMin, setHeapMin] = useState<number>(512); // MB
+  const [heapMax, setHeapMax] = useState<number>(1024); // MB
+  const [gcStrategy, setGcStrategy] = useState<string>('G1');
+  const [extraJvmArgs, setExtraJvmArgs] = useState<string>('-XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8');
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -82,8 +100,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   // Health check config
   const [healthType, setHealthType] = useState<'http' | 'tcp' | 'process'>('http');
   const [healthPort, setHealthPort] = useState<number>(8080);
-  const [healthPath, setHealthPath] = useState('/actuator/health');
-  const [healthInterval, setHealthInterval] = useState(5);
+  const [healthPath, setHealthPath] = useState<string>('/actuator/health');
+  const [healthInterval, setHealthInterval] = useState<number>(5);
 
   // Load initial data when modal opens
   useEffect(() => {
@@ -95,7 +113,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       setSupervisionMode(initialData.supervision_mode || 'native');
       setStartCmd(initialData.start_cmd || '');
       setStopCmd(initialData.stop_cmd || '');
-      setEnvVars(initialData.env_vars || '');
+      setEnvVars(formatEnvVarsForDisplay(initialData.env_vars));
       setUninstallRules(initialData.uninstall_rules || '{"keep_logs": true, "backup_config": true}');
 
       // Parse JVM options

@@ -268,7 +268,20 @@ func TestEngine_RenderEnvVars(t *testing.T) {
 	assert.Equal(t, "DEBUG", merged["LOG_LEVEL"]) // Service overrides template
 	assert.Equal(t, "4", merged["WORKERS"])
 
-	// Test invalid JSON
+	// Test multiline KEY=VALUE format (such as SPRING_PROFILES_ACTIVE=prod)
+	tplKeyValue := &model.Template{
+		EnvVars: "SPRING_PROFILES_ACTIVE=prod\nSERVER_PORT=8080",
+	}
+	svcKeyValue := &model.Service{
+		EnvVars: "SERVER_PORT=9090\nCUSTOM_VAL=\"quoted-value\"",
+	}
+	mergedKV, err := engine.RenderEnvVars(tplKeyValue, svcKeyValue)
+	require.NoError(t, err)
+	assert.Equal(t, "prod", mergedKV["SPRING_PROFILES_ACTIVE"])
+	assert.Equal(t, "9090", mergedKV["SERVER_PORT"])
+	assert.Equal(t, "quoted-value", mergedKV["CUSTOM_VAL"])
+
+	// Test invalid JSON and invalid key-value
 	_, err = engine.RenderEnvVars(&model.Template{EnvVars: "invalid"}, nil)
 	assert.Error(t, err)
 
