@@ -71,7 +71,7 @@ describe('TemplateEditorModal', () => {
     expect(healthConfig.path).toBe('/actuator/health');
   });
 
-  it('conditionally displays probe port and path based on healthType', () => {
+  it('conditionally displays probe path or informational cards based on healthType', () => {
     render(<TemplateEditorModal {...defaultProps} />);
 
     const healthTypeSelect = screen.getByLabelText(/探针协议/i);
@@ -79,12 +79,14 @@ describe('TemplateEditorModal', () => {
     // 1. Default is 'http': path is visible, port is hidden
     expect(screen.queryByLabelText(/探测端口/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/HTTP 探测路径/i)).toBeInTheDocument();
+    expect(screen.queryByText(/自动探测具体服务实例配置的主监听端口/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/通过系统内核检测进程存活性/i)).not.toBeInTheDocument();
 
-    // 2. Change to 'tcp': port is visible, path is hidden
+    // 2. Change to 'tcp': both port and path inputs are hidden, TCP notice is displayed
     fireEvent.change(healthTypeSelect, { target: { value: 'tcp' } });
-    expect(screen.getByLabelText(/探测端口/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/探测端口/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/HTTP 探测路径/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/自动探测具体服务实例配置的主监听端口连通性/i)).toBeInTheDocument();
     expect(screen.queryByText(/通过系统内核检测进程存活性/i)).not.toBeInTheDocument();
 
     // 3. Change to 'process': both port and path are hidden, process notice is displayed
@@ -94,7 +96,7 @@ describe('TemplateEditorModal', () => {
     expect(screen.getByText(/通过系统内核检测进程存活性，无需监听或探测网络端口/i)).toBeInTheDocument();
   });
 
-  it('omits path for tcp in saved health_check_config', async () => {
+  it('omits port and path for tcp in saved health_check_config for universal template reuse', async () => {
     mockOnSave.mockReset();
     mockOnSave.mockResolvedValue(undefined);
     render(<TemplateEditorModal {...defaultProps} />);
@@ -114,7 +116,7 @@ describe('TemplateEditorModal', () => {
 
     const savedConfig = JSON.parse(mockOnSave.mock.calls[0][0].health_check_config);
     expect(savedConfig.type).toBe('tcp');
-    expect(savedConfig.port).toBe(8080);
+    expect(savedConfig.port).toBeUndefined();
     expect(savedConfig.path).toBeUndefined();
   });
 

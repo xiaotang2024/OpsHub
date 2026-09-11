@@ -99,7 +99,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 
   // Health check config
   const [healthType, setHealthType] = useState<'http' | 'tcp' | 'process'>('http');
-  const [healthPort, setHealthPort] = useState<number>(8080);
   const [healthPath, setHealthPath] = useState<string>('/actuator/health');
   const [healthInterval, setHealthInterval] = useState<number>(5);
 
@@ -149,7 +148,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
         if (initialData.health_check_config) {
           const hc = JSON.parse(initialData.health_check_config);
           if (hc.type) setHealthType(hc.type);
-          if (hc.port) setHealthPort(hc.port);
           if (hc.path) setHealthPath(hc.path);
           if (hc.interval_sec) setHealthInterval(hc.interval_sec);
         }
@@ -171,7 +169,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       setGcStrategy('G1');
       setExtraJvmArgs('-XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8');
       setHealthType('http');
-      setHealthPort(8080);
       setHealthPath('/actuator/health');
       setHealthInterval(5);
     }
@@ -226,9 +223,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       type: healthType,
       interval_sec: healthInterval,
     };
-    if (healthType === 'tcp') {
-      healthConfig.port = healthPort;
-    }
     if (healthType === 'http') {
       healthConfig.path = healthPath;
     }
@@ -624,19 +618,11 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   </select>
                 </div>
 
-                {/* 仅在 TCP 协议时显示探测端口 */}
+                {/* 仅在 TCP 协议时的提示说明 */}
                 {healthType === 'tcp' && (
-                  <div className="sm:col-span-2">
-                    <label htmlFor="health-port" className="block text-xs font-medium text-ops-text-sub mb-1">
-                      探测端口
-                    </label>
-                    <input
-                      id="health-port"
-                      type="number"
-                      value={healthPort}
-                      onChange={(e) => setHealthPort(Number(e.target.value))}
-                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                    />
+                  <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-ops-bg/60 border border-ops-border/50 text-xs text-ops-text-muted">
+                    <Info className="h-4 w-4 text-ops-cyan shrink-0" />
+                    <span>自动探测具体服务实例配置的主监听端口连通性（四层 TCP 握手），无需在此指定端口</span>
                   </div>
                 )}
 
