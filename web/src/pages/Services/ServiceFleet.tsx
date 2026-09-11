@@ -24,10 +24,39 @@ import {
   Check,
   Copy,
   Edit3,
+  Loader2,
+  ShieldAlert,
 } from 'lucide-react';
 import { Service, Template, ServiceStatus, JDKAsset } from '../../types';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
+
+// Helper to dynamically derive install directory based on service name & template pattern
+const computeInstallDir = (newName: string, currentService?: Service | null, tpl?: Template | null): string => {
+  const trimmed = newName.trim();
+  if (tpl?.install_dir_pattern) {
+    let pattern = tpl.install_dir_pattern;
+    if (pattern.includes('${SERVICE_NAME}')) {
+      return pattern.replace(/\$\{SERVICE_NAME\}/g, trimmed || '${SERVICE_NAME}');
+    }
+    if (pattern.includes('{{.Name}}')) {
+      return pattern.replace(/\{\{\.Name\}\}/g, trimmed || '{{.Name}}');
+    }
+  }
+  if (currentService?.install_dir) {
+    const oldName = currentService.name;
+    if (oldName && currentService.install_dir.endsWith(oldName)) {
+      const prefix = currentService.install_dir.slice(0, -oldName.length);
+      return `${prefix}${trimmed}`;
+    }
+    const parts = currentService.install_dir.split('/');
+    if (parts.length > 1) {
+      parts[parts.length - 1] = trimmed;
+      return parts.join('/');
+    }
+  }
+  return `/opt/apps/${trimmed}`;
+};
 
 export const ServiceFleet: React.FC = () => {
   const navigate = useNavigate();
@@ -53,19 +82,19 @@ export const ServiceFleet: React.FC = () => {
   );
   const [copiedPort, setCopiedPort] = useState(false);
 
-  // Drawer Inline Editing State
+  // Drawer Inline Editing State (only modifying name, port; install_dir automatically follows)
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPort, setEditPort] = useState<number>(8080);
-  const [editTemplateId, setEditTemplateId] = useState<number>(0);
-  const [editJdkId, setEditJdkId] = useState<number | undefined>(undefined);
   const [editInstallDir, setEditInstallDir] = useState('');
-  const [editSupervisionMode, setEditSupervisionMode] = useState<string>('native');
-  const [editJvmOptions, setEditJvmOptions] = useState('');
-  const [editEnvVars, setEditEnvVars] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccessMsg, setEditSuccessMsg] = useState<string | null>(null);
+
+  // Delete Service Confirmation Modal State
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const loadData = async (isBackground = false) => {
     try {
@@ -213,16 +242,24 @@ export const ServiceFleet: React.FC = () => {
     }
   };
 
-  const handleDeleteService = async (service: Service) => {
-    if (!window.confirm(`确定要彻底注销并停止服务 "${service.name}" 吗？此操作将清理所有历史日志。`)) {
-      return;
-    }
+  const handleDeleteService = (service: Service) => {
+    setServiceToDelete(service);
+    setDeleteError(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!serviceToDelete) return;
     try {
-      await api.deleteService(service.id);
+      setIsDeleting(true);
+      setDeleteError(null);
+      await api.deleteService(serviceToDelete.id);
+      setServiceToDelete(null);
       setSelectedServiceId(null);
       await loadData(true);
     } catch (err: any) {
-      alert(`删除服务失败: ${err.message}`);
+      setDeleteError(err.message || '删除服务失败');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -239,14 +276,17 @@ export const ServiceFleet: React.FC = () => {
       setEditSuccessMsg(null);
       setEditName(selectedService.name || '');
       setEditPort(selectedService.port || 8080);
-      setEditTemplateId(selectedService.template_id || 0);
-      setEditJdkId(selectedService.jdk_id ?? undefined);
       setEditInstallDir(selectedService.install_dir || '');
-      setEditSupervisionMode(selectedService.supervision_mode || 'native');
-      setEditJvmOptions(selectedService.jvm_options || '');
-      setEditEnvVars(selectedService.env_vars || '');
     }
   }, [selectedService]);
+
+  const handleNameChange = (newName: string) => {
+    setEditName(newName);
+    if (selectedService) {
+      const tpl = templates.find((t) => t.id === selectedService.template_id);
+      setEditInstallDir(computeInstallDir(newName, selectedService, tpl));
+    }
+  };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,12 +307,12 @@ export const ServiceFleet: React.FC = () => {
       const payload: Partial<Service> = {
         name: editName.trim(),
         port: Number(editPort),
-        template_id: editTemplateId,
-        jdk_id: editJdkId ? Number(editJdkId) : null,
-        install_dir: editInstallDir.trim(),
-        supervision_mode: editSupervisionMode,
-        jvm_options: editJvmOptions.trim(),
-        env_vars: editEnvVars.trim(),
+        install_dir: editInstallDir.trim() || selectedService.install_dir,
+        template_id: selectedService.template_id,
+        jdk_id: selectedService.jdk_id,
+        supervision_mode: selectedService.supervision_mode,
+        jvm_options: selectedService.jvm_options,
+        env_vars: selectedService.env_vars,
       };
 
       await api.updateService(selectedService.id, payload);
@@ -731,7 +771,7 @@ export const ServiceFleet: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div>
                         <label htmlFor="edit-service-name" className="block text-xs font-medium text-ops-text-sub mb-1">
                           服务名称 <span className="text-red-400">*</span>
@@ -740,129 +780,50 @@ export const ServiceFleet: React.FC = () => {
                           id="edit-service-name"
                           type="text"
                           value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                          onChange={(e) => handleNameChange(e.target.value)}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none transition-colors"
                           placeholder="例如: order-service"
                           required
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label htmlFor="edit-service-port" className="block text-xs font-medium text-ops-text-sub mb-1">
-                            监听端口 <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            id="edit-service-port"
-                            type="number"
-                            value={editPort}
-                            onChange={(e) => setEditPort(Number(e.target.value))}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                            placeholder="例如: 8080"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="edit-supervision-mode" className="block text-xs font-medium text-ops-text-sub mb-1">
-                            监管驱动
-                          </label>
-                          <select
-                            id="edit-supervision-mode"
-                            value={editSupervisionMode}
-                            onChange={(e) => setEditSupervisionMode(e.target.value)}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
-                          >
-                            <option value="native">Native Supervisor (内置)</option>
-                            <option value="systemd">Linux Systemd Unit</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label htmlFor="edit-template" className="block text-xs font-medium text-ops-text-sub mb-1">
-                            关联部署模板
-                          </label>
-                          <select
-                            id="edit-template"
-                            value={editTemplateId}
-                            onChange={(e) => setEditTemplateId(Number(e.target.value))}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
-                          >
-                            {templates.map((tpl) => (
-                              <option key={tpl.id} value={tpl.id}>
-                                {tpl.name} (#{tpl.id})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label htmlFor="edit-jdk" className="block text-xs font-medium text-ops-text-sub mb-1">
-                            运行 JDK
-                          </label>
-                          <select
-                            id="edit-jdk"
-                            value={editJdkId ?? ''}
-                            onChange={(e) => setEditJdkId(e.target.value ? Number(e.target.value) : undefined)}
-                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
-                          >
-                            <option value="">使用模板默认 JDK</option>
-                            {jdks.map((jdk) => (
-                              <option key={jdk.id} value={jdk.id}>
-                                {jdk.name} ({jdk.version_str})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
                       <div>
-                        <label htmlFor="edit-install-dir" className="block text-xs font-medium text-ops-text-sub mb-1">
-                          安装部署路径
+                        <label htmlFor="edit-service-port" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          监听端口 <span className="text-red-400">*</span>
                         </label>
                         <input
-                          id="edit-install-dir"
-                          type="text"
-                          value={editInstallDir}
-                          onChange={(e) => setEditInstallDir(e.target.value)}
-                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                          placeholder="/opt/apps/${SERVICE_NAME}"
+                          id="edit-service-port"
+                          type="number"
+                          value={editPort}
+                          onChange={(e) => setEditPort(Number(e.target.value))}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none transition-colors"
+                          placeholder="例如: 8080"
+                          min={1}
+                          max={65535}
+                          required
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="edit-jvm-options" className="block text-xs font-medium text-ops-text-sub mb-1">
-                          JVM 覆盖参数 (留空则沿用模板)
-                        </label>
-                        <textarea
-                          id="edit-jvm-options"
-                          rows={2}
-                          value={editJvmOptions}
-                          onChange={(e) => setEditJvmOptions(e.target.value)}
-                          className="w-full rounded-lg border border-ops-border bg-ops-bg p-2.5 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                          placeholder="例如: -Xms512m -Xmx1024m -XX:+UseG1GC"
-                        />
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-medium text-ops-text-sub">
+                            安装部署路径
+                          </label>
+                          <span className="text-[10px] font-mono text-ops-cyan/80 bg-cyan-950/50 px-2 py-0.5 rounded border border-ops-cyan/20">
+                            跟随服务名称联动更新
+                          </span>
+                        </div>
+                        <div
+                          className="w-full rounded-lg border border-ops-border/70 bg-ops-bg/60 px-3 py-2 text-xs font-mono text-ops-text-sub break-all select-all"
+                          title="安装路径跟随服务名称自动更新"
+                        >
+                          {editInstallDir || '(自动跟随服务名称生成)'}
+                        </div>
                       </div>
 
-                      <div>
-                        <label htmlFor="edit-env-vars" className="block text-xs font-medium text-ops-text-sub mb-1">
-                          注入环境变量 (每行一个 KEY=VALUE)
-                        </label>
-                        <textarea
-                          id="edit-env-vars"
-                          rows={3}
-                          value={editEnvVars}
-                          onChange={(e) => setEditEnvVars(e.target.value)}
-                          className="w-full rounded-lg border border-ops-border bg-ops-bg p-2.5 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                          placeholder="SPRING_PROFILES_ACTIVE=prod&#10;SERVER_PORT=8080"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-cyan-950/20 border border-ops-cyan/30 text-xs text-ops-text-muted">
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-cyan-950/20 border border-ops-cyan/30 text-xs text-ops-text-muted">
                         <Info className="h-4 w-4 text-ops-cyan shrink-0" />
-                        <span>运行中服务的端口、JVM 参数或环境变量修改后，将在服务下次重启时生效。</span>
+                        <span>修改服务名称与端口后，运行中的服务将在下次重启时生效；部署安装路径会同步跟随服务名称变更。</span>
                       </div>
                     </div>
                   </form>
@@ -1017,15 +978,6 @@ export const ServiceFleet: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setIsEditing(true)}
-                      className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-ops-border bg-ops-surface text-ops-cyan hover:bg-ops-cyan/10 hover:border-ops-cyan text-xs font-semibold transition-colors"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                      <span>编辑配置</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => {
                         const sid = selectedService.id;
                         setSelectedServiceId(null);
@@ -1046,6 +998,142 @@ export const ServiceFleet: React.FC = () => {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Service Confirmation Modal */}
+      <AnimatePresence>
+        {serviceToDelete && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+            onClick={() => {
+              if (!isDeleting) {
+                setServiceToDelete(null);
+                setDeleteError(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md rounded-2xl border border-red-500/30 bg-ops-surface shadow-2xl overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/90 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-950/80 border border-red-500/40 text-red-400 shadow-crimson-glow">
+                    <Trash2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">
+                      删除服务实例确认
+                    </h3>
+                    <p className="text-[11px] font-mono text-red-400/80">
+                      高危操作 · 该操作不可撤销
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => {
+                    setServiceToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-white disabled:opacity-30"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 space-y-4 text-xs">
+                {deleteError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{deleteError}</span>
+                  </div>
+                )}
+
+                <div className="text-slate-300 leading-relaxed">
+                  确定要从舰队中注销并永久删除服务{' '}
+                  <span className="font-bold font-mono text-white bg-slate-800 px-1.5 py-0.5 rounded border border-ops-border">
+                    {serviceToDelete.name}
+                  </span>{' '}
+                  吗？
+                </div>
+
+                {/* Service Specs Brief */}
+                <div className="rounded-xl border border-ops-border bg-ops-bg/80 p-3 space-y-2 font-mono text-xs">
+                  <div className="flex justify-between items-center text-ops-text-muted">
+                    <span>服务端口</span>
+                    <span className="font-bold text-ops-cyan">:{serviceToDelete.port}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-ops-text-muted">
+                    <span>运行状态</span>
+                    <StatusBadge status={serviceToDelete.status} />
+                  </div>
+                  <div className="flex justify-between items-center text-ops-text-muted pt-1 border-t border-ops-border/40 text-[11px]">
+                    <span>安装目录</span>
+                    <span className="truncate max-w-[220px] text-ops-text-sub" title={serviceToDelete.install_dir}>
+                      {serviceToDelete.install_dir}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Safety Warning */}
+                <div className="rounded-xl border border-red-500/20 bg-red-950/20 p-3 space-y-1 text-xs">
+                  <div className="flex items-center gap-1.5 font-semibold text-red-400">
+                    <ShieldAlert className="h-4 w-4 shrink-0" />
+                    <span>操作影响说明</span>
+                  </div>
+                  <ul className="list-disc list-inside text-[11px] text-slate-400 space-y-0.5 font-mono">
+                    <li>若服务正在运行，系统将立即强制终止运行中进程</li>
+                    <li>自动注销监管驱动（Native 或 Linux Systemd）</li>
+                    <li>清空该服务的所有部署版本历史与关联日志</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-2.5 border-t border-ops-border bg-ops-bg/80 px-5 py-3.5">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => {
+                    setServiceToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white transition-colors disabled:opacity-40"
+                >
+                  取消
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDelete}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold shadow-crimson-glow transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>正在删除...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>确认删除</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

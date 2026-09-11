@@ -160,6 +160,7 @@ describe('ServiceFleet Component', () => {
       ...mockServices[0],
       name: 'order-center-v2',
       port: 9090,
+      install_dir: '/opt/apps/order-center-v2',
     });
 
     render(
@@ -176,16 +177,20 @@ describe('ServiceFleet Component', () => {
     fireEvent.click(screen.getByText('order-center'));
     expect(screen.getByText('服务实例详细运行态 & 部署参数')).toBeInTheDocument();
 
-    // Click "编辑配置"
+    // Verify only ONE "编辑配置" button exists (top header only)
     const editBtns = screen.getAllByText('编辑配置');
+    expect(editBtns).toHaveLength(1);
     fireEvent.click(editBtns[0]);
 
     // Check that edit mode is active
     expect(screen.getByText(/编辑服务: order-center/i)).toBeInTheDocument();
 
-    // Modify service name and port
+    // Modify service name and port, verify install_dir updates dynamically
     const nameInput = screen.getByPlaceholderText('例如: order-service');
     fireEvent.change(nameInput, { target: { value: 'order-center-v2' } });
+
+    // Dynamic install directory should reflect the new service name
+    expect(screen.getByText('/opt/apps/order-center-v2')).toBeInTheDocument();
 
     const portInput = screen.getByPlaceholderText('例如: 8080');
     fireEvent.change(portInput, { target: { value: '9090' } });
@@ -198,12 +203,12 @@ describe('ServiceFleet Component', () => {
       expect(api.updateService).toHaveBeenCalledWith(101, expect.objectContaining({
         name: 'order-center-v2',
         port: 9090,
+        install_dir: '/opt/apps/order-center-v2',
       }));
     });
   });
 
-  it('allows deleting service in drawer after user confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('opens styled confirmation modal on delete and calls api.deleteService upon confirmation', async () => {
     (api.deleteService as any).mockResolvedValueOnce({ message: 'deleted' });
 
     render(
@@ -220,11 +225,19 @@ describe('ServiceFleet Component', () => {
     fireEvent.click(screen.getByText('order-center'));
     expect(screen.getByText('服务实例详细运行态 & 部署参数')).toBeInTheDocument();
 
-    // Click "删除服务"
+    // Click "删除服务" in drawer footer
     const deleteBtn = screen.getByRole('button', { name: /删除服务/i });
     fireEvent.click(deleteBtn);
 
-    expect(window.confirm).toHaveBeenCalled();
+    // Verify custom styled modal is opened with warnings
+    expect(screen.getByText('删除服务实例确认')).toBeInTheDocument();
+    expect(screen.getByText(/高危操作 · 该操作不可撤销/i)).toBeInTheDocument();
+    expect(screen.getByText('操作影响说明')).toBeInTheDocument();
+
+    // Click "确认删除" in modal
+    const confirmBtn = screen.getByRole('button', { name: /确认删除/i });
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(api.deleteService).toHaveBeenCalledWith(101);
     });
