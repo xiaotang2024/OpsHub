@@ -13,6 +13,7 @@ import {
   X,
   Columns,
   AlignLeft,
+  Plus,
 } from 'lucide-react';
 import { api } from '../../api';
 
@@ -173,14 +174,19 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // New file & custom file addition states
+  const [isNewFile, setIsNewFile] = useState(false);
+  const [isAddingFile, setIsAddingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+
   const gutterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Sync prop files if changed
+  // Sync prop files if changed, preserving any custom user-added files
   useEffect(() => {
     if (files.length > 0) {
-      setFileList(files);
-      if (!files.includes(selectedFile)) {
+      setFileList((prev) => Array.from(new Set([...files, ...prev])));
+      if (!files.includes(selectedFile) && !fileList.includes(selectedFile)) {
         setSelectedFile(files[0]);
       }
     }
@@ -198,8 +204,20 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
         setOriginalContent(text);
         setModifiedContent(text);
         setBackupMessage(null);
+        setIsNewFile(false);
       } catch (err: any) {
-        setError(err.message || '加载配置文件失败');
+        const msg = (err.message || '').toLowerCase();
+        if (msg.includes('not found') || err.status === 404) {
+          // File not created yet on disk; initialize empty buffer for creation
+          setOriginalContent('');
+          setModifiedContent('');
+          setBackupMessage(null);
+          setIsNewFile(true);
+          setError(null);
+        } else {
+          setError(err.message || '加载配置文件失败');
+          setIsNewFile(false);
+        }
       } finally {
         setLoading(false);
       }
@@ -235,6 +253,24 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     setModifiedContent(originalContent);
   };
 
+  const handleConfirmAddFile = () => {
+    const trimmed = newFileName.trim();
+    if (!trimmed) {
+      setError('文件名不能为空');
+      return;
+    }
+    const validExts = ['.yml', '.yaml', '.properties', '.conf', '.json', '.env', '.xml', '.ini', '.toml'];
+    const hasValidExt = validExts.some((ext) => trimmed.toLowerCase().endsWith(ext));
+    if (!hasValidExt) {
+      setError(`文件名必须以有效扩展名结尾 (${validExts.slice(0, 4).join(', ')} 等)`);
+      return;
+    }
+    setFileList((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setSelectedFile(trimmed);
+    setIsAddingFile(false);
+    setError(null);
+  };
+
   const handleConfirmSave = async () => {
     setConfirmModalOpen(false);
     setSaving(true);
@@ -242,6 +278,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     try {
       const res = await api.saveServiceConfig(serviceId, selectedFile, modifiedContent);
       setOriginalContent(modifiedContent);
+      setIsNewFile(false);
       const bakPath = res.backup || `${selectedFile}.bak`;
       setBackupMessage(`已成功生成安全备份: ${bakPath}`);
       onSaveSuccess?.(selectedFile);
@@ -348,6 +385,58 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
+
+          {/* Add custom config file button / inline input */}
+          {!isAddingFile ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddingFile(true);
+                setNewFileName('');
+              }}
+              title="指定自定义配置文件名 (例如 application-dev.yaml)"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-cyan hover:bg-cyan-950/40 hover:border-ops-cyan text-xs transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>添加文件</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                placeholder="例如: application-dev.yaml"
+                className="bg-slate-950 border border-ops-cyan rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:outline-none w-48"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmAddFile();
+                  if (e.key === 'Escape') setIsAddingFile(false);
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleConfirmAddFile}
+                className="px-2 py-1 rounded bg-ops-cyan text-slate-950 font-bold hover:bg-cyan-400 text-xs transition-colors"
+              >
+                确定
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddingFile(false)}
+                className="p-1 text-ops-text-muted hover:text-white"
+                title="取消"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {isNewFile && (
+            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300">
+              新文件 (保存后生成)
+            </span>
+          )}
         </div>
 
         {/* Center: View Switcher (Edit vs Diff) */}

@@ -166,4 +166,87 @@ describe('ConfigDiffEditor', () => {
     expect(screen.getByText(/port: 9090/)).toBeInTheDocument();
     expect(screen.getByText(/port: 8080/)).toBeInTheDocument();
   });
+
+  it('allows adding a custom config file such as application-dev.yaml and validates extension', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('application.yml')).toBeInTheDocument();
+    });
+
+    // Click "添加文件"
+    const addBtn = screen.getByRole('button', { name: /添加文件/i });
+    fireEvent.click(addBtn);
+
+    const input = screen.getByPlaceholderText(/application-dev\.yaml/i);
+    expect(input).toBeInTheDocument();
+
+    // Try invalid extension first
+    fireEvent.change(input, { target: { value: 'invalid.txt' } });
+    const confirmAddBtn = screen.getByRole('button', { name: /确定/i });
+    fireEvent.click(confirmAddBtn);
+
+    expect(screen.getByText(/文件名必须以有效扩展名结尾/i)).toBeInTheDocument();
+
+    // Now enter valid application-dev.yaml
+    fireEvent.change(input, { target: { value: 'application-dev.yaml' } });
+    fireEvent.click(confirmAddBtn);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('application-dev.yaml')).toBeInTheDocument();
+    });
+  });
+
+  it('gracefully handles 404 for new files and enables saving them to disk', async () => {
+    (api.getServiceConfigs as any).mockImplementation((_serviceId: number, file?: string) => {
+      if (file === 'application-dev.yaml') {
+        const err: any = new Error('config file not found');
+        err.status = 404;
+        return Promise.reject(err);
+      }
+      return Promise.resolve({
+        file: file || 'application.yml',
+        content: 'server:\n  port: 8080\n',
+      });
+    });
+
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('application.yml')).toBeInTheDocument();
+    });
+
+    // Add application-dev.yaml
+    fireEvent.click(screen.getByRole('button', { name: /添加文件/i }));
+    fireEvent.change(screen.getByPlaceholderText(/application-dev\.yaml/i), {
+      target: { value: 'application-dev.yaml' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /确定/i }));
+
+    // Verify badge appears indicating new file
+    await waitFor(() => {
+      expect(screen.getByText(/新文件 \(保存后生成\)/i)).toBeInTheDocument();
+    });
+
+    // Empty buffer ready for typing
+    const textarea = screen.getByTestId('config-editor-textarea') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('');
+
+    fireEvent.change(textarea, {
+      target: { value: 'spring:\n  profiles:\n    active: dev\n' },
+    });
+
+    // Save
+    fireEvent.click(screen.getByRole('button', { name: /保存修改/i }));
+    fireEvent.click(screen.getByRole('button', { name: /确认保存/i }));
+
+    await waitFor(() => {
+      expect(api.saveServiceConfig).toHaveBeenCalledWith(
+        10,
+        'application-dev.yaml',
+        'spring:\n  profiles:\n    active: dev\n'
+      );
+    });
+  });
 });
+

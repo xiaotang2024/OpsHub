@@ -46,7 +46,14 @@ import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
 
 type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
 
-const DEFAULT_CONFIG_FILES: string[] = ['application.yml'];
+const DEFAULT_CONFIG_FILES: string[] = [
+  'application.yml',
+  'application.yaml',
+  'application-dev.yml',
+  'application-dev.yaml',
+  'application-prod.yml',
+  'application-prod.yaml',
+];
 
 export const ServiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -144,9 +151,9 @@ export const ServiceDetail: React.FC = () => {
     return artifacts.find((a) => a.id === service.current_artifact_id) || null;
   }, [service, artifacts]);
 
-  // Memoize config files to prevent unnecessary re-renders in ConfigDiffEditor
+  // Memoize config files to ensure discovered files are listed alongside common profiles
   const effectiveConfigFiles = useMemo(() => {
-    return configFiles.length > 0 ? configFiles : DEFAULT_CONFIG_FILES;
+    return Array.from(new Set([...configFiles, ...DEFAULT_CONFIG_FILES]));
   }, [configFiles]);
 
   // Lifecycle actions
