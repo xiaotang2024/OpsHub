@@ -254,19 +254,15 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/75 backdrop-blur-md"
-        />
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          {/* Stable Backdrop */}
+          <div
+            onClick={onClose}
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+          />
 
         {/* Modal Container */}
         <motion.div
@@ -769,6 +765,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 };

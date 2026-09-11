@@ -10,6 +10,7 @@ import {
   RegisterPayload,
   ResetPasswordPayload,
   UpdateProfilePayload,
+  DeployPrecheckResult,
 } from '../types';
 
 const API_BASE = '/api';
@@ -133,6 +134,8 @@ export const api = {
     }),
 
   // Releases & Deployment
+  checkDeployPermission: (serviceId: number) =>
+    request<DeployPrecheckResult>(`/services/${serviceId}/deploy-precheck`),
   getReleases: (serviceId: number) =>
     request<DeployRecord[]>(`/services/${serviceId}/releases`),
   deployService: (serviceId: number, artifactId: number) =>

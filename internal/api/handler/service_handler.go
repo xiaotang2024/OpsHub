@@ -792,6 +792,94 @@ func (h *ServiceHandler) Deploy(c *gin.Context) {
 	c.JSON(http.StatusOK, record)
 }
 
+// DeployPrecheck verifies whether the current operator and system have sufficient permissions to deploy the service.
+// GET /api/services/:id/deploy-precheck
+func (h *ServiceHandler) DeployPrecheck(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+		return
+	}
+
+	// 1. User permission check
+	operator := middleware.GetUsername(c)
+	role := middleware.GetRole(c)
+	if operator == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"has_permission": false,
+			"type":           "auth_permission",
+			"error":          "未检测到有效的用户登录身份，请重新登录后再试",
+			"suggestion":     "请登录管理员或运维操作员账号后进行发版操作",
+		})
+		return
+	}
+	if role == "viewer" || role == "guest" {
+		c.JSON(http.StatusOK, gin.H{
+			"has_permission": false,
+			"type":           "user_role_permission",
+			"error":          fmt.Sprintf("当前账号角色 (%s) 仅具备只读权限，无权执行发版部署", role),
+			"suggestion":     "请联系管理员为您授予运维操作员或超级管理员权限",
+		})
+		return
+	}
+
+	// 2. Service existence and install directory check
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	installDir := strings.TrimSpace(svc.InstallDir)
+	if installDir == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"has_permission": false,
+			"type":           "directory_permission",
+			"error":          "服务未配置有效的安装目录 (install_dir 为空)",
+			"suggestion":     "请先在服务配置中指定安装目录路径",
+		})
+		return
+	}
+
+	// 3. Check install directory write permission
+	if err := os.MkdirAll(installDir, 0755); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"has_permission": false,
+			"type":           "directory_permission",
+			"install_dir":    installDir,
+			"error":          fmt.Sprintf("无法创建安装目录 %s: %v", installDir, err),
+			"suggestion":     fmt.Sprintf("sudo mkdir -p %s && sudo chown -R $(whoami) %s", installDir, installDir),
+		})
+		return
+	}
+
+	// Test write a temporary file into installDir
+	testFile := filepath.Join(installDir, fmt.Sprintf(".opshub_perm_test_%d", time.Now().UnixNano()))
+	if err := os.WriteFile(testFile, []byte("ok"), 0644); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"has_permission": false,
+			"type":           "directory_permission",
+			"install_dir":    installDir,
+			"error":          fmt.Sprintf("安装目录 %s 缺少写入权限: %v", installDir, err),
+			"suggestion":     fmt.Sprintf("sudo chown -R $(whoami) %s", installDir),
+		})
+		return
+	}
+	_ = os.Remove(testFile)
+
+	c.JSON(http.StatusOK, gin.H{
+		"has_permission": true,
+		"can_deploy":     true,
+		"install_dir":    installDir,
+		"operator":       operator,
+		"role":           role,
+	})
+}
+
 // Rollback triggers rollback to a target artifact version.
 // POST /api/services/:id/rollback
 func (h *ServiceHandler) Rollback(c *gin.Context) {

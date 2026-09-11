@@ -14,10 +14,9 @@ import {
   Layers,
   ArrowRight,
   Clock,
-  HardDrive,
   RefreshCw,
 } from 'lucide-react';
-import { Artifact, DeployRecord } from '../../types';
+import { Artifact, DeployRecord, DeployPrecheckResult } from '../../types';
 import { api } from '../../api';
 
 export interface DeployWizardModalProps {
@@ -127,6 +126,10 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
+  // Pre-flight check state
+  const [precheckResult, setPrecheckResult] = useState<DeployPrecheckResult | null>(null);
+  const [copiedWizardFixCmd, setCopiedWizardFixCmd] = useState(false);
+
   // Reset all modal state whenever visible changes
   useEffect(() => {
     if (visible) {
@@ -144,8 +147,21 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
       setPipelineLogs([]);
       setIsLogExpanded(false);
       setArtifactTab('upload');
+      setCopiedWizardFixCmd(false);
     }
   }, [visible, externalCurrentStep]);
+
+  // Check permissions whenever modal opens
+  useEffect(() => {
+    if (visible && serviceId) {
+      api
+        .checkDeployPermission(serviceId)
+        .then((res) => setPrecheckResult(res))
+        .catch(() => setPrecheckResult(null));
+    } else {
+      setPrecheckResult(null);
+    }
+  }, [visible, serviceId]);
 
   // Sync external currentStep if provided
   useEffect(() => {
@@ -261,6 +277,23 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
     ]);
 
     try {
+      setPipelineLogs((prev) => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] 🔍 正在执行部署前置权限检测 (检查宿主机目录写入权限及操作员权限)...`,
+      ]);
+      const permCheck = await api.checkDeployPermission(serviceId);
+      if (!permCheck.has_permission) {
+        let msg = permCheck.error || '发版部署前置权限检测失败';
+        if (permCheck.suggestion) {
+          msg += ` (建议在终端执行: ${permCheck.suggestion})`;
+        }
+        throw new Error(msg);
+      }
+      setPipelineLogs((prev) => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] ✅ 权限检测通过 (操作员: ${permCheck.operator || 'admin'}, 目标目录: ${permCheck.install_dir || '-'})`,
+      ]);
+
       // If uploading new package, upload first
       if (artifactTab === 'upload') {
         if (!file) {
@@ -488,6 +521,39 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
           {/* Package Selection & Upload Area */}
           {!pipelineRunning && !pipelineFinished && (
             <div className="space-y-4">
+              {/* Pre-check Permission Alert Banner */}
+              {precheckResult && !precheckResult.has_permission && (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-rose-300 font-semibold">
+                      <AlertCircle className="h-4 w-4 text-rose-400" />
+                      <span>宿主机发版权限预检未通过</span>
+                    </div>
+                    {precheckResult.suggestion && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(precheckResult.suggestion!);
+                          setCopiedWizardFixCmd(true);
+                          setTimeout(() => setCopiedWizardFixCmd(false), 2000);
+                        }}
+                        className="text-ops-cyan hover:text-cyan-300 text-[11px] font-mono underline"
+                      >
+                        {copiedWizardFixCmd ? '已复制修复命令' : '复制修复命令'}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-rose-200/90 font-mono text-[11px] leading-relaxed">
+                    {precheckResult.error}
+                  </p>
+                  {precheckResult.suggestion && (
+                    <div className="p-2 rounded-lg bg-black/70 border border-ops-border text-emerald-400 font-mono text-[11px] select-all break-all">
+                      {precheckResult.suggestion}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Tab Selector */}
               <div className="flex items-center gap-2 border-b border-ops-border pb-2 text-xs">
                 <button

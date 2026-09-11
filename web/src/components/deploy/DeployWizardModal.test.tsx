@@ -8,6 +8,7 @@ vi.mock('../../api', () => ({
     getArtifacts: vi.fn(),
     uploadArtifact: vi.fn(),
     deployService: vi.fn(),
+    checkDeployPermission: vi.fn(),
   },
 }));
 
@@ -38,6 +39,13 @@ describe('DeployWizardModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (api.getArtifacts as any).mockResolvedValue(mockArtifacts);
+    (api.checkDeployPermission as any).mockResolvedValue({
+      has_permission: true,
+      can_deploy: true,
+      install_dir: '/opt/apps/order-service',
+      operator: 'admin',
+      role: 'admin',
+    });
   });
 
   it('renders all 7 deployment pipeline steps', () => {
@@ -210,6 +218,37 @@ describe('DeployWizardModal', () => {
     );
 
     expect(screen.getByText(/1. 预检/i)).toBeInTheDocument();
+  });
+
+  it('displays permission warning banner when checkDeployPermission returns has_permission: false', async () => {
+    (api.checkDeployPermission as any).mockResolvedValue({
+      has_permission: false,
+      type: 'directory_permission',
+      install_dir: '/opt/apps/order-service',
+      error: '无法创建安装目录 /opt/apps/order-service: permission denied',
+      suggestion: 'sudo mkdir -p /opt/apps/order-service && sudo chown -R $(whoami) /opt/apps/order-service',
+    });
+
+    render(
+      <DeployWizardModal
+        visible={true}
+        serviceId={10}
+        serviceName="order-service"
+        currentStep={1}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/宿主机发版权限预检未通过/i)).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/无法创建安装目录 \/opt\/apps\/order-service: permission denied/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/sudo mkdir -p \/opt\/apps\/order-service/i)
+    ).toBeInTheDocument();
   });
 });
 

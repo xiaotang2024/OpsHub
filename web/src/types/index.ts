@@ -138,4 +138,13 @@ export interface UpdateProfilePayload {
   email: string;
 }
 
-
+export interface DeployPrecheckResult {
+  has_permission: boolean;
+  can_deploy?: boolean;
+  type?: 'auth_permission' | 'user_role_permission' | 'directory_permission';
+  install_dir?: string;
+  error?: string;
+  suggestion?: string;
+  operator?: string;
+  role?: string;
+}

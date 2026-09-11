@@ -213,6 +213,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.GET("/services/:id/configs", serviceHandler.GetConfigs)
 			protected.POST("/services/:id/configs", serviceHandler.SaveConfig)
 			protected.GET("/services/:id/releases", serviceHandler.Releases)
+			protected.GET("/services/:id/deploy-precheck", serviceHandler.DeployPrecheck)
 			protected.POST("/services/:id/deploy", serviceHandler.Deploy)
 			protected.POST("/services/:id/rollback", serviceHandler.Rollback)
 			protected.GET("/services/:id/metrics", serviceHandler.Metrics)

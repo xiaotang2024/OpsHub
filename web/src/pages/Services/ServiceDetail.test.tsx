@@ -17,6 +17,7 @@ vi.mock('../../api', () => ({
     startService: vi.fn(),
     stopService: vi.fn(),
     restartService: vi.fn(),
+    checkDeployPermission: vi.fn(),
   },
 }));
 
@@ -129,6 +130,13 @@ describe('ServiceDetail Component', () => {
       ],
       total: 1,
     });
+    (api.checkDeployPermission as any).mockResolvedValue({
+      has_permission: true,
+      can_deploy: true,
+      install_dir: '/opt/apps/order-center',
+      operator: 'admin',
+      role: 'admin',
+    });
   });
 
   const renderComponent = () => {
@@ -237,6 +245,56 @@ describe('ServiceDetail Component', () => {
     expect(screen.getByText(/OPSHUB CONSOLE/i)).toBeInTheDocument();
     expect(screen.getByTestId('ws-status-badge')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /auto-scroll/i })).toBeInTheDocument();
+  });
+
+  it('shows permission alert modal with error and suggestion when deploy permission precheck fails', async () => {
+    (api.checkDeployPermission as any).mockResolvedValue({
+      has_permission: false,
+      type: 'directory_permission',
+      install_dir: '/opt/apps/order-center',
+      error: '无法创建安装目录 /opt/apps/order-center: permission denied',
+      suggestion: 'sudo mkdir -p /opt/apps/order-center && sudo chown -R $(whoami) /opt/apps/order-center',
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    const deployButtons = screen.getAllByRole('button', { name: /部署新版本/i });
+    fireEvent.click(deployButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/发版部署权限检测未通过/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/宿主机安装目录缺少写入或创建权限/i)).toBeInTheDocument();
+    expect(screen.getByText(/无法创建安装目录 \/opt\/apps\/order-center: permission denied/i)).toBeInTheDocument();
+    expect(screen.getByText(/sudo mkdir -p \/opt\/apps\/order-center && sudo chown -R \$\(whoami\) \/opt\/apps\/order-center/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /复制命令/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /重新检测/i })).toBeInTheDocument();
+  });
+
+  it('opens deploy wizard modal when deploy permission precheck succeeds', async () => {
+    (api.checkDeployPermission as any).mockResolvedValue({
+      has_permission: true,
+      can_deploy: true,
+      install_dir: '/opt/apps/order-center',
+      operator: 'admin',
+      role: 'admin',
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    const deployButtons = screen.getAllByRole('button', { name: /部署新版本/i });
+    fireEvent.click(deployButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/1. 预检/i)).toBeInTheDocument();
+    });
   });
 });
 

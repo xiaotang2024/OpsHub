@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -642,4 +643,81 @@ func TestRouter_CORSCredentialsAndOrigin(t *testing.T) {
 	assert.Equal(t, origin, wOptions.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "true", wOptions.Header().Get("Access-Control-Allow-Credentials"))
 }
+
+func TestRouter_DeployPrecheck(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// Create a template
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode) 
+		VALUES (100, 'tpl-deploy', 'java_jar', '/opt/apps/100', 'native')`)
+	require.NoError(t, err)
+
+	// 1. Unauthenticated request -> 401
+	wUnauth := doRequest(f.router, "GET", "/api/services/100/deploy-precheck", "", nil)
+	assert.Equal(t, http.StatusUnauthorized, wUnauth.Code)
+
+	// 2. Viewer role request -> has_permission: false
+	now := time.Now()
+	viewerClaims := service.Claims{
+		Username: "viewerUser",
+		Role:     "viewer",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			Subject:   "viewerUser",
+		},
+	}
+	viewerTokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, viewerClaims)
+	viewerToken, err := viewerTokenObj.SignedString([]byte(f.cfg.Server.JWTSecret))
+	require.NoError(t, err)
+
+	wViewer := doRequest(f.router, "GET", "/api/services/100/deploy-precheck", viewerToken, nil)
+	assert.Equal(t, http.StatusOK, wViewer.Code)
+	var viewerResp map[string]interface{}
+	require.NoError(t, json.Unmarshal(wViewer.Body.Bytes(), &viewerResp))
+	assert.Equal(t, false, viewerResp["has_permission"])
+	assert.Equal(t, "user_role_permission", viewerResp["type"])
+
+	// 3. Service not found -> 404
+	wNotFound := doRequest(f.router, "GET", "/api/services/9999/deploy-precheck", f.token, nil)
+	assert.Equal(t, http.StatusNotFound, wNotFound.Code)
+
+	// 4. Service with empty install_dir -> has_permission: false
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (101, 'svc-no-dir', 100, '', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+	wEmptyDir := doRequest(f.router, "GET", "/api/services/101/deploy-precheck", f.token, nil)
+	assert.Equal(t, http.StatusOK, wEmptyDir.Code)
+	var emptyDirResp map[string]interface{}
+	require.NoError(t, json.Unmarshal(wEmptyDir.Body.Bytes(), &emptyDirResp))
+	assert.Equal(t, false, emptyDirResp["has_permission"])
+	assert.Equal(t, "directory_permission", emptyDirResp["type"])
+
+	// 5. Service with writable install_dir (inside TempDir) -> has_permission: true
+	validInstallDir := filepath.Join(f.tmpDir, "svc-valid")
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (102, 'svc-valid', 100, ?, 'native', 'STOPPED')`, validInstallDir)
+	require.NoError(t, err)
+	wValid := doRequest(f.router, "GET", "/api/services/102/deploy-precheck", f.token, nil)
+	assert.Equal(t, http.StatusOK, wValid.Code)
+	var validResp map[string]interface{}
+	require.NoError(t, json.Unmarshal(wValid.Body.Bytes(), &validResp))
+	assert.Equal(t, true, validResp["has_permission"])
+	assert.Equal(t, true, validResp["can_deploy"])
+	assert.Equal(t, validInstallDir, validResp["install_dir"])
+
+	// 6. Service with non-writable install_dir
+	invalidInstallDir := "/root/opshub_perm_test_denied_123"
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (103, 'svc-denied', 100, ?, 'native', 'STOPPED')`, invalidInstallDir)
+	require.NoError(t, err)
+	wDenied := doRequest(f.router, "GET", "/api/services/103/deploy-precheck", f.token, nil)
+	assert.Equal(t, http.StatusOK, wDenied.Code)
+	var deniedResp map[string]interface{}
+	require.NoError(t, json.Unmarshal(wDenied.Body.Bytes(), &deniedResp))
+	assert.Equal(t, false, deniedResp["has_permission"])
+	assert.Contains(t, deniedResp["error"].(string), "无法创建安装目录")
+	assert.Contains(t, deniedResp["suggestion"].(string), "sudo mkdir -p")
+}
+
 
