@@ -14,6 +14,7 @@ import {
   HelpCircle,
   AlertTriangle,
   Info,
+  Radio,
 } from 'lucide-react';
 import { Template, JDKAsset } from '../../types';
 
@@ -620,15 +621,39 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 
                 {/* 仅在 TCP 协议时的提示说明 */}
                 {healthType === 'tcp' && (
-                  <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-ops-bg/60 border border-ops-border/50 text-xs text-ops-text-muted">
-                    <Info className="h-4 w-4 text-ops-cyan shrink-0" />
-                    <span>自动探测具体服务实例配置的主监听端口连通性（四层 TCP 握手），无需在此指定端口</span>
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="sm:col-span-2 flex flex-col justify-between"
+                  >
+                    <label className="block text-xs font-medium text-ops-text-sub mb-1">
+                      探测机制与端口策略
+                    </label>
+                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-ops-cyan/35 bg-cyan-950/25 text-xs shadow-sm transition-colors">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ops-cyan/15 text-ops-cyan border border-ops-cyan/30">
+                        <Radio className="h-3.5 w-3.5 animate-pulse" />
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-ops-cyan/20 text-ops-cyan border border-ops-cyan/40 shrink-0">
+                          动态端口
+                        </span>
+                        <span className="text-xs text-ops-text-sub leading-snug">
+                          自动探测具体服务实例配置的主监听端口连通性（四层 TCP 握手），无需在此指定端口
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
 
                 {/* 仅在 HTTP 协议时显示 HTTP 探测路径 */}
                 {healthType === 'http' && (
-                  <div className="sm:col-span-2">
+                  <motion.div
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="sm:col-span-2"
+                  >
                     <label htmlFor="health-path" className="block text-xs font-medium text-ops-text-sub mb-1">
                       HTTP 探测路径
                     </label>
@@ -640,15 +665,34 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                       placeholder="/actuator/health"
                       className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
                     />
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* 仅进程存活 (PID) 时的提示说明 */}
                 {healthType === 'process' && (
-                  <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-ops-bg/60 border border-ops-border/50 text-xs text-ops-text-muted">
-                    <Info className="h-4 w-4 text-ops-cyan shrink-0" />
-                    <span>通过系统内核检测进程存活性，无需监听或探测网络端口</span>
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="sm:col-span-2 flex flex-col justify-between"
+                  >
+                    <label className="block text-xs font-medium text-ops-text-sub mb-1">
+                      存活性探测机制
+                    </label>
+                    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-emerald-500/35 bg-emerald-950/25 text-xs shadow-sm transition-colors">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-ops-emerald border border-emerald-500/30">
+                        <Cpu className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/20 text-ops-emerald border border-emerald-500/40 shrink-0">
+                          内核探活
+                        </span>
+                        <span className="text-xs text-ops-text-sub leading-snug">
+                          通过系统内核检测进程存活性，无需监听或探测网络端口
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
               </div>
 
