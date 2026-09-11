@@ -13,6 +13,7 @@ import {
   Zap,
   HelpCircle,
   AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { Template, JDKAsset } from '../../types';
 
@@ -203,12 +204,17 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     }
     setValidationError(null);
 
-    const healthConfigStr = JSON.stringify({
+    const healthConfig: Record<string, any> = {
       type: healthType,
-      port: healthPort,
-      path: healthPath,
       interval_sec: healthInterval,
-    });
+    };
+    if (healthType !== 'process') {
+      healthConfig.port = healthPort;
+    }
+    if (healthType === 'http') {
+      healthConfig.path = healthPath;
+    }
+    const healthConfigStr = JSON.stringify(healthConfig);
 
     const payload: Partial<Template> = {
       name: name.trim(),
@@ -584,7 +590,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div>
+                <div className={healthType === 'http' ? 'sm:col-span-1' : 'sm:col-span-2'}>
                   <label htmlFor="health-type" className="block text-xs font-medium text-ops-text-sub mb-1">
                     探针协议
                   </label>
@@ -600,33 +606,46 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label htmlFor="health-port" className="block text-xs font-medium text-ops-text-sub mb-1">
-                    探测端口
-                  </label>
-                  <input
-                    id="health-port"
-                    type="number"
-                    value={healthPort}
-                    onChange={(e) => setHealthPort(Number(e.target.value))}
-                    className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
-                  />
-                </div>
+                {/* 仅在 HTTP 或 TCP 协议时显示探测端口 */}
+                {healthType !== 'process' && (
+                  <div className={healthType === 'http' ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                    <label htmlFor="health-port" className="block text-xs font-medium text-ops-text-sub mb-1">
+                      探测端口
+                    </label>
+                    <input
+                      id="health-port"
+                      type="number"
+                      value={healthPort}
+                      onChange={(e) => setHealthPort(Number(e.target.value))}
+                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                    />
+                  </div>
+                )}
 
-                <div className="sm:col-span-2">
-                  <label htmlFor="health-path" className="block text-xs font-medium text-ops-text-sub mb-1">
-                    HTTP 探测路径
-                  </label>
-                  <input
-                    id="health-path"
-                    type="text"
-                    disabled={healthType !== 'http'}
-                    value={healthPath}
-                    onChange={(e) => setHealthPath(e.target.value)}
-                    placeholder="/actuator/health"
-                    className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white disabled:opacity-40 focus:border-ops-cyan focus:outline-none"
-                  />
-                </div>
+                {/* 仅在 HTTP 协议时显示 HTTP 探测路径 */}
+                {healthType === 'http' && (
+                  <div className="sm:col-span-2">
+                    <label htmlFor="health-path" className="block text-xs font-medium text-ops-text-sub mb-1">
+                      HTTP 探测路径
+                    </label>
+                    <input
+                      id="health-path"
+                      type="text"
+                      value={healthPath}
+                      onChange={(e) => setHealthPath(e.target.value)}
+                      placeholder="/actuator/health"
+                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {/* 仅进程存活 (PID) 时的提示说明 */}
+                {healthType === 'process' && (
+                  <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-ops-bg/60 border border-ops-border/50 text-xs text-ops-text-muted">
+                    <Info className="h-4 w-4 text-ops-cyan shrink-0" />
+                    <span>通过系统内核检测进程存活性，无需监听或探测网络端口</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">

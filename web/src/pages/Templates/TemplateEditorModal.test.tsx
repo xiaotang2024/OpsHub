@@ -65,5 +65,81 @@ describe('TemplateEditorModal', () => {
     expect(callArg.name).toBe('Production-Jar-Template');
     expect(callArg.jvm_options).toContain('-Xms');
     expect(callArg.jvm_options).toContain('-Xmx');
+    const healthConfig = JSON.parse(callArg.health_check_config);
+    expect(healthConfig.type).toBe('http');
+    expect(healthConfig.port).toBe(8080);
+    expect(healthConfig.path).toBe('/actuator/health');
+  });
+
+  it('conditionally displays probe port and path based on healthType', () => {
+    render(<TemplateEditorModal {...defaultProps} />);
+
+    const healthTypeSelect = screen.getByLabelText(/探针协议/i);
+
+    // 1. Default is 'http': both port and path inputs should be visible
+    expect(screen.getByLabelText(/探测端口/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/HTTP 探测路径/i)).toBeInTheDocument();
+    expect(screen.queryByText(/通过系统内核检测进程存活性/i)).not.toBeInTheDocument();
+
+    // 2. Change to 'tcp': port is visible, path is hidden
+    fireEvent.change(healthTypeSelect, { target: { value: 'tcp' } });
+    expect(screen.getByLabelText(/探测端口/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/HTTP 探测路径/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/通过系统内核检测进程存活性/i)).not.toBeInTheDocument();
+
+    // 3. Change to 'process': both port and path are hidden, process notice is displayed
+    fireEvent.change(healthTypeSelect, { target: { value: 'process' } });
+    expect(screen.queryByLabelText(/探测端口/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/HTTP 探测路径/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/通过系统内核检测进程存活性，无需监听或探测网络端口/i)).toBeInTheDocument();
+  });
+
+  it('omits path for tcp in saved health_check_config', async () => {
+    mockOnSave.mockReset();
+    mockOnSave.mockResolvedValue(undefined);
+    render(<TemplateEditorModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText(/模板名称/i);
+    fireEvent.change(nameInput, { target: { value: 'TCP-Template' } });
+
+    const healthTypeSelect = screen.getByLabelText(/探针协议/i);
+    fireEvent.change(healthTypeSelect, { target: { value: 'tcp' } });
+
+    const submitBtn = screen.getByRole('button', { name: /保存模板/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledTimes(1);
+    });
+
+    const savedConfig = JSON.parse(mockOnSave.mock.calls[0][0].health_check_config);
+    expect(savedConfig.type).toBe('tcp');
+    expect(savedConfig.port).toBe(8080);
+    expect(savedConfig.path).toBeUndefined();
+  });
+
+  it('omits port and path for process in saved health_check_config', async () => {
+    mockOnSave.mockReset();
+    mockOnSave.mockResolvedValue(undefined);
+    render(<TemplateEditorModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText(/模板名称/i);
+    fireEvent.change(nameInput, { target: { value: 'Process-Template' } });
+
+    const healthTypeSelect = screen.getByLabelText(/探针协议/i);
+    fireEvent.change(healthTypeSelect, { target: { value: 'process' } });
+
+    const submitBtn = screen.getByRole('button', { name: /保存模板/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledTimes(1);
+    });
+
+    const savedConfig = JSON.parse(mockOnSave.mock.calls[0][0].health_check_config);
+    expect(savedConfig.type).toBe('process');
+    expect(savedConfig.port).toBeUndefined();
+    expect(savedConfig.path).toBeUndefined();
   });
 });
+
