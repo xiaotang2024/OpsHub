@@ -585,34 +585,63 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             </div>
           </div>
 
-          {/* Current full filename preview badge */}
-          <span
-            data-testid="config-current-filename"
-            className="hidden sm:inline-flex items-center px-2 py-1 rounded bg-slate-900 border border-ops-border/80 text-ops-cyan font-mono text-xs font-semibold"
-            title="当前选中的完整配置文件名"
-          >
-            {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
-          </span>
-
+          {/* Refresh button */}
           <button
             type="button"
             onClick={() => loadFileContent(selectedFile)}
             title="刷新重新加载当前文件"
-            className="p-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-muted hover:text-white transition-colors"
+            className="p-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-muted hover:text-white transition-colors shrink-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
+          {/* Save Button (Moved left next to file selection!) */}
+          <button
+            type="button"
+            disabled={!canSave}
+            onClick={handleSaveClick}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none shrink-0"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            <span>保存修改</span>
+          </button>
+
+          {/* Revert Button (when changed) */}
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleRevert}
+              title="放弃修改并还原"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors shrink-0"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>放弃修改</span>
+            </button>
+          )}
+
           {isNewFile && (
-            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300 shrink-0">
               新文件 (保存后生成)
             </span>
           )}
         </div>
 
-        {/* Center: View Switcher (Edit vs Diff) */}
+        {/* Right: View Switcher (Edit vs Diff) & Current File Badge */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5">
+          {/* Current full filename preview badge */}
+          <span
+            data-testid="config-current-filename"
+            className="hidden xl:inline-flex items-center px-2 py-1 rounded bg-slate-900 border border-ops-border/80 text-ops-cyan font-mono text-xs font-semibold"
+            title="当前选中的完整配置文件名"
+          >
+            {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
+          </span>
+
+          <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5 shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('edit')}
@@ -647,7 +676,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
           {/* Diff Style Switcher (Split vs Unified) */}
           {viewMode === 'diff' && hasChanges && (
-            <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5">
+            <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setDiffStyle('split')}
@@ -676,35 +705,6 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               </button>
             </div>
           )}
-        </div>
-
-        {/* Right: Actions (Revert, Save) */}
-        <div className="flex items-center gap-2">
-          {hasChanges && (
-            <button
-              type="button"
-              onClick={handleRevert}
-              title="放弃修改并还原"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>放弃修改</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            disabled={!canSave}
-            onClick={handleSaveClick}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none"
-          >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            <span>保存修改</span>
-          </button>
         </div>
       </div>
 
