@@ -13,6 +13,7 @@ vi.mock('../../api', () => ({
     stopService: vi.fn(),
     restartService: vi.fn(),
     updateService: vi.fn(),
+    createService: vi.fn(),
     deleteService: vi.fn(),
   },
 }));
@@ -240,6 +241,85 @@ describe('ServiceFleet Component', () => {
 
     await waitFor(() => {
       expect(api.deleteService).toHaveBeenCalledWith(101);
+    });
+  });
+
+  it('opens create service modal, allows actively choosing template and creating service', async () => {
+    const mockTemplates = [
+      {
+        id: 1,
+        name: 'Spring Boot Standard',
+        install_dir_pattern: '/opt/apps/${SERVICE_NAME}',
+        supervision_mode: 'native',
+        probe_type: 'http',
+        default_jdk_id: 1,
+        jvm_options: '-Xms512m -Xmx1g',
+        env_vars: 'ENV=prod',
+      },
+      {
+        id: 2,
+        name: 'Tomcat WebApp',
+        install_dir_pattern: '/opt/tomcat/webapps/${SERVICE_NAME}',
+        supervision_mode: 'systemd',
+        probe_type: 'tcp',
+        default_jdk_id: 1,
+        jvm_options: '-Xms1g -Xmx2g',
+        env_vars: '',
+      },
+    ];
+    (api.getTemplates as any).mockResolvedValue(mockTemplates);
+    (api.createService as any).mockResolvedValueOnce({
+      id: 103,
+      name: 'analytics-service',
+      port: 8083,
+      template_id: 2,
+      install_dir: '/opt/tomcat/webapps/analytics-service',
+    });
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    // Click "新建部署服务" button
+    const newServiceBtn = screen.getByRole('button', { name: /新建部署服务/i });
+    fireEvent.click(newServiceBtn);
+
+    // Modal should be opened with template selection
+    expect(screen.getByText('主动选择模板快速配置并纳管新 Java 服务实例')).toBeInTheDocument();
+    expect(screen.getByLabelText(/选择关联部署模板/i)).toBeInTheDocument();
+
+    // Switch template to Tomcat WebApp (#2)
+    const templateSelect = screen.getByLabelText(/选择关联部署模板/i);
+    fireEvent.change(templateSelect, { target: { value: '2' } });
+
+    // Fill in service name
+    const nameInput = screen.getByLabelText(/服务名称/i);
+    fireEvent.change(nameInput, { target: { value: 'analytics-service' } });
+
+    // Verify dynamic install directory adapts to chosen template pattern
+    expect(screen.getByText('/opt/tomcat/webapps/analytics-service')).toBeInTheDocument();
+
+    // Fill in port
+    const portInput = screen.getByLabelText(/监听端口/i);
+    fireEvent.change(portInput, { target: { value: '8083' } });
+
+    // Submit
+    const submitBtn = screen.getByRole('button', { name: /立即创建并加入舰队/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.createService).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'analytics-service',
+        template_id: 2,
+        port: 8083,
+        install_dir: '/opt/tomcat/webapps/analytics-service',
+      }));
     });
   });
 });

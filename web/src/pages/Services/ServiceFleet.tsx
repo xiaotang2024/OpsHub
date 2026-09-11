@@ -24,6 +24,7 @@ import {
   Check,
   Copy,
   Edit3,
+  Plus,
   Loader2,
   ShieldAlert,
 } from 'lucide-react';
@@ -95,6 +96,15 @@ export const ServiceFleet: React.FC = () => {
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Create Service Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createTemplateId, setCreateTemplateId] = useState<number | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [createPort, setCreatePort] = useState<number>(8080);
+  const [createInstallDir, setCreateInstallDir] = useState('');
+  const [isCreatingService, setIsCreatingService] = useState(false);
+  const [createServiceError, setCreateServiceError] = useState<string | null>(null);
 
   const loadData = async (isBackground = false) => {
     try {
@@ -330,6 +340,77 @@ export const ServiceFleet: React.FC = () => {
     }
   };
 
+  const handleOpenCreateModal = () => {
+    setCreateServiceError(null);
+    if (templates.length > 0) {
+      const defaultTpl = templates[0];
+      setCreateTemplateId(defaultTpl.id);
+      const defaultName = `${defaultTpl.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}-service`;
+      setCreateName(defaultName);
+      setCreatePort(8080 + services.length);
+      setCreateInstallDir(computeInstallDir(defaultName, null, defaultTpl));
+    } else {
+      setCreateTemplateId(null);
+      setCreateName('');
+      setCreatePort(8080);
+      setCreateInstallDir('');
+    }
+    setIsCreateModalOpen(true);
+  };
+
+  const handleTemplateSelectChange = (tplId: number) => {
+    setCreateTemplateId(tplId);
+    const tpl = templates.find((t) => t.id === tplId);
+    setCreateInstallDir(computeInstallDir(createName, null, tpl));
+  };
+
+  const handleCreateNameChange = (newName: string) => {
+    setCreateName(newName);
+    const tpl = templates.find((t) => t.id === createTemplateId);
+    setCreateInstallDir(computeInstallDir(newName, null, tpl));
+  };
+
+  const handleCreateServiceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createName.trim()) {
+      setCreateServiceError('服务名称不能为空');
+      return;
+    }
+    if (createPort <= 0 || createPort > 65535) {
+      setCreateServiceError('请输入有效的端口号 (1-65535)');
+      return;
+    }
+    const selectedTpl = templates.find((t) => t.id === createTemplateId);
+    if (!selectedTpl) {
+      setCreateServiceError('请选择有效的部署模板');
+      return;
+    }
+
+    try {
+      setIsCreatingService(true);
+      setCreateServiceError(null);
+
+      const payload: Partial<Service> = {
+        name: createName.trim(),
+        template_id: selectedTpl.id,
+        jdk_id: selectedTpl.default_jdk_id,
+        install_dir: createInstallDir.trim() || `/opt/apps/${createName.trim()}`,
+        port: Number(createPort),
+        jvm_options: selectedTpl.jvm_options,
+        env_vars: selectedTpl.env_vars,
+        supervision_mode: selectedTpl.supervision_mode,
+      };
+
+      await api.createService(payload);
+      setIsCreateModalOpen(false);
+      await loadData(true);
+    } catch (err: any) {
+      setCreateServiceError(err.message || '创建部署服务失败');
+    } finally {
+      setIsCreatingService(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Fleet Top Bar */}
@@ -359,7 +440,7 @@ export const ServiceFleet: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => navigate('/templates')}
+            onClick={handleOpenCreateModal}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
@@ -544,7 +625,7 @@ export const ServiceFleet: React.FC = () => {
           </p>
           <button
             type="button"
-            onClick={() => navigate('/templates')}
+            onClick={handleOpenCreateModal}
             className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan text-xs font-semibold hover:bg-ops-cyan/20 transition-colors"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
@@ -1133,6 +1214,237 @@ export const ServiceFleet: React.FC = () => {
                     </>
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Service from Template Modal */}
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+            onClick={() => {
+              if (!isCreatingService) {
+                setIsCreateModalOpen(false);
+                setCreateServiceError(null);
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg rounded-2xl border border-ops-border bg-ops-surface shadow-2xl overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/90 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950/80 border border-ops-cyan/30 text-ops-cyan shadow-cyan-glow">
+                    <Plus className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-tight">
+                      新建部署服务
+                    </h3>
+                    <p className="text-[11px] font-mono text-ops-text-muted">
+                      主动选择模板快速配置并纳管新 Java 服务实例
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isCreatingService}
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setCreateServiceError(null);
+                  }}
+                  className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-white disabled:opacity-30"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4 text-xs">
+                {createServiceError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{createServiceError}</span>
+                  </div>
+                )}
+
+                {templates.length === 0 ? (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-5 text-center space-y-3">
+                    <p className="text-amber-400">
+                      系统中暂无可用部署模板。新建服务需要基于模板进行环境与监管规范的配置。
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreateModalOpen(false);
+                        navigate('/templates');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-semibold transition-colors"
+                    >
+                      <span>前往创建模板</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form id="create-service-fleet-form" onSubmit={handleCreateServiceSubmit} className="space-y-4">
+                    {/* Template Selection */}
+                    <div>
+                      <label htmlFor="create-fleet-template" className="block text-xs font-medium text-ops-text-sub mb-1">
+                        选择关联部署模板 <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        id="create-fleet-template"
+                        value={createTemplateId ?? ''}
+                        onChange={(e) => handleTemplateSelectChange(Number(e.target.value))}
+                        className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                        required
+                      >
+                        {templates.map((tpl) => (
+                          <option key={tpl.id} value={tpl.id}>
+                            {tpl.name} (#{tpl.id}) - {tpl.supervision_mode === 'systemd' ? 'Systemd' : 'Native'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Template Spec Summary Card */}
+                    {(() => {
+                      const selectedTpl = templates.find((t) => t.id === createTemplateId);
+                      if (!selectedTpl) return null;
+                      return (
+                        <div className="rounded-xl border border-ops-border/70 bg-ops-bg/80 p-3 space-y-2 font-mono text-xs">
+                          <div className="flex justify-between items-center text-ops-text-muted">
+                            <span>监管驱动</span>
+                            <span className="font-semibold text-white">
+                              {selectedTpl.supervision_mode === 'systemd' ? 'Linux Systemd Unit' : 'OpsHub Native Supervisor'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-ops-text-muted">
+                            <span>应用类型</span>
+                            <span className="text-ops-cyan font-bold">
+                              {selectedTpl.type ? selectedTpl.type.toUpperCase() : 'JAVA_JAR'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-ops-text-muted">
+                            <span>默认 JDK</span>
+                            <span className="text-ops-text-sub">
+                              {jdks.find((j) => j.id === selectedTpl.default_jdk_id)?.name || '模板预设 JDK'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-ops-text-muted pt-1 border-t border-ops-border/40 text-[11px]">
+                            <span>路径规则</span>
+                            <span className="text-ops-text-sub truncate max-w-[240px]" title={selectedTpl.install_dir_pattern}>
+                              {selectedTpl.install_dir_pattern}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Service Name & Port Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="create-fleet-name" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          服务名称 <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          id="create-fleet-name"
+                          type="text"
+                          required
+                          value={createName}
+                          onChange={(e) => handleCreateNameChange(e.target.value)}
+                          placeholder="例如: order-center-service"
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="create-fleet-port" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          监听端口 <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          id="create-fleet-port"
+                          type="number"
+                          required
+                          min={1}
+                          max={65535}
+                          value={createPort}
+                          onChange={(e) => setCreatePort(Number(e.target.value))}
+                          placeholder="例如: 8080"
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Auto-derived Install Directory */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-medium text-ops-text-sub">
+                          安装部署路径
+                        </label>
+                        <span className="text-[10px] font-mono text-ops-cyan/80 bg-cyan-950/50 px-2 py-0.5 rounded border border-ops-cyan/20">
+                          跟随模板与名称自动生成
+                        </span>
+                      </div>
+                      <div
+                        className="w-full rounded-lg border border-ops-border/70 bg-ops-bg/60 px-3 py-2 text-xs font-mono text-ops-text-sub break-all select-all"
+                        title="安装路径跟随模板规则与服务名称生成"
+                      >
+                        {createInstallDir || '(自动生成)'}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-cyan-950/20 border border-ops-cyan/30 text-xs text-ops-text-muted">
+                      <Info className="h-4 w-4 text-ops-cyan shrink-0" />
+                      <span>创建成功后，服务实例将直接纳入集群舰队并继承模板运行参数，可在卡片详情中进一步维护。</span>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-2.5 border-t border-ops-border bg-ops-bg/80 px-6 py-4">
+                <button
+                  type="button"
+                  disabled={isCreatingService}
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setCreateServiceError(null);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white transition-colors disabled:opacity-40"
+                >
+                  取消
+                </button>
+
+                {templates.length > 0 && (
+                  <button
+                    type="submit"
+                    form="create-service-fleet-form"
+                    disabled={isCreatingService}
+                    className="inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isCreatingService ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>正在创建...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>立即创建并加入舰队</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
