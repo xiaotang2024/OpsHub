@@ -8,9 +8,11 @@ vi.mock('../../api', () => ({
   api: {
     getServices: vi.fn(),
     getTemplates: vi.fn(),
+    getJDKs: vi.fn(),
     startService: vi.fn(),
     stopService: vi.fn(),
     restartService: vi.fn(),
+    updateService: vi.fn(),
     deleteService: vi.fn(),
   },
 }));
@@ -47,6 +49,7 @@ describe('ServiceFleet Component', () => {
     vi.clearAllMocks();
     (api.getServices as any).mockResolvedValue(mockServices);
     (api.getTemplates as any).mockResolvedValue([]);
+    (api.getJDKs as any).mockResolvedValue([]);
   });
 
   it('renders service cards with name, StatusBadge, port, PID and supervision mode', async () => {
@@ -149,6 +152,81 @@ describe('ServiceFleet Component', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('服务实例详细运行态 & 部署参数')).not.toBeInTheDocument();
+    });
+  });
+
+  it('allows editing service configuration in drawer and calls api.updateService', async () => {
+    (api.updateService as any).mockResolvedValueOnce({
+      ...mockServices[0],
+      name: 'order-center-v2',
+      port: 9090,
+    });
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    // Open drawer
+    fireEvent.click(screen.getByText('order-center'));
+    expect(screen.getByText('服务实例详细运行态 & 部署参数')).toBeInTheDocument();
+
+    // Click "编辑配置"
+    const editBtns = screen.getAllByText('编辑配置');
+    fireEvent.click(editBtns[0]);
+
+    // Check that edit mode is active
+    expect(screen.getByText(/编辑服务: order-center/i)).toBeInTheDocument();
+
+    // Modify service name and port
+    const nameInput = screen.getByPlaceholderText('例如: order-service');
+    fireEvent.change(nameInput, { target: { value: 'order-center-v2' } });
+
+    const portInput = screen.getByPlaceholderText('例如: 8080');
+    fireEvent.change(portInput, { target: { value: '9090' } });
+
+    // Submit form
+    const saveBtn = screen.getByRole('button', { name: /保存修改/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(api.updateService).toHaveBeenCalledWith(101, expect.objectContaining({
+        name: 'order-center-v2',
+        port: 9090,
+      }));
+    });
+  });
+
+  it('allows deleting service in drawer after user confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    (api.deleteService as any).mockResolvedValueOnce({ message: 'deleted' });
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    // Open drawer
+    fireEvent.click(screen.getByText('order-center'));
+    expect(screen.getByText('服务实例详细运行态 & 部署参数')).toBeInTheDocument();
+
+    // Click "删除服务"
+    const deleteBtn = screen.getByRole('button', { name: /删除服务/i });
+    fireEvent.click(deleteBtn);
+
+    expect(window.confirm).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(api.deleteService).toHaveBeenCalledWith(101);
     });
   });
 });

@@ -23,8 +23,9 @@ import {
   Server,
   Check,
   Copy,
+  Edit3,
 } from 'lucide-react';
-import { Service, Template, ServiceStatus } from '../../types';
+import { Service, Template, ServiceStatus, JDKAsset } from '../../types';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
 
@@ -33,6 +34,7 @@ export const ServiceFleet: React.FC = () => {
 
   const [services, setServices] = useState<Service[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [jdks, setJdks] = useState<JDKAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,16 +53,32 @@ export const ServiceFleet: React.FC = () => {
   );
   const [copiedPort, setCopiedPort] = useState(false);
 
+  // Drawer Inline Editing State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPort, setEditPort] = useState<number>(8080);
+  const [editTemplateId, setEditTemplateId] = useState<number>(0);
+  const [editJdkId, setEditJdkId] = useState<number | undefined>(undefined);
+  const [editInstallDir, setEditInstallDir] = useState('');
+  const [editSupervisionMode, setEditSupervisionMode] = useState<string>('native');
+  const [editJvmOptions, setEditJvmOptions] = useState('');
+  const [editEnvVars, setEditEnvVars] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccessMsg, setEditSuccessMsg] = useState<string | null>(null);
+
   const loadData = async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
       setError(null);
-      const [svcList, tplList] = await Promise.all([
-        api.getServices(),
-        api.getTemplates().catch(() => []),
+      const [svcList, tplList, jdkList] = await Promise.all([
+        Promise.resolve().then(() => api.getServices()),
+        Promise.resolve().then(() => (api.getTemplates ? api.getTemplates() : [])).catch(() => []),
+        Promise.resolve().then(() => (api.getJDKs ? api.getJDKs() : [])).catch(() => []),
       ]);
       setServices(svcList || []);
       setTemplates(tplList || []);
+      setJdks(jdkList || []);
     } catch (err: any) {
       setError(err.message || '加载服务舰队失败');
     } finally {
@@ -212,6 +230,64 @@ export const ServiceFleet: React.FC = () => {
     navigator.clipboard?.writeText(String(port));
     setCopiedPort(true);
     setTimeout(() => setCopiedPort(false), 2000);
+  };
+
+  useEffect(() => {
+    if (selectedService) {
+      setIsEditing(false);
+      setEditError(null);
+      setEditSuccessMsg(null);
+      setEditName(selectedService.name || '');
+      setEditPort(selectedService.port || 8080);
+      setEditTemplateId(selectedService.template_id || 0);
+      setEditJdkId(selectedService.jdk_id ?? undefined);
+      setEditInstallDir(selectedService.install_dir || '');
+      setEditSupervisionMode(selectedService.supervision_mode || 'native');
+      setEditJvmOptions(selectedService.jvm_options || '');
+      setEditEnvVars(selectedService.env_vars || '');
+    }
+  }, [selectedService]);
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedService) return;
+    if (!editName.trim()) {
+      setEditError('服务名称不能为空');
+      return;
+    }
+    if (editPort <= 0 || editPort > 65535) {
+      setEditError('请输入有效的端口号 (1-65535)');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      setEditError(null);
+
+      const payload: Partial<Service> = {
+        name: editName.trim(),
+        port: Number(editPort),
+        template_id: editTemplateId,
+        jdk_id: editJdkId ? Number(editJdkId) : null,
+        install_dir: editInstallDir.trim(),
+        supervision_mode: editSupervisionMode,
+        jvm_options: editJvmOptions.trim(),
+        env_vars: editEnvVars.trim(),
+      };
+
+      await api.updateService(selectedService.id, payload);
+      await loadData(true);
+      setIsEditing(false);
+      setEditSuccessMsg(
+        '服务配置已成功保存！' +
+          (selectedService.status === 'RUNNING' ? '（将在服务下次重启后生效）' : '')
+      );
+      setTimeout(() => setEditSuccessMsg(null), 5000);
+    } catch (err: any) {
+      setEditError(err.message || '更新服务失败');
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   return (
@@ -599,151 +675,377 @@ export const ServiceFleet: React.FC = () => {
               <div className="flex items-center justify-between p-5 border-b border-ops-border bg-ops-bg/80">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950/70 border border-ops-cyan/30 text-ops-cyan">
-                    <Server className="h-5 w-5" />
+                    {isEditing ? <Edit3 className="h-5 w-5" /> : <Server className="h-5 w-5" />}
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-white tracking-tight">
-                      {selectedService.name}
+                      {isEditing ? `编辑服务: ${selectedService.name}` : selectedService.name}
                     </h2>
                     <span className="text-xs font-mono text-ops-text-muted">
-                      服务实例详细运行态 & 部署参数
+                      {isEditing ? '修改服务实例的运行配置与环境规格' : '服务实例详细运行态 & 部署参数'}
                     </span>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedServiceId(null)}
-                  className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border hover:text-white"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-ops-cyan/40 bg-cyan-950/40 text-ops-cyan hover:bg-ops-cyan/20 text-xs font-semibold transition-colors"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      <span>编辑配置</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedServiceId(null);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border hover:text-white"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Drawer Body (Scrollable) */}
               <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs">
-                {/* Current Status Box */}
-                <div className="flex items-center justify-between rounded-xl border border-ops-border bg-ops-card p-4">
-                  <div className="space-y-1">
-                    <span className="text-ops-text-muted font-mono block">运行状态</span>
-                    <StatusBadge status={selectedService.status} />
+                {/* Success Notification Banner */}
+                {editSuccessMsg && !isEditing && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/40 border border-ops-emerald/40 text-xs text-ops-emerald font-medium">
+                    <Check className="h-4 w-4 shrink-0" />
+                    <span>{editSuccessMsg}</span>
                   </div>
-                  <div className="text-right font-mono">
-                    <span className="text-ops-text-muted block">活动 PID</span>
-                    <span className="text-sm font-bold text-white">
-                      {selectedService.pid > 0 ? `#${selectedService.pid}` : '无活动进程'}
-                    </span>
-                  </div>
-                </div>
+                )}
 
-                {/* Specs list */}
-                <div className="space-y-3">
-                  <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
-                    网络与运行监管
-                  </h4>
+                {isEditing ? (
+                  /* Edit Mode Form */
+                  <form id="edit-service-form" onSubmit={handleSaveEdit} className="space-y-4">
+                    {editError && (
+                      <div className="p-3 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400 text-xs flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{editError}</span>
+                      </div>
+                    )}
 
-                  <div className="rounded-xl border border-ops-border bg-ops-bg/80 divide-y divide-ops-border font-mono">
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-ops-text-muted">服务端口</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-ops-cyan">:{selectedService.port}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyPort(selectedService.port)}
-                          className="text-ops-text-muted hover:text-white"
-                          title="复制端口"
-                        >
-                          {copiedPort ? (
-                            <Check className="h-3 w-3 text-ops-emerald" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="edit-service-name" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          服务名称 <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          id="edit-service-name"
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                          placeholder="例如: order-service"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="edit-service-port" className="block text-xs font-medium text-ops-text-sub mb-1">
+                            监听端口 <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            id="edit-service-port"
+                            type="number"
+                            value={editPort}
+                            onChange={(e) => setEditPort(Number(e.target.value))}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                            placeholder="例如: 8080"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="edit-supervision-mode" className="block text-xs font-medium text-ops-text-sub mb-1">
+                            监管驱动
+                          </label>
+                          <select
+                            id="edit-supervision-mode"
+                            value={editSupervisionMode}
+                            onChange={(e) => setEditSupervisionMode(e.target.value)}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
+                          >
+                            <option value="native">Native Supervisor (内置)</option>
+                            <option value="systemd">Linux Systemd Unit</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="edit-template" className="block text-xs font-medium text-ops-text-sub mb-1">
+                            关联部署模板
+                          </label>
+                          <select
+                            id="edit-template"
+                            value={editTemplateId}
+                            onChange={(e) => setEditTemplateId(Number(e.target.value))}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
+                          >
+                            {templates.map((tpl) => (
+                              <option key={tpl.id} value={tpl.id}>
+                                {tpl.name} (#{tpl.id})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label htmlFor="edit-jdk" className="block text-xs font-medium text-ops-text-sub mb-1">
+                            运行 JDK
+                          </label>
+                          <select
+                            id="edit-jdk"
+                            value={editJdkId ?? ''}
+                            onChange={(e) => setEditJdkId(e.target.value ? Number(e.target.value) : undefined)}
+                            className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white focus:border-ops-cyan focus:outline-none"
+                          >
+                            <option value="">使用模板默认 JDK</option>
+                            {jdks.map((jdk) => (
+                              <option key={jdk.id} value={jdk.id}>
+                                {jdk.name} ({jdk.version_str})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="edit-install-dir" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          安装部署路径
+                        </label>
+                        <input
+                          id="edit-install-dir"
+                          type="text"
+                          value={editInstallDir}
+                          onChange={(e) => setEditInstallDir(e.target.value)}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                          placeholder="/opt/apps/${SERVICE_NAME}"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="edit-jvm-options" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          JVM 覆盖参数 (留空则沿用模板)
+                        </label>
+                        <textarea
+                          id="edit-jvm-options"
+                          rows={2}
+                          value={editJvmOptions}
+                          onChange={(e) => setEditJvmOptions(e.target.value)}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg p-2.5 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                          placeholder="例如: -Xms512m -Xmx1024m -XX:+UseG1GC"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="edit-env-vars" className="block text-xs font-medium text-ops-text-sub mb-1">
+                          注入环境变量 (每行一个 KEY=VALUE)
+                        </label>
+                        <textarea
+                          id="edit-env-vars"
+                          rows={3}
+                          value={editEnvVars}
+                          onChange={(e) => setEditEnvVars(e.target.value)}
+                          className="w-full rounded-lg border border-ops-border bg-ops-bg p-2.5 text-xs font-mono text-white focus:border-ops-cyan focus:outline-none"
+                          placeholder="SPRING_PROFILES_ACTIVE=prod&#10;SERVER_PORT=8080"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-cyan-950/20 border border-ops-cyan/30 text-xs text-ops-text-muted">
+                        <Info className="h-4 w-4 text-ops-cyan shrink-0" />
+                        <span>运行中服务的端口、JVM 参数或环境变量修改后，将在服务下次重启时生效。</span>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  /* View Mode Content */
+                  <>
+                    {/* Current Status Box */}
+                    <div className="flex items-center justify-between rounded-xl border border-ops-border bg-ops-card p-4">
+                      <div className="space-y-1">
+                        <span className="text-ops-text-muted font-mono block">运行状态</span>
+                        <StatusBadge status={selectedService.status} />
+                      </div>
+                      <div className="text-right font-mono">
+                        <span className="text-ops-text-muted block">活动 PID</span>
+                        <span className="text-sm font-bold text-white">
+                          {selectedService.pid > 0 ? `#${selectedService.pid}` : '无活动进程'}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-ops-text-muted">监管驱动</span>
-                      <span className="text-ops-text-sub font-semibold">
-                        {selectedService.supervision_mode === 'systemd'
-                          ? 'Linux Systemd Unit'
-                          : 'OpsHub Native Supervisor'}
-                      </span>
+                    {/* Specs list */}
+                    <div className="space-y-3">
+                      <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
+                        网络与运行监管
+                      </h4>
+
+                      <div className="rounded-xl border border-ops-border bg-ops-bg/80 divide-y divide-ops-border font-mono">
+                        <div className="flex items-center justify-between p-3">
+                          <span className="text-ops-text-muted">服务端口</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-ops-cyan">:{selectedService.port}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPort(selectedService.port)}
+                              className="text-ops-text-muted hover:text-white"
+                              title="复制端口"
+                            >
+                              {copiedPort ? (
+                                <Check className="h-3 w-3 text-ops-emerald" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3">
+                          <span className="text-ops-text-muted">监管驱动</span>
+                          <span className="text-ops-text-sub font-semibold">
+                            {selectedService.supervision_mode === 'systemd'
+                              ? 'Linux Systemd Unit'
+                              : 'OpsHub Native Supervisor'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3">
+                          <span className="text-ops-text-muted">关联模板</span>
+                          <span className="text-ops-text-sub">
+                            {templates.find((t) => t.id === selectedService.template_id)?.name ||
+                              `#${selectedService.template_id}`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3">
+                          <span className="text-ops-text-muted">运行 JDK</span>
+                          <span className="text-ops-text-sub">
+                            {jdks.find((j) => j.id === selectedService.jdk_id)?.name || '继承模板默认'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3">
-                      <span className="text-ops-text-muted">关联模板</span>
-                      <span className="text-ops-text-sub">#{selectedService.template_id}</span>
+                    {/* Install dir */}
+                    <div className="space-y-2">
+                      <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
+                        安装路径 (Install Directory)
+                      </h4>
+                      <div className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-ops-text-sub break-all select-all">
+                        {selectedService.install_dir}
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Install dir */}
-                <div className="space-y-2">
-                  <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
-                    安装路径 (Install Directory)
-                  </h4>
-                  <div className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-ops-text-sub break-all select-all">
-                    {selectedService.install_dir}
-                  </div>
-                </div>
+                    {/* JVM Options */}
+                    <div className="space-y-2">
+                      <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
+                        当前 JVM 参数策略
+                      </h4>
+                      <div className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-emerald-400 break-all select-all">
+                        {selectedService.jvm_options || '(默认未指定自定义 JVM 参数)'}
+                      </div>
+                    </div>
 
-                {/* JVM Options */}
-                <div className="space-y-2">
-                  <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
-                    当前 JVM 参数策略
-                  </h4>
-                  <div className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-emerald-400 break-all select-all">
-                    {selectedService.jvm_options || '(默认未指定自定义 JVM 参数)'}
-                  </div>
-                </div>
-
-                {/* Env Vars */}
-                {selectedService.env_vars && (
-                  <div className="space-y-2">
-                    <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
-                      注入环境变量
-                    </h4>
-                    <pre className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-ops-text-sub whitespace-pre-wrap">
-                      {selectedService.env_vars}
-                    </pre>
-                  </div>
+                    {/* Env Vars */}
+                    {selectedService.env_vars && (
+                      <div className="space-y-2">
+                        <h4 className="font-mono text-xs uppercase tracking-wider text-ops-cyan">
+                          注入环境变量
+                        </h4>
+                        <pre className="rounded-xl border border-ops-border bg-ops-bg p-3 font-mono text-xs text-ops-text-sub whitespace-pre-wrap">
+                          {selectedService.env_vars}
+                        </pre>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
               {/* Drawer Footer Actions */}
-              <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleDeleteService(selectedService)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-950/30 text-xs font-semibold transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>注销服务</span>
-                </button>
-
-                <div className="flex items-center gap-2">
+              {isEditing ? (
+                <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      const sid = selectedService.id;
-                      setSelectedServiceId(null);
-                      navigate(`/services/${sid}`);
+                      setIsEditing(false);
+                      setEditError(null);
                     }}
-                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold hover:bg-cyan-400 transition-colors"
+                    className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white transition-colors"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    <span>服务详情与发布</span>
+                    取消
                   </button>
+
                   <button
-                    type="button"
-                    onClick={() => setSelectedServiceId(null)}
-                    className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white"
+                    type="submit"
+                    form="edit-service-form"
+                    disabled={isSavingEdit}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold hover:bg-cyan-400 transition-colors disabled:opacity-50"
                   >
-                    关闭
+                    {isSavingEdit ? (
+                      <>
+                        <div className="h-3 w-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <span>保存中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        <span>保存修改</span>
+                      </>
+                    )}
                   </button>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteService(selectedService)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-950/30 text-xs font-semibold transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>删除服务</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-ops-border bg-ops-surface text-ops-cyan hover:bg-ops-cyan/10 hover:border-ops-cyan text-xs font-semibold transition-colors"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      <span>编辑配置</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sid = selectedService.id;
+                        setSelectedServiceId(null);
+                        navigate(`/services/${sid}`);
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold hover:bg-cyan-400 transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span>服务详情与发布</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedServiceId(null)}
+                      className="px-4 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}
