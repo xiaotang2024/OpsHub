@@ -67,7 +67,7 @@ describe('TemplateEditorModal', () => {
     expect(callArg.jvm_options).toContain('-Xmx');
     const healthConfig = JSON.parse(callArg.health_check_config);
     expect(healthConfig.type).toBe('http');
-    expect(healthConfig.port).toBe(8080);
+    expect(healthConfig.port).toBeUndefined();
     expect(healthConfig.path).toBe('/actuator/health');
   });
 
@@ -76,8 +76,8 @@ describe('TemplateEditorModal', () => {
 
     const healthTypeSelect = screen.getByLabelText(/探针协议/i);
 
-    // 1. Default is 'http': both port and path inputs should be visible
-    expect(screen.getByLabelText(/探测端口/i)).toBeInTheDocument();
+    // 1. Default is 'http': path is visible, port is hidden
+    expect(screen.queryByLabelText(/探测端口/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/HTTP 探测路径/i)).toBeInTheDocument();
     expect(screen.queryByText(/通过系统内核检测进程存活性/i)).not.toBeInTheDocument();
 

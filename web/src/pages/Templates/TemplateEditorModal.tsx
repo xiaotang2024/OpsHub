@@ -208,7 +208,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       type: healthType,
       interval_sec: healthInterval,
     };
-    if (healthType !== 'process') {
+    if (healthType === 'tcp') {
       healthConfig.port = healthPort;
     }
     if (healthType === 'http') {
@@ -590,7 +590,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className={healthType === 'http' ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                <div className="sm:col-span-2">
                   <label htmlFor="health-type" className="block text-xs font-medium text-ops-text-sub mb-1">
                     探针协议
                   </label>
@@ -606,9 +606,9 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                   </select>
                 </div>
 
-                {/* 仅在 HTTP 或 TCP 协议时显示探测端口 */}
-                {healthType !== 'process' && (
-                  <div className={healthType === 'http' ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                {/* 仅在 TCP 协议时显示探测端口 */}
+                {healthType === 'tcp' && (
+                  <div className="sm:col-span-2">
                     <label htmlFor="health-port" className="block text-xs font-medium text-ops-text-sub mb-1">
                       探测端口
                     </label>
