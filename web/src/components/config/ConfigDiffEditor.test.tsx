@@ -38,13 +38,15 @@ describe('ConfigDiffEditor', () => {
     });
   });
 
-  it('renders file selector dropdown and warning banner', async () => {
+  it('renders file selector with name and suffix dropdowns and warning banner', async () => {
     render(<ConfigDiffEditor serviceId={10} files={['application.yml', 'application-prod.yml']} />);
 
     expect(screen.getByText(/修改后需重启服务以使配置生效/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('application.yml')).toBeInTheDocument();
+      expect(screen.getByTestId('config-name-select')).toHaveValue('application');
+      expect(screen.getByTestId('config-suffix-select')).toHaveValue('yml');
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application.yml');
     });
   });
 
@@ -167,33 +169,72 @@ describe('ConfigDiffEditor', () => {
     expect(screen.getByText(/port: 8080/)).toBeInTheDocument();
   });
 
-  it('allows adding a custom config file such as application-dev.yaml and validates extension', async () => {
+  it('allows changing suffix to yaml or properties and loads corresponding file', async () => {
     render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('application.yml')).toBeInTheDocument();
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application.yml');
     });
 
-    // Click "添加文件"
-    const addBtn = screen.getByRole('button', { name: /添加文件/i });
-    fireEvent.click(addBtn);
-
-    const input = screen.getByPlaceholderText(/application-dev\.yaml/i);
-    expect(input).toBeInTheDocument();
-
-    // Try invalid extension first
-    fireEvent.change(input, { target: { value: 'invalid.txt' } });
-    const confirmAddBtn = screen.getByRole('button', { name: /确定/i });
-    fireEvent.click(confirmAddBtn);
-
-    expect(screen.getByText(/文件名必须以有效扩展名结尾/i)).toBeInTheDocument();
-
-    // Now enter valid application-dev.yaml
-    fireEvent.change(input, { target: { value: 'application-dev.yaml' } });
-    fireEvent.click(confirmAddBtn);
+    const suffixSelect = screen.getByTestId('config-suffix-select');
+    fireEvent.change(suffixSelect, { target: { value: 'yaml' } });
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('application-dev.yaml')).toBeInTheDocument();
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application.yaml');
+      expect(api.getServiceConfigs).toHaveBeenCalledWith(10, 'application.yaml');
+    });
+
+    fireEvent.change(suffixSelect, { target: { value: 'properties' } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application.properties');
+      expect(api.getServiceConfigs).toHaveBeenCalledWith(10, 'application.properties');
+    });
+  });
+
+  it('allows selecting different profile name such as application-dev', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-name-select')).toHaveValue('application');
+    });
+
+    const nameSelect = screen.getByTestId('config-name-select');
+    fireEvent.change(nameSelect, { target: { value: 'application-dev' } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application-dev.yml');
+    });
+  });
+
+  it('allows adding a custom config name such as bootstrap and validates name input', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-name-select')).toHaveValue('application');
+    });
+
+    // Click "添加名称"
+    const addBtn = screen.getByRole('button', { name: /添加名称/i });
+    fireEvent.click(addBtn);
+
+    const input = screen.getByPlaceholderText(/bootstrap/i);
+    expect(input).toBeInTheDocument();
+
+    // Try path traversal
+    fireEvent.change(input, { target: { value: '../bad_name' } });
+    const confirmBtn = screen.getByRole('button', { name: /确定/i });
+    fireEvent.click(confirmBtn);
+
+    expect(screen.getByText(/配置名称不能包含路径分隔符/i)).toBeInTheDocument();
+
+    // Now enter valid bootstrap
+    fireEvent.change(input, { target: { value: 'bootstrap' } });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-name-select')).toHaveValue('bootstrap');
+      expect(screen.getByTestId('config-current-filename')).toHaveTextContent('bootstrap.yml');
     });
   });
 
@@ -213,15 +254,20 @@ describe('ConfigDiffEditor', () => {
     render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('application.yml')).toBeInTheDocument();
+      expect(screen.getByTestId('config-name-select')).toHaveValue('application');
     });
 
-    // Add application-dev.yaml
-    fireEvent.click(screen.getByRole('button', { name: /添加文件/i }));
-    fireEvent.change(screen.getByPlaceholderText(/application-dev\.yaml/i), {
-      target: { value: 'application-dev.yaml' },
+    // Switch name to application-dev
+    fireEvent.change(screen.getByTestId('config-name-select'), {
+      target: { value: 'application-dev' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /确定/i }));
+
+    // Switch suffix to yaml
+    fireEvent.change(screen.getByTestId('config-suffix-select'), {
+      target: { value: 'yaml' },
+    });
+
+    expect(screen.getByTestId('config-current-filename')).toHaveTextContent('application-dev.yaml');
 
     // Verify badge appears indicating new file
     await waitFor(() => {
@@ -249,4 +295,5 @@ describe('ConfigDiffEditor', () => {
     });
   });
 });
+
 
