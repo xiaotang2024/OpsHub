@@ -67,11 +67,13 @@ func TestModelJSONSerialization(t *testing.T) {
 		JVMOptions:        `{"heap_max":"2048m"}`,
 		EnvVars:           `{"PORT":"8080"}`,
 		SupervisionMode:   model.SupervisionModeNative,
-		Status:            model.ServiceStatusRunning,
-		CurrentArtifactID: &artifactID,
-		PID:               12345,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		Status:                model.ServiceStatusRunning,
+		CurrentArtifactID:     &artifactID,
+		PID:                   12345,
+		HealthCheckConfig:     `{"type":"http","port":8080}`,
+		TemplateSyncIgnoredAt: &now,
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 	svcBytes, err := json.Marshal(svc)
 	require.NoError(t, err)
@@ -79,6 +81,8 @@ func TestModelJSONSerialization(t *testing.T) {
 	require.NoError(t, json.Unmarshal(svcBytes, &svcUnmarshaled))
 	assert.Equal(t, svc.Name, svcUnmarshaled.Name)
 	assert.Equal(t, svc.Port, svcUnmarshaled.Port)
+	assert.Equal(t, svc.HealthCheckConfig, svcUnmarshaled.HealthCheckConfig)
+	assert.NotNil(t, svcUnmarshaled.TemplateSyncIgnoredAt)
 
 	// Artifact
 	art := model.Artifact{

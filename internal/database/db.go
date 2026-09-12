@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS services (
     status TEXT NOT NULL,
     current_artifact_id INTEGER,
     pid INTEGER DEFAULT 0,
+    health_check_config TEXT,
+    template_sync_ignored_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(template_id) REFERENCES templates(id)
@@ -126,7 +128,55 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrate users table failed: %w", err)
 	}
 
+	if err := migrateServicesTable(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate services table failed: %w", err)
+	}
+
 	return db, nil
+}
+
+func migrateServicesTable(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(services)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	existingCols := make(map[string]bool)
+	for rows.Next() {
+		var (
+			cid       int
+			name      string
+			colType   string
+			notNull   int
+			dfltValue sql.NullString
+			pk        int
+		)
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		existingCols[name] = true
+	}
+
+	migrations := []struct {
+		colName string
+		colDef  string
+	}{
+		{"health_check_config", "TEXT DEFAULT ''"},
+		{"template_sync_ignored_at", "DATETIME"},
+	}
+
+	for _, m := range migrations {
+		if !existingCols[m.colName] {
+			alterSQL := fmt.Sprintf("ALTER TABLE services ADD COLUMN %s %s", m.colName, m.colDef)
+			if _, err := db.Exec(alterSQL); err != nil {
+				return fmt.Errorf("add column %s failed: %w", m.colName, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func migrateUsersTable(db *sql.DB) error {

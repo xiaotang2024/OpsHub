@@ -104,10 +104,12 @@ type Service struct {
 	EnvVars           string    `json:"env_vars" db:"env_vars"`
 	SupervisionMode   string    `json:"supervision_mode" db:"supervision_mode"`
 	Status            string    `json:"status" db:"status"`
-	CurrentArtifactID *int64    `json:"current_artifact_id,omitempty" db:"current_artifact_id"`
-	PID               int       `json:"pid" db:"pid"`
-	CreatedAt         time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+	CurrentArtifactID     *int64     `json:"current_artifact_id,omitempty" db:"current_artifact_id"`
+	PID                   int        `json:"pid" db:"pid"`
+	HealthCheckConfig     string     `json:"health_check_config" db:"health_check_config"`
+	TemplateSyncIgnoredAt *time.Time `json:"template_sync_ignored_at,omitempty" db:"template_sync_ignored_at"`
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // Artifact represents a package/binary version stored for a service.

@@ -119,4 +119,48 @@ func TestInitDB_MigrateOldUsersTable(t *testing.T) {
 	assert.True(t, updatedAt.Valid, "updated_at should be backfilled from created_at")
 }
 
+func TestInitDB_MigrateOldServicesTable(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "legacy_services.db")
+
+	oldDb, err := sql.Open("sqlite", dbPath)
+	require.NoError(t, err)
+
+	_, err = oldDb.Exec(`
+		CREATE TABLE templates (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			type TEXT NOT NULL,
+			install_dir_pattern TEXT NOT NULL,
+			supervision_mode TEXT NOT NULL
+		);
+		CREATE TABLE services (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			template_id INTEGER NOT NULL,
+			install_dir TEXT NOT NULL,
+			supervision_mode TEXT NOT NULL,
+			status TEXT NOT NULL
+		);
+		INSERT INTO templates (name, type, install_dir_pattern, supervision_mode) VALUES ('t1', 'java_jar', '/opt/apps/t1', 'native');
+		INSERT INTO services (name, template_id, install_dir, supervision_mode, status) VALUES ('s1', 1, '/opt/apps/s1', 'native', 'STOPPED');
+	`)
+	require.NoError(t, err)
+	oldDb.Close()
+
+	newDb, err := database.InitDB(dbPath)
+	require.NoError(t, err, "migration of old services table should succeed")
+	defer newDb.Close()
+
+	var (
+		hcConfig   sql.NullString
+		syncIgnore sql.NullTime
+	)
+	err = newDb.QueryRow("SELECT health_check_config, template_sync_ignored_at FROM services WHERE name = 's1'").Scan(&hcConfig, &syncIgnore)
+	require.NoError(t, err)
+	assert.Equal(t, "", hcConfig.String)
+	assert.False(t, syncIgnore.Valid)
+}
+
+
 
