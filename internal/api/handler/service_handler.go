@@ -51,26 +51,54 @@ func NewServiceHandler(
 
 // CreateServiceRequest represents parameters for registering a managed service.
 type CreateServiceRequest struct {
-	Name            string `json:"name" binding:"required"`
-	TemplateID      int64  `json:"template_id" binding:"required"`
-	JDKID           *int64 `json:"jdk_id"`
-	InstallDir      string `json:"install_dir"`
-	Port            int    `json:"port"`
-	JVMOptions      string `json:"jvm_options"`
-	EnvVars         string `json:"env_vars"`
-	SupervisionMode string `json:"supervision_mode"`
+	Name              string `json:"name" binding:"required"`
+	TemplateID        int64  `json:"template_id" binding:"required"`
+	JDKID             *int64 `json:"jdk_id"`
+	InstallDir        string `json:"install_dir"`
+	Port              int    `json:"port"`
+	JVMOptions        string `json:"jvm_options"`
+	EnvVars           string `json:"env_vars"`
+	SupervisionMode   string `json:"supervision_mode"`
+	HealthCheckConfig string `json:"health_check_config"`
 }
 
 // UpdateServiceRequest represents parameters for modifying service configuration.
 type UpdateServiceRequest struct {
-	Name            string `json:"name" binding:"required"`
-	TemplateID      int64  `json:"template_id"`
-	JDKID           *int64 `json:"jdk_id"`
-	InstallDir      string `json:"install_dir"`
-	Port            int    `json:"port"`
-	JVMOptions      string `json:"jvm_options"`
-	EnvVars         string `json:"env_vars"`
-	SupervisionMode string `json:"supervision_mode"`
+	Name              string `json:"name" binding:"required"`
+	TemplateID        int64  `json:"template_id"`
+	JDKID             *int64 `json:"jdk_id"`
+	InstallDir        string `json:"install_dir"`
+	Port              int    `json:"port"`
+	JVMOptions        string `json:"jvm_options"`
+	EnvVars           string `json:"env_vars"`
+	SupervisionMode   string `json:"supervision_mode"`
+	HealthCheckConfig string `json:"health_check_config"`
+}
+
+// SyncDiffItem represents diff comparison for a single configuration field.
+type SyncDiffItem struct {
+	Current     string `json:"current"`
+	Template    string `json:"template"`
+	IsDifferent bool   `json:"is_different"`
+}
+
+// TemplateSyncDiffResponse represents diff summary between a service and its template.
+type TemplateSyncDiffResponse struct {
+	HasUpdate         bool         `json:"has_update"`
+	TemplateID        int64        `json:"template_id"`
+	TemplateName      string       `json:"template_name"`
+	TemplateUpdatedAt time.Time    `json:"template_updated_at"`
+	Ignored           bool         `json:"ignored"`
+	JVMDiff           SyncDiffItem `json:"jvm_diff"`
+	HealthCheckDiff   SyncDiffItem `json:"health_check_diff"`
+}
+
+// SyncTemplateRequest represents parameters for syncing template settings to a service.
+type SyncTemplateRequest struct {
+	SyncJVM         bool `json:"sync_jvm"`
+	SyncHealthCheck bool `json:"sync_health_check"`
+	RestartNow      bool `json:"restart_now"`
+	IgnoreUpdate    bool `json:"ignore_update"`
 }
 
 // ActionRequest is the payload for deploy and rollback requests.
@@ -94,7 +122,10 @@ func (h *ServiceHandler) List(c *gin.Context) {
 			COALESCE(jvm_options, ''), 
 			COALESCE(env_vars, ''), 
 			supervision_mode, status, current_artifact_id, 
-			COALESCE(pid, 0), created_at, updated_at
+			COALESCE(pid, 0),
+			COALESCE(health_check_config, ''),
+			template_sync_ignored_at,
+			created_at, updated_at
 		FROM services
 		ORDER BY id ASC
 	`
@@ -121,6 +152,8 @@ func (h *ServiceHandler) List(c *gin.Context) {
 			&s.Status,
 			&s.CurrentArtifactID,
 			&s.PID,
+			&s.HealthCheckConfig,
+			&s.TemplateSyncIgnoredAt,
 			&s.CreatedAt,
 			&s.UpdatedAt,
 		); err != nil {
@@ -198,13 +231,15 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 		jdkID = tpl.DefaultJDKID
 	}
 
+	healthCheckConfig := strings.TrimSpace(req.HealthCheckConfig)
+
 	now := time.Now().UTC()
 	query := `
 		INSERT INTO services (
 			name, template_id, jdk_id, install_dir, port, 
 			jvm_options, env_vars, supervision_mode, status, 
-			current_artifact_id, pid, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?)
+			current_artifact_id, pid, health_check_config, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?)
 	`
 	res, err := h.db.ExecContext(c.Request.Context(), query,
 		name,
@@ -216,6 +251,7 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 		req.EnvVars,
 		supervisionMode,
 		model.ServiceStatusStopped,
+		healthCheckConfig,
 		now,
 		now,
 	)
@@ -237,19 +273,20 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 	middleware.SetAudit(c, "CREATE", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Created service %s", name))
 
 	svc := model.Service{
-		ID:              id,
-		Name:            name,
-		TemplateID:      req.TemplateID,
-		JDKID:           jdkID,
-		InstallDir:      installDir,
-		Port:            req.Port,
-		JVMOptions:      req.JVMOptions,
-		EnvVars:         req.EnvVars,
-		SupervisionMode: supervisionMode,
-		Status:          model.ServiceStatusStopped,
-		PID:             0,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ID:                id,
+		Name:              name,
+		TemplateID:        req.TemplateID,
+		JDKID:             jdkID,
+		InstallDir:        installDir,
+		Port:              req.Port,
+		JVMOptions:        req.JVMOptions,
+		EnvVars:           req.EnvVars,
+		SupervisionMode:   supervisionMode,
+		Status:            model.ServiceStatusStopped,
+		PID:               0,
+		HealthCheckConfig: healthCheckConfig,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	c.JSON(http.StatusCreated, svc)
@@ -305,11 +342,16 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 		supervisionMode = svc.SupervisionMode
 	}
 
+	healthCheckConfig := svc.HealthCheckConfig
+	if req.HealthCheckConfig != "" {
+		healthCheckConfig = strings.TrimSpace(req.HealthCheckConfig)
+	}
+
 	now := time.Now().UTC()
 	query := `
 		UPDATE services SET
 			name = ?, template_id = ?, install_dir = ?, port = ?, jdk_id = ?,
-			jvm_options = ?, env_vars = ?, supervision_mode = ?,
+			jvm_options = ?, env_vars = ?, supervision_mode = ?, health_check_config = ?,
 			updated_at = ?
 		WHERE id = ?
 	`
@@ -322,6 +364,7 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 		req.JVMOptions,
 		req.EnvVars,
 		supervisionMode,
+		healthCheckConfig,
 		now,
 		id,
 	)
@@ -954,6 +997,157 @@ func (h *ServiceHandler) Metrics(c *gin.Context) {
 	})
 }
 
+// GetTemplateSyncDiff returns the configuration diff between a service and its deployment template.
+// GET /api/services/:id/template-sync
+func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+		return
+	}
+
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	tpl, err := h.getTemplate(c.Request.Context(), svc.TemplateID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "template not found: " + err.Error()})
+		return
+	}
+
+	jvmDiffers := strings.TrimSpace(svc.JVMOptions) != strings.TrimSpace(tpl.JVMOptions)
+	hcDiffers := strings.TrimSpace(svc.HealthCheckConfig) != strings.TrimSpace(tpl.HealthCheckConfig)
+	hasUpdate := jvmDiffers || hcDiffers
+
+	ignored := false
+	if svc.TemplateSyncIgnoredAt != nil {
+		if !svc.TemplateSyncIgnoredAt.Before(tpl.UpdatedAt) {
+			ignored = true
+		}
+	}
+
+	c.JSON(http.StatusOK, TemplateSyncDiffResponse{
+		HasUpdate:         hasUpdate,
+		TemplateID:        tpl.ID,
+		TemplateName:      tpl.Name,
+		TemplateUpdatedAt: tpl.UpdatedAt,
+		Ignored:           ignored,
+		JVMDiff: SyncDiffItem{
+			Current:     svc.JVMOptions,
+			Template:    tpl.JVMOptions,
+			IsDifferent: jvmDiffers,
+		},
+		HealthCheckDiff: SyncDiffItem{
+			Current:     svc.HealthCheckConfig,
+			Template:    tpl.HealthCheckConfig,
+			IsDifferent: hcDiffers,
+		},
+	})
+}
+
+// SyncTemplate synchronizes selected configuration settings from a deployment template into the service.
+// POST /api/services/:id/template-sync
+func (h *ServiceHandler) SyncTemplate(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+		return
+	}
+
+	var req SyncTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sync request: " + err.Error()})
+		return
+	}
+
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	tpl, err := h.getTemplate(c.Request.Context(), svc.TemplateID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "template not found: " + err.Error()})
+		return
+	}
+
+	now := time.Now().UTC()
+
+	// If user chooses to ignore this update
+	if req.IgnoreUpdate {
+		_, err := h.db.ExecContext(c.Request.Context(),
+			"UPDATE services SET template_sync_ignored_at = ?, updated_at = ? WHERE id = ?",
+			tpl.UpdatedAt, now, svc.ID,
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to ignore template update: " + err.Error()})
+			return
+		}
+		middleware.SetAudit(c, "IGNORE_SYNC", "service", strconv.FormatInt(svc.ID, 10), fmt.Sprintf("Ignored template update %s for service %s", tpl.Name, svc.Name))
+		svc.TemplateSyncIgnoredAt = &tpl.UpdatedAt
+		svc.UpdatedAt = now
+		c.JSON(http.StatusOK, svc)
+		return
+	}
+
+	newJVM := svc.JVMOptions
+	newHC := svc.HealthCheckConfig
+
+	if req.SyncJVM {
+		newJVM = tpl.JVMOptions
+	}
+	if req.SyncHealthCheck {
+		newHC = tpl.HealthCheckConfig
+	}
+
+	_, err = h.db.ExecContext(c.Request.Context(), `
+		UPDATE services SET
+			jvm_options = ?,
+			health_check_config = ?,
+			template_sync_ignored_at = ?,
+			updated_at = ?
+		WHERE id = ?
+	`, newJVM, newHC, tpl.UpdatedAt, now, svc.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to sync template: " + err.Error()})
+		return
+	}
+
+	svc.JVMOptions = newJVM
+	svc.HealthCheckConfig = newHC
+	svc.TemplateSyncIgnoredAt = &tpl.UpdatedAt
+	svc.UpdatedAt = now
+
+	middleware.SetAudit(c, "SYNC_TEMPLATE", "service", strconv.FormatInt(svc.ID, 10), fmt.Sprintf("Synced template %s (jvm=%v, hc=%v) for service %s", tpl.Name, req.SyncJVM, req.SyncHealthCheck, svc.Name))
+
+	// If restart_now is requested and service is running, restart instance
+	h.syncServiceRuntimeStatus(c.Request.Context(), svc)
+	if req.RestartNow && svc.Status == model.ServiceStatusRunning {
+		if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "synced config, but stop service failed: " + err.Error()})
+			return
+		}
+		if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "synced config, stopped, but restart failed: " + err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, svc)
+}
+
 func (h *ServiceHandler) syncServiceRuntimeStatus(ctx context.Context, svc *model.Service) {
 	if svc == nil {
 		return
@@ -988,7 +1182,10 @@ func (h *ServiceHandler) getService(ctx context.Context, id int64) (*model.Servi
 			COALESCE(jvm_options, ''), 
 			COALESCE(env_vars, ''), 
 			supervision_mode, status, current_artifact_id, 
-			COALESCE(pid, 0), created_at, updated_at
+			COALESCE(pid, 0),
+			COALESCE(health_check_config, ''),
+			template_sync_ignored_at,
+			created_at, updated_at
 		FROM services
 		WHERE id = ?
 	`
@@ -1006,6 +1203,8 @@ func (h *ServiceHandler) getService(ctx context.Context, id int64) (*model.Servi
 		&s.Status,
 		&s.CurrentArtifactID,
 		&s.PID,
+		&s.HealthCheckConfig,
+		&s.TemplateSyncIgnoredAt,
 		&s.CreatedAt,
 		&s.UpdatedAt,
 	)

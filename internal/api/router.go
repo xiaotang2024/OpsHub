@@ -218,6 +218,8 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.POST("/services/:id/deploy", serviceHandler.Deploy)
 			protected.POST("/services/:id/rollback", serviceHandler.Rollback)
 			protected.GET("/services/:id/metrics", serviceHandler.Metrics)
+			protected.GET("/services/:id/template-sync", serviceHandler.GetTemplateSyncDiff)
+			protected.POST("/services/:id/template-sync", serviceHandler.SyncTemplate)
 
 			// Artifacts
 			protected.POST("/services/:id/artifacts", artifactHandler.Upload)

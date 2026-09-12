@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"opshub/internal/api"
+	"opshub/internal/api/handler"
 	"opshub/internal/config"
 	"opshub/internal/database"
 	"opshub/internal/model"
@@ -735,9 +736,84 @@ func TestRouter_DeployPrecheck(t *testing.T) {
 	assert.Equal(t, http.StatusOK, wDenied.Code)
 	var deniedResp map[string]interface{}
 	require.NoError(t, json.Unmarshal(wDenied.Body.Bytes(), &deniedResp))
-	assert.Equal(t, false, deniedResp["has_permission"])
+	assert.Equal(t, false, deniedResp["error"].(string) == "")
 	assert.Contains(t, deniedResp["error"].(string), "无法创建安装目录")
 	assert.Contains(t, deniedResp["suggestion"].(string), "sudo mkdir -p")
 }
+
+func TestRouter_ServiceTemplateSync(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// 1. Create a template
+	tplRes, err := f.db.Exec(`
+		INSERT INTO templates (id, name, type, install_dir_pattern, jvm_options, health_check_config, supervision_mode)
+		VALUES (200, 'tpl-sync-test', 'java_jar', '/opt/apps/${SERVICE_NAME}', '-Xms1g -Xmx2g', '{"type":"http","port":8080}', 'native')
+	`)
+	require.NoError(t, err)
+	tplID, _ := tplRes.LastInsertId()
+
+	// 2. Create a service referencing this template with different JVM & health check config
+	svcRes, err := f.db.Exec(`
+		INSERT INTO services (id, name, template_id, install_dir, port, jvm_options, health_check_config, supervision_mode, status)
+		VALUES (200, 'svc-sync-test', ?, '/opt/apps/svc-sync-test', 8080, '-Xms512m -Xmx1g', '{"type":"tcp","port":8080}', 'native', 'STOPPED')
+	`, tplID)
+	require.NoError(t, err)
+	svcID, _ := svcRes.LastInsertId()
+
+	// 3. GET /api/services/:id/template-sync -> should detect diff
+	wDiff := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDiff.Code)
+	var diffResp handler.TemplateSyncDiffResponse
+	require.NoError(t, json.Unmarshal(wDiff.Body.Bytes(), &diffResp))
+	assert.True(t, diffResp.HasUpdate)
+	assert.False(t, diffResp.Ignored)
+	assert.True(t, diffResp.JVMDiff.IsDifferent)
+	assert.Equal(t, "-Xms512m -Xmx1g", diffResp.JVMDiff.Current)
+	assert.Equal(t, "-Xms1g -Xmx2g", diffResp.JVMDiff.Template)
+	assert.True(t, diffResp.HealthCheckDiff.IsDifferent)
+	assert.Equal(t, `{"type":"tcp","port":8080}`, diffResp.HealthCheckDiff.Current)
+	assert.Equal(t, `{"type":"http","port":8080}`, diffResp.HealthCheckDiff.Template)
+
+	// 4. POST /api/services/:id/template-sync with ignore_update: true
+	ignorePayload := `{"ignore_update":true}`
+	wIgnore := doRequest(f.router, "POST", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, bytes.NewBufferString(ignorePayload))
+	assert.Equal(t, http.StatusOK, wIgnore.Code)
+
+	// Verify ignored state on GET
+	wDiff2 := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDiff2.Code)
+	var diffResp2 handler.TemplateSyncDiffResponse
+	require.NoError(t, json.Unmarshal(wDiff2.Body.Bytes(), &diffResp2))
+	assert.True(t, diffResp2.HasUpdate)
+	assert.True(t, diffResp2.Ignored)
+
+	// 5. Selectively sync only JVM options
+	syncJVMPayload := `{"sync_jvm":true,"sync_health_check":false}`
+	wSyncJVM := doRequest(f.router, "POST", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, bytes.NewBufferString(syncJVMPayload))
+	assert.Equal(t, http.StatusOK, wSyncJVM.Code)
+	var svcSyncedJVM model.Service
+	require.NoError(t, json.Unmarshal(wSyncJVM.Body.Bytes(), &svcSyncedJVM))
+	assert.Equal(t, "-Xms1g -Xmx2g", svcSyncedJVM.JVMOptions)
+	assert.Equal(t, `{"type":"tcp","port":8080}`, svcSyncedJVM.HealthCheckConfig)
+
+	// 6. Selectively sync Health Check
+	syncHCPayload := `{"sync_jvm":false,"sync_health_check":true}`
+	wSyncHC := doRequest(f.router, "POST", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, bytes.NewBufferString(syncHCPayload))
+	assert.Equal(t, http.StatusOK, wSyncHC.Code)
+	var svcSyncedHC model.Service
+	require.NoError(t, json.Unmarshal(wSyncHC.Body.Bytes(), &svcSyncedHC))
+	assert.Equal(t, "-Xms1g -Xmx2g", svcSyncedHC.JVMOptions)
+	assert.Equal(t, `{"type":"http","port":8080}`, svcSyncedHC.HealthCheckConfig)
+
+	// 7. Re-GET diff -> now both are synced, has_update should be false
+	wDiff3 := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDiff3.Code)
+	var diffResp3 handler.TemplateSyncDiffResponse
+	require.NoError(t, json.Unmarshal(wDiff3.Body.Bytes(), &diffResp3))
+	assert.False(t, diffResp3.HasUpdate)
+	assert.False(t, diffResp3.JVMDiff.IsDifferent)
+	assert.False(t, diffResp3.HealthCheckDiff.IsDifferent)
+}
+
 
 

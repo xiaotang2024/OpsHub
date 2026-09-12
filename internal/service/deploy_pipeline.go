@@ -297,7 +297,11 @@ func (p *DeployPipeline) executePipeline(
 	// Step 6: Probe health check using Prober.WaitUntilHealthy
 	// ==========================================
 	logStep(6, "Initiating health check probing...")
-	hcCfg := p.parseHealthCheckConfig(tpl.HealthCheckConfig, newPID, svc.Port)
+	rawHealthCheck := tpl.HealthCheckConfig
+	if strings.TrimSpace(svc.HealthCheckConfig) != "" {
+		rawHealthCheck = svc.HealthCheckConfig
+	}
+	hcCfg := p.parseHealthCheckConfig(rawHealthCheck, newPID, svc.Port)
 
 	probeInterval := 200 * time.Millisecond
 	probeTimeout := 10 * time.Second
@@ -480,7 +484,10 @@ func (p *DeployPipeline) getService(ctx context.Context, id int64) (*model.Servi
 			COALESCE(jvm_options, ''), 
 			COALESCE(env_vars, ''), 
 			supervision_mode, status, current_artifact_id, 
-			COALESCE(pid, 0), created_at, updated_at
+			COALESCE(pid, 0),
+			COALESCE(health_check_config, ''),
+			template_sync_ignored_at,
+			created_at, updated_at
 		FROM services
 		WHERE id = ?
 	`
@@ -498,6 +505,8 @@ func (p *DeployPipeline) getService(ctx context.Context, id int64) (*model.Servi
 		&s.Status,
 		&s.CurrentArtifactID,
 		&s.PID,
+		&s.HealthCheckConfig,
+		&s.TemplateSyncIgnoredAt,
 		&s.CreatedAt,
 		&s.UpdatedAt,
 	)
