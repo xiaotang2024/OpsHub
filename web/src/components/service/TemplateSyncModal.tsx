@@ -179,11 +179,23 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                     {diff.jvm_diff.current || '(未指定个性化参数，沿用模板)'}
                   </div>
                 </div>
-                <div className="rounded-lg bg-ops-bg p-2.5 border border-ops-cyan/30">
-                  <span className="text-[10px] text-ops-cyan block mb-1">
-                    模板最新参数 (将更新为):
+                <div
+                  className={`rounded-lg bg-ops-bg p-2.5 border ${
+                    diff.jvm_diff.is_different ? 'border-ops-cyan/30' : 'border-ops-border/60'
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] block mb-1 ${
+                      diff.jvm_diff.is_different ? 'text-ops-cyan' : 'text-ops-text-muted'
+                    }`}
+                  >
+                    {diff.jvm_diff.is_different ? '模板最新参数 (将更新为):' : '模板最新参数 (无变更):'}
                   </span>
-                  <div className="text-emerald-400 break-all select-all text-[11px]">
+                  <div
+                    className={`break-all select-all text-[11px] ${
+                      diff.jvm_diff.is_different ? 'text-emerald-400' : 'text-slate-300'
+                    }`}
+                  >
                     {diff.jvm_diff.template || '(模板未配置)'}
                   </div>
                 </div>
@@ -240,11 +252,25 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                     {diff.health_check_diff.current || '(默认沿用模板探测策略)'}
                   </div>
                 </div>
-                <div className="rounded-lg bg-ops-bg p-2.5 border border-ops-cyan/30">
-                  <span className="text-[10px] text-ops-cyan block mb-1">
-                    模板最新探针 (将更新为):
+                <div
+                  className={`rounded-lg bg-ops-bg p-2.5 border ${
+                    diff.health_check_diff.is_different ? 'border-ops-cyan/30' : 'border-ops-border/60'
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] block mb-1 ${
+                      diff.health_check_diff.is_different ? 'text-ops-cyan' : 'text-ops-text-muted'
+                    }`}
+                  >
+                    {diff.health_check_diff.is_different
+                      ? '模板最新探针 (将更新为):'
+                      : '模板探针配置 (已沿用):'}
                   </span>
-                  <div className="text-emerald-400 break-all select-all text-[11px]">
+                  <div
+                    className={`break-all select-all text-[11px] ${
+                      diff.health_check_diff.is_different ? 'text-emerald-400' : 'text-slate-300'
+                    }`}
+                  >
                     {diff.health_check_diff.template || '(模板未配置)'}
                   </div>
                 </div>

@@ -815,5 +815,70 @@ func TestRouter_ServiceTemplateSync(t *testing.T) {
 	assert.False(t, diffResp3.HealthCheckDiff.IsDifferent)
 }
 
+func TestIsConfigDifferent(t *testing.T) {
+	// 1. Empty service config inherits template -> no diff
+	assert.False(t, handler.IsConfigDifferent("", `{"type":"tcp","interval_sec":5}`))
+	assert.False(t, handler.IsConfigDifferent("   ", `{"type":"tcp","interval_sec":5}`))
+	assert.False(t, handler.IsConfigDifferent("{}", `{"type":"tcp","interval_sec":5}`))
+	assert.False(t, handler.IsConfigDifferent("", "-Xms1g -Xmx2g"))
+
+	// 2. Both empty -> no diff
+	assert.False(t, handler.IsConfigDifferent("", ""))
+	assert.False(t, handler.IsConfigDifferent("{}", "{}"))
+
+	// 3. Exactly identical strings -> no diff
+	assert.False(t, handler.IsConfigDifferent("-Xms1g -Xmx2g", "-Xms1g -Xmx2g"))
+	assert.False(t, handler.IsConfigDifferent(`{"type":"tcp"}`, `{"type":"tcp"}`))
+
+	// 4. Semantically equivalent JSON with different key orders or whitespace -> no diff
+	assert.False(t, handler.IsConfigDifferent(`{"type":"tcp","interval":5}`, `{"interval":5,"type":"tcp"}`))
+	assert.False(t, handler.IsConfigDifferent(`{"type": "tcp"} `, `{"type":"tcp"}`))
+
+	// 5. Service has custom override different from template -> diff
+	assert.True(t, handler.IsConfigDifferent("-Xms512m -Xmx1g", "-Xms1g -Xmx2g"))
+	assert.True(t, handler.IsConfigDifferent(`{"type":"http","port":8080}`, `{"type":"tcp","port":8080}`))
+
+	// 6. Service has custom override but template is empty -> diff
+	assert.True(t, handler.IsConfigDifferent("-Xms512m -Xmx1g", ""))
+	assert.True(t, handler.IsConfigDifferent(`{"type":"tcp"}`, "{}"))
+}
+
+func TestRouter_ServiceTemplateSync_EmptyHealthCheckInherited(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// 1. Create a template with JVM options and Health Check config
+	tplRes, err := f.db.Exec(`
+		INSERT INTO templates (id, name, type, install_dir_pattern, jvm_options, health_check_config, supervision_mode)
+		VALUES (201, 'tpl-inherited-test', 'java_jar', '/opt/apps/${SERVICE_NAME}', '-Xms2g -Xmx4g', '{"type":"tcp","interval_sec":5}', 'native')
+	`)
+	require.NoError(t, err)
+	tplID, _ := tplRes.LastInsertId()
+
+	// 2. Create a service with empty health_check_config (inheriting from template) and different JVM options
+	svcRes, err := f.db.Exec(`
+		INSERT INTO services (id, name, template_id, install_dir, port, jvm_options, health_check_config, supervision_mode, status)
+		VALUES (201, 'svc-inherited-test', ?, '/opt/apps/svc-inherited-test', 8080, '-Xms1g -Xmx2g', '', 'native', 'STOPPED')
+	`, tplID)
+	require.NoError(t, err)
+	svcID, _ := svcRes.LastInsertId()
+
+	// 3. GET /api/services/:id/template-sync
+	// health_check_diff should NOT be different because service is inheriting template's health check probe
+	// JVM diff should be different
+	wDiff := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDiff.Code)
+	var diffResp handler.TemplateSyncDiffResponse
+	require.NoError(t, json.Unmarshal(wDiff.Body.Bytes(), &diffResp))
+
+	assert.True(t, diffResp.HasUpdate, "Should have update because JVM options differ")
+	assert.True(t, diffResp.JVMDiff.IsDifferent, "JVM options should be marked different")
+	assert.Equal(t, "-Xms1g -Xmx2g", diffResp.JVMDiff.Current)
+	assert.Equal(t, "-Xms2g -Xmx4g", diffResp.JVMDiff.Template)
+
+	assert.False(t, diffResp.HealthCheckDiff.IsDifferent, "Inherited health check must NOT be marked different")
+	assert.Equal(t, "", diffResp.HealthCheckDiff.Current)
+	assert.Equal(t, `{"type":"tcp","interval_sec":5}`, diffResp.HealthCheckDiff.Template)
+}
+
 
 

@@ -354,7 +354,16 @@ export const ServiceDetail: React.FC = () => {
                 所属部署模板「{syncDiff.template_name}」有新配置可同步
               </span>
               <p className="text-[11px] text-amber-300/70 mt-0.5">
-                检测到模板中的 JVM 参数或健康检查探针已更新，您可以选择性同步到当前服务。
+                检测到模板中的{' '}
+                <span className="font-semibold text-amber-300">
+                  {(() => {
+                    const diffItems = [];
+                    if (syncDiff.jvm_diff.is_different) diffItems.push('JVM 参数');
+                    if (syncDiff.health_check_diff.is_different) diffItems.push('健康检查探针');
+                    return diffItems.length > 0 ? diffItems.join('及') : '配置';
+                  })()}
+                </span>{' '}
+                已更新，您可以选择性同步到当前服务。
               </p>
             </div>
           </div>

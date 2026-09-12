@@ -130,4 +130,44 @@ describe('TemplateSyncModal Component', () => {
       expect(onIgnored).toHaveBeenCalled();
     });
   });
+
+  it('correctly handles diff where health check is inherited and has no diff', async () => {
+    const diffWithInheritedHC: TemplateSyncDiff = {
+      ...mockDiff,
+      health_check_diff: {
+        current: '',
+        template: '{"type":"tcp","interval_sec":5}',
+        is_different: false,
+      },
+    };
+
+    (api.syncTemplate as any).mockResolvedValueOnce(mockService);
+    const onSuccess = vi.fn();
+
+    render(
+      <TemplateSyncModal
+        isOpen={true}
+        onClose={() => {}}
+        service={mockService}
+        diff={diffWithInheritedHC}
+        onSuccess={onSuccess}
+      />
+    );
+
+    expect(screen.getByText('无差异')).toBeInTheDocument();
+    expect(screen.getByText('模板探针配置 (已沿用):')).toBeInTheDocument();
+    expect(screen.getByText('(默认沿用模板探测策略)')).toBeInTheDocument();
+
+    const syncBtn = screen.getByText('仅同步配置');
+    fireEvent.click(syncBtn);
+
+    await waitFor(() => {
+      expect(api.syncTemplate).toHaveBeenCalledWith(10, {
+        sync_jvm: true,
+        sync_health_check: false,
+        restart_now: false,
+        ignore_update: false,
+      });
+    });
+  });
 });

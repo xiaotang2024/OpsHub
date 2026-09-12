@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1022,8 +1024,8 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 		return
 	}
 
-	jvmDiffers := strings.TrimSpace(svc.JVMOptions) != strings.TrimSpace(tpl.JVMOptions)
-	hcDiffers := strings.TrimSpace(svc.HealthCheckConfig) != strings.TrimSpace(tpl.HealthCheckConfig)
+	jvmDiffers := IsConfigDifferent(svc.JVMOptions, tpl.JVMOptions)
+	hcDiffers := IsConfigDifferent(svc.HealthCheckConfig, tpl.HealthCheckConfig)
 	hasUpdate := jvmDiffers || hcDiffers
 
 	ignored := false
@@ -1050,6 +1052,30 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 			IsDifferent: hcDiffers,
 		},
 	})
+}
+
+// IsConfigDifferent compares a service configuration value with a template configuration value.
+// If the service configuration is empty or "{}" (inherited from template), it is NOT considered different.
+// If both are valid JSON, it performs semantic comparison (key order and formatting insensitive).
+func IsConfigDifferent(svcVal, tplVal string) bool {
+	s := strings.TrimSpace(svcVal)
+	t := strings.TrimSpace(tplVal)
+	if s == "" || s == "{}" {
+		return false // Service defaults to inheriting template configuration, not diverged
+	}
+	if t == "" || t == "{}" {
+		return true // Custom override exists on service where template has none
+	}
+	if s == t {
+		return false
+	}
+	var sVal, tVal interface{}
+	if err1 := json.Unmarshal([]byte(s), &sVal); err1 == nil {
+		if err2 := json.Unmarshal([]byte(t), &tVal); err2 == nil {
+			return !reflect.DeepEqual(sVal, tVal)
+		}
+	}
+	return true
 }
 
 // SyncTemplate synchronizes selected configuration settings from a deployment template into the service.
