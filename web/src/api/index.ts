@@ -11,6 +11,8 @@ import {
   ResetPasswordPayload,
   UpdateProfilePayload,
   DeployPrecheckResult,
+  TemplateSyncDiff,
+  SyncTemplateRequest,
 } from '../types';
 
 const API_BASE = '/api';
@@ -111,6 +113,13 @@ export const api = {
   restartService: (id: number) =>
     request<Service>(`/services/${id}/restart`, {
       method: 'POST',
+    }),
+  getTemplateSyncDiff: (id: number) =>
+    request<TemplateSyncDiff>(`/services/${id}/template-sync`),
+  syncTemplate: (id: number, data: SyncTemplateRequest) =>
+    request<Service>(`/services/${id}/template-sync`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 
   // JDKs

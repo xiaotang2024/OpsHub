@@ -41,8 +41,33 @@ export interface Service {
   status: ServiceStatus;
   current_artifact_id?: number | null;
   pid: number;
+  health_check_config?: string;
+  template_sync_ignored_at?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface TemplateSyncDiffItem {
+  current: string;
+  template: string;
+  is_different: boolean;
+}
+
+export interface TemplateSyncDiff {
+  has_update: boolean;
+  template_id: number;
+  template_name: string;
+  template_updated_at: string;
+  ignored: boolean;
+  jvm_diff: TemplateSyncDiffItem;
+  health_check_diff: TemplateSyncDiffItem;
+}
+
+export interface SyncTemplateRequest {
+  sync_jvm?: boolean;
+  sync_health_check?: boolean;
+  restart_now?: boolean;
+  ignore_update?: boolean;
 }
 
 export interface JDKAsset {
