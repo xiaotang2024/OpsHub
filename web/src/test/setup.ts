@@ -43,3 +43,18 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     } as any;
   }) as any;
 }
+
+// JSDOM Web Animations API mock for @formkit/auto-animate
+if (typeof Element !== 'undefined' && !Element.prototype.animate) {
+  Element.prototype.animate = () => ({
+    finished: Promise.resolve(),
+    cancel: () => {},
+    play: () => {},
+    pause: () => {},
+    reverse: () => {},
+    finish: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  } as any);
+}
+

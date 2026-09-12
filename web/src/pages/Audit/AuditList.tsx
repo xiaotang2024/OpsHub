@@ -32,8 +32,10 @@ import { AuditLog } from '../../types';
 import { api } from '../../api';
 import NumberFlow from '@number-flow/react';
 import { toast } from 'sonner';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 export const AuditList: React.FC = () => {
+  const [auditListRef] = useAutoAnimate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -571,7 +573,7 @@ export const AuditList: React.FC = () => {
                   <th className="px-4 py-3.5 text-right bg-ops-card/95">操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ops-border/70 text-ops-text-sub">
+              <tbody ref={auditListRef} className="divide-y divide-ops-border/70 text-ops-text-sub">
                 {filteredLogs.map((log) => {
                   const isSuccess = log.status?.toUpperCase() === 'SUCCESS';
                   return (

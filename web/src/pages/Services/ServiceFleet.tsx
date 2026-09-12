@@ -34,6 +34,7 @@ import NumberFlow from '@number-flow/react';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
 import { ServiceStartAnimeOverlay } from '../../components/service/ServiceStartAnimeOverlay';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 // Helper to dynamically derive install directory based on service name & template pattern
 const computeInstallDir = (newName: string, currentService?: Service | null, tpl?: Template | null): string => {
@@ -64,6 +65,7 @@ const computeInstallDir = (newName: string, currentService?: Service | null, tpl
 
 export const ServiceFleet: React.FC = () => {
   const navigate = useNavigate();
+  const [fleetListRef] = useAutoAnimate();
 
   const [services, setServices] = useState<Service[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -700,7 +702,7 @@ export const ServiceFleet: React.FC = () => {
 
       {/* Service Cards Grid (Directive Highlight!) */}
       {!loading && filteredServices.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div ref={fleetListRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredServices.map((svc) => {
             const isRunning = svc.status === 'RUNNING';
             const isStarting = svc.status === 'STARTING';
@@ -715,7 +717,6 @@ export const ServiceFleet: React.FC = () => {
             return (
               <motion.div
                 key={svc.id}
-                layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}

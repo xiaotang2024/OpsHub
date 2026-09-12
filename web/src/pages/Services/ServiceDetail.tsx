@@ -47,6 +47,7 @@ import { RollbackModal } from '../../components/deploy/RollbackModal';
 import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryCard';
 import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
 import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
 
@@ -63,6 +64,9 @@ export const ServiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const serviceId = Number(id);
+
+  const [releasesListRef] = useAutoAnimate();
+  const [auditListRef] = useAutoAnimate();
 
   // Core data
   const [service, setService] = useState<Service | null>(null);
@@ -657,7 +661,7 @@ export const ServiceDetail: React.FC = () => {
                         <th className="px-4 py-3 text-right">回滚操作</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-ops-border text-ops-text-sub">
+                    <tbody ref={releasesListRef} className="divide-y divide-ops-border text-ops-text-sub">
                       {releases.map((rec) => {
                         const isDeploy = rec.action === 'DEPLOY';
                         const isSuccess = rec.status === 'SUCCESS';
@@ -819,7 +823,7 @@ export const ServiceDetail: React.FC = () => {
                       <th className="px-4 py-3">详情说明</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-ops-border text-ops-text-sub">
+                  <tbody ref={auditListRef} className="divide-y divide-ops-border text-ops-text-sub">
                     {auditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-ops-surface/50">
                         <td className="px-4 py-3 text-white">#{log.id}</td>
