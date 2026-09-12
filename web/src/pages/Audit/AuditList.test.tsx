@@ -6,6 +6,7 @@ import { api } from '../../api';
 vi.mock('../../api', () => ({
   api: {
     getAuditLogs: vi.fn(),
+    exportAuditLogs: vi.fn(),
   },
 }));
 
@@ -183,6 +184,84 @@ describe('AuditList Component', () => {
     // Check fixed pagination container
     const pagination = screen.getByText(/显示第/i).parentElement;
     expect(pagination).toHaveClass('shrink-0');
+  });
+
+  it('filters audit logs by time range preset (today)', async () => {
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalled();
+    });
+
+    const timeFilter = screen.getByLabelText('time-range-filter');
+    fireEvent.change(timeFilter, { target: { value: 'today' } });
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          start_time: expect.stringMatching(/^\d{4}-\d{2}-\d{2} 00:00:00$/),
+          end_time: expect.stringMatching(/^\d{4}-\d{2}-\d{2} 23:59:59$/),
+        })
+      );
+    });
+  });
+
+  it('supports custom date range filtering with inline date inputs', async () => {
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalled();
+    });
+
+    const timeFilter = screen.getByLabelText('time-range-filter');
+    fireEvent.change(timeFilter, { target: { value: 'custom' } });
+
+    const startDateInput = screen.getByLabelText('custom-start-date');
+    const endDateInput = screen.getByLabelText('custom-end-date');
+    expect(startDateInput).toBeInTheDocument();
+    expect(endDateInput).toBeInTheDocument();
+
+    fireEvent.change(startDateInput, { target: { value: '2026-09-01' } });
+    fireEvent.change(endDateInput, { target: { value: '2026-09-10' } });
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          start_time: '2026-09-01 00:00:00',
+          end_time: '2026-09-10 23:59:59',
+        })
+      );
+    });
+  });
+
+  it('exports audit logs as CSV when clicking export button', async () => {
+    const mockBlob = new Blob(['fake,csv,data'], { type: 'text/csv' });
+    (api.exportAuditLogs as any).mockResolvedValue(mockBlob);
+
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURLMock = vi.fn();
+    window.URL.createObjectURL = createObjectURLMock;
+    window.URL.revokeObjectURL = revokeObjectURLMock;
+
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    const exportBtn = screen.getByRole('button', { name: /导出日志/i });
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(api.exportAuditLogs).toHaveBeenCalled();
+      expect(createObjectURLMock).toHaveBeenCalledWith(mockBlob);
+      expect(clickSpy).toHaveBeenCalled();
+      expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:mock-url');
+    });
+
+    clickSpy.mockRestore();
   });
 });
 

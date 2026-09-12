@@ -3,6 +3,7 @@ package handler
 import (
 	"bufio"
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"net/http"
 	"os"
@@ -136,35 +137,7 @@ func (h *SystemHandler) AuditLogs(c *gin.Context) {
 		pageSize = 20
 	}
 
-	operator := strings.TrimSpace(c.Query("operator"))
-	targetType := strings.TrimSpace(c.Query("target_type"))
-	action := strings.TrimSpace(c.Query("action"))
-	status := strings.TrimSpace(c.Query("status"))
-
-	var whereClauses []string
-	var args []interface{}
-
-	if operator != "" {
-		whereClauses = append(whereClauses, "operator = ?")
-		args = append(args, operator)
-	}
-	if targetType != "" {
-		whereClauses = append(whereClauses, "target_type = ?")
-		args = append(args, targetType)
-	}
-	if action != "" {
-		whereClauses = append(whereClauses, "action = ?")
-		args = append(args, action)
-	}
-	if status != "" {
-		whereClauses = append(whereClauses, "status = ?")
-		args = append(args, status)
-	}
-
-	whereSQL := ""
-	if len(whereClauses) > 0 {
-		whereSQL = "WHERE " + strings.Join(whereClauses, " AND ")
-	}
+	whereSQL, args := buildAuditWhere(c)
 
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM audit_logs %s", whereSQL)
 	var total int
@@ -233,6 +206,138 @@ func (h *SystemHandler) AuditLogs(c *gin.Context) {
 			"failed": failedCount,
 		},
 	})
+}
+
+// buildAuditWhere constructs WHERE clause and args for audit log querying and export.
+func buildAuditWhere(c *gin.Context) (string, []interface{}) {
+	operator := strings.TrimSpace(c.Query("operator"))
+	targetType := strings.TrimSpace(c.Query("target_type"))
+	action := strings.TrimSpace(c.Query("action"))
+	status := strings.TrimSpace(c.Query("status"))
+	startTime := strings.TrimSpace(c.Query("start_time"))
+	endTime := strings.TrimSpace(c.Query("end_time"))
+
+	var whereClauses []string
+	var args []interface{}
+
+	if operator != "" {
+		whereClauses = append(whereClauses, "operator = ?")
+		args = append(args, operator)
+	}
+	if targetType != "" {
+		whereClauses = append(whereClauses, "target_type = ?")
+		args = append(args, targetType)
+	}
+	if action != "" {
+		whereClauses = append(whereClauses, "action = ?")
+		args = append(args, action)
+	}
+	if status != "" {
+		whereClauses = append(whereClauses, "status = ?")
+		args = append(args, status)
+	}
+	if startTime != "" {
+		startTime = strings.ReplaceAll(startTime, "T", " ")
+		if len(startTime) == 10 {
+			startTime += " 00:00:00"
+		} else if len(startTime) > 19 {
+			startTime = startTime[:19]
+		}
+		whereClauses = append(whereClauses, "replace(created_at, 'T', ' ') >= ?")
+		args = append(args, startTime)
+	}
+	if endTime != "" {
+		endTime = strings.ReplaceAll(endTime, "T", " ")
+		if len(endTime) == 10 {
+			endTime += " 23:59:59"
+		} else if len(endTime) > 19 {
+			endTime = endTime[:19]
+		}
+		whereClauses = append(whereClauses, "replace(created_at, 'T', ' ') <= ?")
+		args = append(args, endTime)
+	}
+
+	whereSQL := ""
+	if len(whereClauses) > 0 {
+		whereSQL = "WHERE " + strings.Join(whereClauses, " AND ")
+	}
+	return whereSQL, args
+}
+
+// ExportAuditLogs exports audit logs matching current query parameters as UTF-8 BOM CSV.
+// GET /api/audit-logs/export
+func (h *SystemHandler) ExportAuditLogs(c *gin.Context) {
+	if h.db == nil {
+		c.JSON(http.StatusOK, gin.H{"error": "database not connected"})
+		return
+	}
+
+	whereSQL, args := buildAuditWhere(c)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5000"))
+	if limit < 1 || limit > 10000 {
+		limit = 5000
+	}
+
+	listQuery := fmt.Sprintf(`
+		SELECT id, operator, client_ip, action, target_type, target_id, details, status, created_at
+		FROM audit_logs
+		%s
+		ORDER BY id DESC
+		LIMIT ?
+	`, whereSQL)
+
+	queryArgs := append(args, limit)
+	rows, err := h.db.QueryContext(c.Request.Context(), listQuery, queryArgs...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query audit logs for export"})
+		return
+	}
+	defer rows.Close()
+
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	filename := fmt.Sprintf("OpsHub_AuditLogs_%s.csv", time.Now().Format("20060102_150405"))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+	// Write UTF-8 BOM for seamless Excel/WPS Chinese encoding support
+	_, _ = c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
+
+	csvWriter := csv.NewWriter(c.Writer)
+	defer csvWriter.Flush()
+
+	// Header row
+	_ = csvWriter.Write([]string{
+		"日志ID", "操作动作", "目标类型", "目标ID", "操作人", "客户端IP", "执行状态", "记录时间", "操作详情",
+	})
+
+	for rows.Next() {
+		var log model.AuditLog
+		if err := rows.Scan(
+			&log.ID,
+			&log.Operator,
+			&log.ClientIP,
+			&log.Action,
+			&log.TargetType,
+			&log.TargetID,
+			&log.Details,
+			&log.Status,
+			&log.CreatedAt,
+		); err != nil {
+			continue
+		}
+
+		_ = csvWriter.Write([]string{
+			strconv.FormatInt(log.ID, 10),
+			log.Action,
+			log.TargetType,
+			log.TargetID,
+			log.Operator,
+			log.ClientIP,
+			log.Status,
+			log.CreatedAt.Format("2006-01-02 15:04:05"),
+			log.Details,
+		})
+	}
+	csvWriter.Flush()
 }
 
 func getDiskUsage(path string) (uint64, uint64) {

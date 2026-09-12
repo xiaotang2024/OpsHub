@@ -202,6 +202,8 @@ export const api = {
     action?: string;
     status?: string;
     operator?: string;
+    start_time?: string;
+    end_time?: string;
     page?: number;
     page_size?: number;
   } = {}) => {
@@ -211,6 +213,8 @@ export const api = {
     if (params.action) query.set('action', params.action);
     if (params.status) query.set('status', params.status);
     if (params.operator) query.set('operator', params.operator);
+    if (params.start_time) query.set('start_time', params.start_time);
+    if (params.end_time) query.set('end_time', params.end_time);
     if (params.page) query.set('page', String(params.page));
     if (params.page_size) query.set('page_size', String(params.page_size));
     const qStr = query.toString();
@@ -226,6 +230,42 @@ export const api = {
         failed: number;
       };
     }>(`/audit-logs${qStr ? `?${qStr}` : ''}`);
+  },
+
+  exportAuditLogs: async (params: {
+    target_type?: string;
+    target_id?: string;
+    action?: string;
+    status?: string;
+    operator?: string;
+    start_time?: string;
+    end_time?: string;
+    limit?: number;
+  } = {}) => {
+    const query = new URLSearchParams();
+    if (params.target_type) query.set('target_type', params.target_type);
+    if (params.target_id) query.set('target_id', params.target_id);
+    if (params.action) query.set('action', params.action);
+    if (params.status) query.set('status', params.status);
+    if (params.operator) query.set('operator', params.operator);
+    if (params.start_time) query.set('start_time', params.start_time);
+    if (params.end_time) query.set('end_time', params.end_time);
+    if (params.limit) query.set('limit', String(params.limit));
+    const qStr = query.toString();
+
+    const token = localStorage.getItem('opshub_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/audit-logs/export${qStr ? `?${qStr}` : ''}`, {
+      headers,
+    });
+    if (!res.ok) {
+      throw new Error(`导出失败 (${res.status} ${res.statusText})`);
+    }
+    return res.blob();
   },
 
   // Auth

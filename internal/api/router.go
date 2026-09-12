@@ -186,6 +186,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			// System & Audit
 			protected.GET("/system/metrics", systemHandler.Metrics)
 			protected.GET("/audit-logs", systemHandler.AuditLogs)
+			protected.GET("/audit-logs/export", systemHandler.ExportAuditLogs)
 
 			// JDKs
 			protected.GET("/jdks", jdkHandler.List)

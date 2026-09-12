@@ -243,6 +243,26 @@ func TestRouter_SystemMetricsAndAuditLogs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, auditResp, "items")
 	assert.Contains(t, auditResp, "total")
+
+	// 3. Audit Logs with Date Range Filtering
+	wAuditDate := doRequest(f.router, "GET", "/api/audit-logs?start_time=2020-01-01&end_time=2099-12-31", f.token, nil)
+	assert.Equal(t, http.StatusOK, wAuditDate.Code)
+	var auditDateResp map[string]interface{}
+	err = json.Unmarshal(wAuditDate.Body.Bytes(), &auditDateResp)
+	require.NoError(t, err)
+	assert.Contains(t, auditDateResp, "items")
+
+	// 4. Audit Logs CSV Export
+	wExport := doRequest(f.router, "GET", "/api/audit-logs/export?action=START", f.token, nil)
+	assert.Equal(t, http.StatusOK, wExport.Code)
+	assert.Contains(t, wExport.Header().Get("Content-Type"), "text/csv")
+	assert.Contains(t, wExport.Header().Get("Content-Disposition"), "OpsHub_AuditLogs_")
+	exportBody := wExport.Body.Bytes()
+	require.True(t, len(exportBody) >= 3)
+	assert.Equal(t, byte(0xEF), exportBody[0])
+	assert.Equal(t, byte(0xBB), exportBody[1])
+	assert.Equal(t, byte(0xBF), exportBody[2])
+	assert.Contains(t, string(exportBody), "日志ID,操作动作,目标类型,目标ID,操作人,客户端IP,执行状态,记录时间,操作详情")
 }
 
 func TestRouter_JDKManagement(t *testing.T) {

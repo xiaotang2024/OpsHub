@@ -25,6 +25,8 @@ import {
   Filter,
   Layers,
   Activity,
+  Download,
+  Calendar,
 } from 'lucide-react';
 import { AuditLog } from '../../types';
 import { api } from '../../api';
@@ -44,6 +46,10 @@ export const AuditList: React.FC = () => {
   const [actionFilter, setActionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [targetTypeFilter, setTargetTypeFilter] = useState('');
+  const [timeRangePreset, setTimeRangePreset] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // Selected Log Drawer
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -62,6 +68,48 @@ export const AuditList: React.FC = () => {
     failed: 0,
   });
 
+  // Calculate effective start_time and end_time based on preset or custom inputs
+  const effectiveTimeRange = useMemo(() => {
+    const formatLocalDateTime = (date: Date): string => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+    };
+
+    if (timeRangePreset === 'today') {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      return { startTime: formatLocalDateTime(start), endTime: formatLocalDateTime(end) };
+    }
+
+    if (timeRangePreset === 'week') {
+      const now = new Date();
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return { startTime: formatLocalDateTime(start), endTime: formatLocalDateTime(now) };
+    }
+
+    if (timeRangePreset === 'month') {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      return { startTime: formatLocalDateTime(start), endTime: formatLocalDateTime(end) };
+    }
+
+    if (timeRangePreset === 'custom') {
+      return {
+        startTime: customStartDate ? `${customStartDate} 00:00:00` : undefined,
+        endTime: customEndDate ? `${customEndDate} 23:59:59` : undefined,
+      };
+    }
+
+    return { startTime: undefined, endTime: undefined };
+  }, [timeRangePreset, customStartDate, customEndDate]);
+
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
@@ -72,6 +120,8 @@ export const AuditList: React.FC = () => {
         action: actionFilter || undefined,
         status: statusFilter || undefined,
         target_type: targetTypeFilter || undefined,
+        start_time: effectiveTimeRange.startTime,
+        end_time: effectiveTimeRange.endTime,
       });
       setLogs(res.items || []);
       setTotal(res.total || 0);
@@ -97,7 +147,35 @@ export const AuditList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, actionFilter, statusFilter, targetTypeFilter]);
+  }, [page, pageSize, actionFilter, statusFilter, targetTypeFilter, effectiveTimeRange]);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const blob = await api.exportAuditLogs({
+        action: actionFilter || undefined,
+        status: statusFilter || undefined,
+        target_type: targetTypeFilter || undefined,
+        start_time: effectiveTimeRange.startTime,
+        end_time: effectiveTimeRange.endTime,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+      a.download = `OpsHub_AuditLogs_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('审计日志导出成功');
+    } catch (err: any) {
+      toast.error(err.message || '审计日志导出失败');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     fetchLogs();
@@ -200,6 +278,21 @@ export const AuditList: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-cyan hover:bg-ops-card-hover hover:border-ops-cyan/50 disabled:opacity-50 transition-colors"
+              title="导出当前筛选条件下的全部审计日志为 CSV"
+            >
+              {exporting ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-ops-cyan" />
+              ) : (
+                <Download className="h-3.5 w-3.5 text-ops-cyan" />
+              )}
+              <span>{exporting ? '正在导出...' : '导出日志'}</span>
+            </button>
+
             <button
               type="button"
               onClick={fetchLogs}
@@ -335,7 +428,57 @@ export const AuditList: React.FC = () => {
             </div>
           </div>
 
-          {(actionFilter || statusFilter || targetTypeFilter || searchQuery) && (
+          {/* Time Range Preset Filter */}
+          <div className="relative">
+            <select
+              aria-label="time-range-filter"
+              value={timeRangePreset}
+              onChange={(e) => {
+                setTimeRangePreset(e.target.value as any);
+                setPage(1);
+              }}
+              className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
+            >
+              <option value="all">全部时间 (All Time)</option>
+              <option value="today">今天 (Today)</option>
+              <option value="week">最近 7 天 (Last 7 Days)</option>
+              <option value="month">本月 (This Month)</option>
+              <option value="custom">自定义时间 (Custom)</option>
+            </select>
+            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+              ▼
+            </div>
+          </div>
+
+          {/* Custom Date Range Picker */}
+          {timeRangePreset === 'custom' && (
+            <div className="flex items-center gap-1.5 bg-ops-bg border border-ops-border rounded-lg px-2.5 py-1.5 text-xs font-mono text-ops-text-muted">
+              <Calendar className="h-3.5 w-3.5 text-ops-cyan shrink-0" />
+              <input
+                type="date"
+                aria-label="custom-start-date"
+                value={customStartDate}
+                onChange={(e) => {
+                  setCustomStartDate(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark]"
+              />
+              <span className="text-ops-text-muted">至</span>
+              <input
+                type="date"
+                aria-label="custom-end-date"
+                value={customEndDate}
+                onChange={(e) => {
+                  setCustomEndDate(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark]"
+              />
+            </div>
+          )}
+
+          {(actionFilter || statusFilter || targetTypeFilter || searchQuery || timeRangePreset !== 'all' || customStartDate || customEndDate) && (
             <button
               type="button"
               onClick={() => {
@@ -343,6 +486,9 @@ export const AuditList: React.FC = () => {
                 setStatusFilter('');
                 setTargetTypeFilter('');
                 setSearchQuery('');
+                setTimeRangePreset('all');
+                setCustomStartDate('');
+                setCustomEndDate('');
                 setPage(1);
               }}
               className="px-2.5 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-mono text-ops-text-muted hover:text-white transition-colors"
