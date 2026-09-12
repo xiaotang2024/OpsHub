@@ -98,6 +98,8 @@ describe('ServiceFleet Component', () => {
     const startBtn = screen.getByRole('button', { name: /启动服务 payment-gateway/i });
     fireEvent.click(startBtn);
 
+    expect(screen.getByTestId('anime-start-overlay')).toBeInTheDocument();
+
     await waitFor(() => {
       expect(api.startService).toHaveBeenCalledWith(102);
     });

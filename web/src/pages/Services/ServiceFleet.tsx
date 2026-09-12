@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import NumberFlow from '@number-flow/react';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
+import { ServiceStartAnimeOverlay } from '../../components/service/ServiceStartAnimeOverlay';
 
 // Helper to dynamically derive install directory based on service name & template pattern
 const computeInstallDir = (newName: string, currentService?: Service | null, tpl?: Template | null): string => {
@@ -76,6 +77,14 @@ export const ServiceFleet: React.FC = () => {
 
   // Optimistic tracking: serviceId -> action type ('start' | 'stop' | 'restart')
   const [inFlightActions, setInFlightActions] = useState<Record<number, string>>({});
+
+  // Anime Startup Overlay State
+  const [startAnimeState, setStartAnimeState] = useState<{
+    serviceId: number;
+    serviceName: string;
+    status: 'starting' | 'success' | 'error';
+    errorMessage?: string;
+  } | null>(null);
 
   // Details Drawer state (tracked by ID so updates dynamically reflect when service state changes)
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -184,18 +193,54 @@ export const ServiceFleet: React.FC = () => {
     const sid = service.id;
     setInFlightActions((prev) => ({ ...prev, [sid]: 'start' }));
 
+    setStartAnimeState({
+      serviceId: sid,
+      serviceName: service.name,
+      status: 'starting',
+    });
+
     // Optimistically mark status as STARTING
     setServices((prev) =>
       prev.map((s) => (s.id === sid ? { ...s, status: 'STARTING' } : s))
     );
 
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.startService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
       toast.success(`服务 ${service.name} 启动指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setStartAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          status: 'success',
+        });
+        setTimeout(() => {
+          setStartAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 850);
+      }, remaining);
     } catch (err: any) {
       toast.error(`启动服务失败: ${err.message}`);
       await loadData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setStartAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setStartAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 1500);
+      }, remaining);
     } finally {
       setInFlightActions((prev) => {
         const next = { ...prev };
@@ -677,6 +722,18 @@ export const ServiceFleet: React.FC = () => {
                 onClick={() => setSelectedServiceId(svc.id)}
                 className="group relative flex flex-col justify-between rounded-xl border border-ops-border bg-ops-card hover:border-ops-border-hover hover:bg-ops-card-hover transition-all duration-200 overflow-hidden shadow-lg cursor-pointer"
               >
+                {/* Anime Start Loading Overlay */}
+                <AnimatePresence>
+                  {startAnimeState && startAnimeState.serviceId === svc.id && (
+                    <ServiceStartAnimeOverlay
+                      serviceName={startAnimeState.serviceName}
+                      status={startAnimeState.status}
+                      errorMessage={startAnimeState.errorMessage}
+                      onClose={() => setStartAnimeState(null)}
+                    />
+                  )}
+                </AnimatePresence>
+
                 {/* Card Header */}
                 <div className="p-5 space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
