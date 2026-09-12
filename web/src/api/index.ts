@@ -214,9 +214,18 @@ export const api = {
     if (params.page) query.set('page', String(params.page));
     if (params.page_size) query.set('page_size', String(params.page_size));
     const qStr = query.toString();
-    return request<{ items: AuditLog[]; total: number; page: number; page_size: number }>(
-      `/audit-logs${qStr ? `?${qStr}` : ''}`
-    );
+    return request<{
+      items: AuditLog[];
+      total: number;
+      page: number;
+      page_size: number;
+      stats?: {
+        total: number;
+        today: number;
+        deploy: number;
+        failed: number;
+      };
+    }>(`/audit-logs${qStr ? `?${qStr}` : ''}`);
   },
 
   // Auth

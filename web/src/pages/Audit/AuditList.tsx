@@ -49,6 +49,19 @@ export const AuditList: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [copiedDetail, setCopiedDetail] = useState(false);
 
+  // Global Macro Statistics (Uncoupled from pagination)
+  const [globalStats, setGlobalStats] = useState<{
+    total: number;
+    today: number;
+    deploy: number;
+    failed: number;
+  }>({
+    total: 0,
+    today: 0,
+    deploy: 0,
+    failed: 0,
+  });
+
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
@@ -62,6 +75,21 @@ export const AuditList: React.FC = () => {
       });
       setLogs(res.items || []);
       setTotal(res.total || 0);
+      if (res.stats) {
+        setGlobalStats(res.stats);
+      } else {
+        // Fallback for tests or when stats not returned
+        setGlobalStats({
+          total: res.total || 0,
+          today: (res.items || []).filter(
+            (i) => new Date(i.created_at).toDateString() === new Date().toDateString()
+          ).length,
+          deploy: (res.items || []).filter(
+            (i) => i.action === 'DEPLOY' || i.action === 'ROLLBACK'
+          ).length,
+          failed: (res.items || []).filter((i) => i.status === 'FAILED').length,
+        });
+      }
     } catch (err: any) {
       const msg = err.message || '获取审计日志失败';
       setError(msg);
@@ -89,32 +117,6 @@ export const AuditList: React.FC = () => {
       );
     });
   }, [logs, searchQuery]);
-
-  // Statistics calculation
-  const stats = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    let todayCount = 0;
-    let deployCount = 0;
-    let failedCount = 0;
-
-    logs.forEach((item) => {
-      if (new Date(item.created_at).toDateString() === todayStr) {
-        todayCount++;
-      }
-      if (item.action === 'DEPLOY' || item.action === 'ROLLBACK') {
-        deployCount++;
-      }
-      if (item.status === 'FAILED') {
-        failedCount++;
-      }
-    });
-
-    return {
-      today: todayCount,
-      deploy: deployCount,
-      failed: failedCount,
-    };
-  }, [logs]);
 
   const handleCopyDetail = (text: string) => {
     navigator.clipboard?.writeText(text);
@@ -216,7 +218,7 @@ export const AuditList: React.FC = () => {
             <ShieldCheck className="h-4 w-4 text-ops-cyan" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-white">
-            <NumberFlow value={total} />
+            <NumberFlow value={globalStats.total || total} />
           </div>
         </div>
 
@@ -226,7 +228,7 @@ export const AuditList: React.FC = () => {
             <Clock className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
-            <NumberFlow value={stats.today} />
+            <NumberFlow value={globalStats.today} />
           </div>
         </div>
 
@@ -236,7 +238,7 @@ export const AuditList: React.FC = () => {
             <Rocket className="h-4 w-4 text-ops-cyan" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-ops-cyan">
-            <NumberFlow value={stats.deploy} />
+            <NumberFlow value={globalStats.deploy} />
           </div>
         </div>
 
@@ -246,7 +248,7 @@ export const AuditList: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-rose-400" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-rose-400">
-            <NumberFlow value={stats.failed} />
+            <NumberFlow value={globalStats.failed} />
           </div>
         </div>
       </div>

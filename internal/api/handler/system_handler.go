@@ -210,11 +210,28 @@ func (h *SystemHandler) AuditLogs(c *gin.Context) {
 		items = append(items, log)
 	}
 
+	// Query global macro statistics
+	var globalTotal, todayCount, deployCount, failedCount int
+	_ = h.db.QueryRowContext(c.Request.Context(), `
+		SELECT
+			COUNT(*),
+			COUNT(CASE WHEN date(substr(created_at, 1, 10)) = date('now', 'localtime') OR date(substr(created_at, 1, 10)) = date('now') THEN 1 END),
+			COUNT(CASE WHEN action IN ('DEPLOY', 'ROLLBACK') THEN 1 END),
+			COUNT(CASE WHEN status = 'FAILED' THEN 1 END)
+		FROM audit_logs
+	`).Scan(&globalTotal, &todayCount, &deployCount, &failedCount)
+
 	c.JSON(http.StatusOK, gin.H{
 		"items":     items,
 		"total":     total,
 		"page":      page,
 		"page_size": pageSize,
+		"stats": gin.H{
+			"total":  globalTotal,
+			"today":  todayCount,
+			"deploy": deployCount,
+			"failed": failedCount,
+		},
 	})
 }
 

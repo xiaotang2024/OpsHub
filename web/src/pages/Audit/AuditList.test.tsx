@@ -53,6 +53,12 @@ describe('AuditList Component', () => {
       total: 3,
       page: 1,
       page_size: 20,
+      stats: {
+        total: 100,
+        today: 25,
+        deploy: 14,
+        failed: 3,
+      },
     });
   });
 
@@ -70,6 +76,9 @@ describe('AuditList Component', () => {
     expect(screen.getAllByText(/DEPLOY/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText(/admin/i)[0]).toBeInTheDocument();
     expect(screen.getByText(/127.0.0.1/i)).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('25')).toBeInTheDocument();
+    expect(screen.getByText('14')).toBeInTheDocument();
   });
 
   it('allows filtering by action and updates api query', async () => {
@@ -104,6 +113,53 @@ describe('AuditList Component', () => {
     await waitFor(() => {
       expect(screen.getByText(/审计详情/i)).toBeInTheDocument();
       expect(screen.getAllByText(/order-center/i)[0]).toBeInTheDocument();
+    });
+  });
+
+  it('navigates pagination while preserving global stats across pages', async () => {
+    (api.getAuditLogs as any)
+      .mockResolvedValueOnce({
+        items: mockAuditLogs.slice(0, 2),
+        total: 30,
+        page: 1,
+        page_size: 2,
+        stats: {
+          total: 30,
+          today: 10,
+          deploy: 5,
+          failed: 1,
+        },
+      })
+      .mockResolvedValueOnce({
+        items: mockAuditLogs.slice(2, 3),
+        total: 30,
+        page: 2,
+        page_size: 2,
+        stats: {
+          total: 30,
+          today: 10,
+          deploy: 5,
+          failed: 1,
+        },
+      });
+
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('30')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('10')[0]).toBeInTheDocument();
+    });
+
+    const nextBtn = screen.getByTitle('下一页');
+    fireEvent.click(nextBtn);
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2 })
+      );
+      // Stats remain consistent on page 2
+      expect(screen.getAllByText('30')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('10')[0]).toBeInTheDocument();
     });
   });
 });
