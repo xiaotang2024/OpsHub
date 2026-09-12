@@ -332,17 +332,10 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
           </div>
         </header>
 
-        {/* Dynamic Page Content with Framer Motion Transition */}
-        <motion.main
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="flex-1 overflow-auto bg-ops-bg p-4 md:p-6"
-        >
+        {/* Dynamic Page Content */}
+        <main className="flex-1 overflow-auto bg-ops-bg p-4 md:p-6">
           {children || <Outlet />}
-        </motion.main>
+        </main>
       </div>
 
       {/* Global Login Authentication Modal */}

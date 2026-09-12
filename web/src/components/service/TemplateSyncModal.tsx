@@ -8,8 +8,7 @@ import {
   AlertTriangle,
   RotateCcw,
   EyeOff,
-  CheckSquare,
-  Square,
+  Check,
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -149,23 +148,22 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
               onClick={() => setSyncJVM(!syncJVM)}
               className={`rounded-xl border p-4 transition-all cursor-pointer ${
                 syncJVM
-                  ? 'border-ops-cyan/60 bg-ops-cyan/5 shadow-md shadow-cyan-950/20'
+                  ? 'border-ops-cyan/70 bg-cyan-950/40 shadow-md shadow-cyan-950/30'
                   : 'border-ops-border bg-ops-surface/60 hover:border-ops-border-hover'
               }`}
             >
               <div className="flex items-center justify-between mb-2.5">
                 <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    className="text-ops-cyan"
-                    aria-label={syncJVM ? '取消勾选 JVM 参数' : '勾选 JVM 参数'}
+                  <div
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                      syncJVM
+                        ? 'bg-ops-cyan border-ops-cyan text-slate-950 shadow-sm shadow-cyan-500/30'
+                        : 'border-slate-500 bg-ops-bg text-transparent hover:border-slate-400'
+                    }`}
+                    aria-label={syncJVM ? '已勾选 JVM 参数' : '未勾选 JVM 参数'}
                   >
-                    {syncJVM ? (
-                      <CheckSquare className="h-4 w-4 fill-ops-cyan/20 text-ops-cyan" />
-                    ) : (
-                      <Square className="h-4 w-4 text-ops-text-muted" />
-                    )}
-                  </button>
+                    {syncJVM && <Check className="h-3 w-3 stroke-[3]" />}
+                  </div>
                   <Cpu className="h-4 w-4 text-ops-cyan shrink-0" />
                   <span className="text-xs font-bold text-white tracking-wide">
                     JVM 内存与调优参数 (JVM Options)
@@ -223,23 +221,22 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                 onClick={() => setSyncHealthCheck(!syncHealthCheck)}
                 className={`rounded-xl border p-4 transition-all cursor-pointer ${
                   syncHealthCheck
-                    ? 'border-ops-cyan/60 bg-ops-cyan/5 shadow-md shadow-cyan-950/20'
+                    ? 'border-ops-cyan/70 bg-cyan-950/40 shadow-md shadow-cyan-950/30'
                     : 'border-ops-border bg-ops-surface/60 hover:border-ops-border-hover'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2.5">
-                    <button
-                      type="button"
-                      className="text-ops-cyan"
-                      aria-label={syncHealthCheck ? '取消勾选健康检测' : '勾选健康检测'}
+                    <div
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                        syncHealthCheck
+                          ? 'bg-ops-cyan border-ops-cyan text-slate-950 shadow-sm shadow-cyan-500/30'
+                          : 'border-slate-500 bg-ops-bg text-transparent hover:border-slate-400'
+                      }`}
+                      aria-label={syncHealthCheck ? '已勾选健康检测' : '未勾选健康检测'}
                     >
-                      {syncHealthCheck ? (
-                        <CheckSquare className="h-4 w-4 fill-ops-cyan/20 text-ops-cyan" />
-                      ) : (
-                        <Square className="h-4 w-4 text-ops-text-muted" />
-                      )}
-                    </button>
+                      {syncHealthCheck && <Check className="h-3 w-3 stroke-[3]" />}
+                    </div>
                     <Activity className="h-4 w-4 text-ops-cyan shrink-0" />
                     <span className="text-xs font-bold text-white tracking-wide">
                       健康检测探针参数 (Health Check)

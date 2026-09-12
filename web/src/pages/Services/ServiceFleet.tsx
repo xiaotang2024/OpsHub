@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -855,20 +856,22 @@ export const ServiceFleet: React.FC = () => {
       )}
 
       {/* Service Details Drawer / Modal */}
-      <AnimatePresence>
-        {selectedService && (
-          <div
-            className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
-            onClick={() => setSelectedServiceId(null)}
-          >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, x: 400 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 400 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="relative w-full max-w-lg h-full bg-ops-surface border-l border-ops-border shadow-2xl flex flex-col overflow-hidden cursor-default"
-            >
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {selectedService && (
+              <div
+                className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
+                onClick={() => setSelectedServiceId(null)}
+              >
+                <motion.div
+                  onClick={(e) => e.stopPropagation()}
+                  initial={{ opacity: 0, x: 400 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 400 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="relative w-full max-w-lg h-screen min-h-screen bg-ops-surface border-l border-ops-border shadow-2xl flex flex-col overflow-hidden cursor-default"
+                >
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-5 border-b border-ops-border bg-ops-bg/80">
                 <div className="flex items-center gap-3">
@@ -1159,13 +1162,17 @@ export const ServiceFleet: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
       {/* Delete Service Confirmation Modal */}
-      <AnimatePresence>
-        {serviceToDelete && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {serviceToDelete && (
+              <div
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
             onClick={() => {
               if (!isDeleting) {
                 setServiceToDelete(null);
@@ -1295,13 +1302,17 @@ export const ServiceFleet: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
       {/* Create Service from Template Modal */}
-      <AnimatePresence>
-        {isCreateModalOpen && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {isCreateModalOpen && (
+              <div
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
             onClick={() => {
               if (!isCreatingService) {
                 setIsCreateModalOpen(false);
@@ -1526,7 +1537,9 @@ export const ServiceFleet: React.FC = () => {
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 };
