@@ -51,6 +51,7 @@ export interface TemplateSyncDiffItem {
   current: string;
   template: string;
   is_different: boolean;
+  inherited?: boolean;
 }
 
 export interface TemplateSyncDiff {

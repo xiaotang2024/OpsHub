@@ -131,13 +131,14 @@ describe('TemplateSyncModal Component', () => {
     });
   });
 
-  it('correctly handles diff where health check is inherited and has no diff', async () => {
+  it('completely omits health check card when health check is inherited from template', async () => {
     const diffWithInheritedHC: TemplateSyncDiff = {
       ...mockDiff,
       health_check_diff: {
         current: '',
         template: '{"type":"tcp","interval_sec":5}',
         is_different: false,
+        inherited: true,
       },
     };
 
@@ -154,9 +155,12 @@ describe('TemplateSyncModal Component', () => {
       />
     );
 
-    expect(screen.getByText('无差异')).toBeInTheDocument();
-    expect(screen.getByText('模板探针配置 (已沿用):')).toBeInTheDocument();
-    expect(screen.getByText('(默认沿用模板探测策略)')).toBeInTheDocument();
+    // Health check card should be completely omitted
+    expect(screen.queryByText('健康检测探针参数 (Health Check)')).not.toBeInTheDocument();
+    // Subtitle indicates health check already dynamically inherits template
+    expect(screen.getByText(/健康监测已自动沿用模板/i)).toBeInTheDocument();
+    // JVM options card is rendered
+    expect(screen.getByText('JVM 内存与调优参数 (JVM Options)')).toBeInTheDocument();
 
     const syncBtn = screen.getByText('仅同步配置');
     fireEvent.click(syncBtn);

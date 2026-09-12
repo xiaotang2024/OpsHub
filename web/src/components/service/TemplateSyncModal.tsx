@@ -33,16 +33,22 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
   onSuccess,
   onIgnored,
 }) => {
+  const isHealthCheckInherited = Boolean(
+    diff?.health_check_diff.inherited ||
+    !diff?.health_check_diff.current?.trim() ||
+    diff?.health_check_diff.current.trim() === '{}'
+  );
+
   const [syncJVM, setSyncJVM] = useState<boolean>(diff?.jvm_diff.is_different ?? false);
   const [syncHealthCheck, setSyncHealthCheck] = useState<boolean>(
-    diff?.health_check_diff.is_different ?? false
+    isHealthCheckInherited ? false : (diff?.health_check_diff.is_different ?? false)
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen || !diff) return null;
 
   const isRunning = service.status === 'RUNNING';
-  const hasSelectedAny = syncJVM || syncHealthCheck;
+  const hasSelectedAny = syncJVM || (!isHealthCheckInherited && syncHealthCheck);
 
   const handleSync = async (restartNow: boolean) => {
     if (!hasSelectedAny) {
@@ -54,7 +60,7 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
       setIsSubmitting(true);
       const res = await api.syncTemplate(service.id, {
         sync_jvm: syncJVM,
-        sync_health_check: syncHealthCheck,
+        sync_health_check: !isHealthCheckInherited && syncHealthCheck,
         restart_now: restartNow,
         ignore_update: false,
       });
@@ -112,8 +118,17 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                   </span>
                 </h3>
                 <p className="text-xs text-ops-text-muted mt-0.5">
-                  依赖模板 <span className="text-ops-cyan font-medium">{diff.template_name}</span>{' '}
-                  检测到配置变更，请选择需要加载更新的项
+                  {isHealthCheckInherited ? (
+                    <>
+                      依赖模板 <span className="text-ops-cyan font-medium">{diff.template_name}</span>{' '}
+                      检测到 JVM 参数变更（健康监测已自动沿用模板），请确认同步项：
+                    </>
+                  ) : (
+                    <>
+                      依赖模板 <span className="text-ops-cyan font-medium">{diff.template_name}</span>{' '}
+                      检测到配置变更，请选择需要加载更新的项：
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -202,80 +217,82 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
               </div>
             </div>
 
-            {/* 2. Health Check Config Item */}
-            <div
-              onClick={() => setSyncHealthCheck(!syncHealthCheck)}
-              className={`rounded-xl border p-4 transition-all cursor-pointer ${
-                syncHealthCheck
-                  ? 'border-ops-cyan/60 bg-ops-cyan/5 shadow-md shadow-cyan-950/20'
-                  : 'border-ops-border bg-ops-surface/60 hover:border-ops-border-hover'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    className="text-ops-cyan"
-                    aria-label={syncHealthCheck ? '取消勾选健康检测' : '勾选健康检测'}
-                  >
-                    {syncHealthCheck ? (
-                      <CheckSquare className="h-4 w-4 fill-ops-cyan/20 text-ops-cyan" />
+            {/* 2. Health Check Config Item (Only shown if service customized health check and didn't default to inheriting template) */}
+            {!isHealthCheckInherited && (
+              <div
+                onClick={() => setSyncHealthCheck(!syncHealthCheck)}
+                className={`rounded-xl border p-4 transition-all cursor-pointer ${
+                  syncHealthCheck
+                    ? 'border-ops-cyan/60 bg-ops-cyan/5 shadow-md shadow-cyan-950/20'
+                    : 'border-ops-border bg-ops-surface/60 hover:border-ops-border-hover'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      className="text-ops-cyan"
+                      aria-label={syncHealthCheck ? '取消勾选健康检测' : '勾选健康检测'}
+                    >
+                      {syncHealthCheck ? (
+                        <CheckSquare className="h-4 w-4 fill-ops-cyan/20 text-ops-cyan" />
+                      ) : (
+                        <Square className="h-4 w-4 text-ops-text-muted" />
+                      )}
+                    </button>
+                    <Activity className="h-4 w-4 text-ops-cyan shrink-0" />
+                    <span className="text-xs font-bold text-white tracking-wide">
+                      健康检测探针参数 (Health Check)
+                    </span>
+                  </div>
+                  <div>
+                    {diff.health_check_diff.is_different ? (
+                      <span className="rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-mono text-amber-300">
+                        存在变更
+                      </span>
                     ) : (
-                      <Square className="h-4 w-4 text-ops-text-muted" />
+                      <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-ops-text-muted">
+                        无差异
+                      </span>
                     )}
-                  </button>
-                  <Activity className="h-4 w-4 text-ops-cyan shrink-0" />
-                  <span className="text-xs font-bold text-white tracking-wide">
-                    健康检测探针参数 (Health Check)
-                  </span>
+                  </div>
                 </div>
-                <div>
-                  {diff.health_check_diff.is_different ? (
-                    <span className="rounded bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-mono text-amber-300">
-                      存在变更
-                    </span>
-                  ) : (
-                    <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-ops-text-muted">
-                      无差异
-                    </span>
-                  )}
-                </div>
-              </div>
 
-              {/* Side-by-side comparison */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono mt-2 pt-2 border-t border-ops-border/60">
-                <div className="rounded-lg bg-ops-bg p-2.5 border border-ops-border/60">
-                  <span className="text-[10px] text-ops-text-muted block mb-1">
-                    当前服务配置:
-                  </span>
-                  <div className="text-amber-300/90 break-all select-all text-[11px]">
-                    {diff.health_check_diff.current || '(默认沿用模板探测策略)'}
+                {/* Side-by-side comparison */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono mt-2 pt-2 border-t border-ops-border/60">
+                  <div className="rounded-lg bg-ops-bg p-2.5 border border-ops-border/60">
+                    <span className="text-[10px] text-ops-text-muted block mb-1">
+                      当前服务配置:
+                    </span>
+                    <div className="text-amber-300/90 break-all select-all text-[11px]">
+                      {diff.health_check_diff.current || '(默认沿用模板探测策略)'}
+                    </div>
                   </div>
-                </div>
-                <div
-                  className={`rounded-lg bg-ops-bg p-2.5 border ${
-                    diff.health_check_diff.is_different ? 'border-ops-cyan/30' : 'border-ops-border/60'
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] block mb-1 ${
-                      diff.health_check_diff.is_different ? 'text-ops-cyan' : 'text-ops-text-muted'
-                    }`}
-                  >
-                    {diff.health_check_diff.is_different
-                      ? '模板最新探针 (将更新为):'
-                      : '模板探针配置 (已沿用):'}
-                  </span>
                   <div
-                    className={`break-all select-all text-[11px] ${
-                      diff.health_check_diff.is_different ? 'text-emerald-400' : 'text-slate-300'
+                    className={`rounded-lg bg-ops-bg p-2.5 border ${
+                      diff.health_check_diff.is_different ? 'border-ops-cyan/30' : 'border-ops-border/60'
                     }`}
                   >
-                    {diff.health_check_diff.template || '(模板未配置)'}
+                    <span
+                      className={`text-[10px] block mb-1 ${
+                        diff.health_check_diff.is_different ? 'text-ops-cyan' : 'text-ops-text-muted'
+                      }`}
+                    >
+                      {diff.health_check_diff.is_different
+                        ? '模板最新探针 (将更新为):'
+                        : '模板探针配置 (已沿用):'}
+                    </span>
+                    <div
+                      className={`break-all select-all text-[11px] ${
+                        diff.health_check_diff.is_different ? 'text-emerald-400' : 'text-slate-300'
+                      }`}
+                    >
+                      {diff.health_check_diff.template || '(模板未配置)'}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Note alert */}
             <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-3 text-xs text-ops-text-sub">

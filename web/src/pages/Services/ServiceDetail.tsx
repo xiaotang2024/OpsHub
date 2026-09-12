@@ -359,8 +359,10 @@ export const ServiceDetail: React.FC = () => {
                   {(() => {
                     const diffItems = [];
                     if (syncDiff.jvm_diff.is_different) diffItems.push('JVM 参数');
-                    if (syncDiff.health_check_diff.is_different) diffItems.push('健康检查探针');
-                    return diffItems.length > 0 ? diffItems.join('及') : '配置';
+                    if (syncDiff.health_check_diff.is_different && !syncDiff.health_check_diff.inherited) {
+                      diffItems.push('健康检查探针');
+                    }
+                    return diffItems.length > 0 ? diffItems.join('及') : 'JVM 参数';
                   })()}
                 </span>{' '}
                 已更新，您可以选择性同步到当前服务。

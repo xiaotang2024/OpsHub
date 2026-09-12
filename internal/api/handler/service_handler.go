@@ -82,6 +82,7 @@ type SyncDiffItem struct {
 	Current     string `json:"current"`
 	Template    string `json:"template"`
 	IsDifferent bool   `json:"is_different"`
+	Inherited   bool   `json:"inherited"`
 }
 
 // TemplateSyncDiffResponse represents diff summary between a service and its template.
@@ -1024,8 +1025,15 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 		return
 	}
 
+	isHCInherited := strings.TrimSpace(svc.HealthCheckConfig) == "" || strings.TrimSpace(svc.HealthCheckConfig) == "{}"
+	isJVMInherited := strings.TrimSpace(svc.JVMOptions) == "" || strings.TrimSpace(svc.JVMOptions) == "{}"
+
 	jvmDiffers := IsConfigDifferent(svc.JVMOptions, tpl.JVMOptions)
-	hcDiffers := IsConfigDifferent(svc.HealthCheckConfig, tpl.HealthCheckConfig)
+	// If health check defaults to inheriting template, it is automatically inherited dynamically; ignore it during sync
+	hcDiffers := false
+	if !isHCInherited {
+		hcDiffers = IsConfigDifferent(svc.HealthCheckConfig, tpl.HealthCheckConfig)
+	}
 	hasUpdate := jvmDiffers || hcDiffers
 
 	ignored := false
@@ -1045,11 +1053,13 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 			Current:     svc.JVMOptions,
 			Template:    tpl.JVMOptions,
 			IsDifferent: jvmDiffers,
+			Inherited:   isJVMInherited,
 		},
 		HealthCheckDiff: SyncDiffItem{
 			Current:     svc.HealthCheckConfig,
 			Template:    tpl.HealthCheckConfig,
 			IsDifferent: hcDiffers,
+			Inherited:   isHCInherited,
 		},
 	})
 }
@@ -1134,7 +1144,8 @@ func (h *ServiceHandler) SyncTemplate(c *gin.Context) {
 	if req.SyncJVM {
 		newJVM = tpl.JVMOptions
 	}
-	if req.SyncHealthCheck {
+	isHCInherited := strings.TrimSpace(svc.HealthCheckConfig) == "" || strings.TrimSpace(svc.HealthCheckConfig) == "{}"
+	if req.SyncHealthCheck && !isHCInherited {
 		newHC = tpl.HealthCheckConfig
 	}
 

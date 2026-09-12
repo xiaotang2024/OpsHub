@@ -876,8 +876,20 @@ func TestRouter_ServiceTemplateSync_EmptyHealthCheckInherited(t *testing.T) {
 	assert.Equal(t, "-Xms2g -Xmx4g", diffResp.JVMDiff.Template)
 
 	assert.False(t, diffResp.HealthCheckDiff.IsDifferent, "Inherited health check must NOT be marked different")
+	assert.True(t, diffResp.HealthCheckDiff.Inherited, "Inherited flag should be true for health check")
+	assert.False(t, diffResp.JVMDiff.Inherited, "Inherited flag should be false for JVM with custom override")
 	assert.Equal(t, "", diffResp.HealthCheckDiff.Current)
 	assert.Equal(t, `{"type":"tcp","interval_sec":5}`, diffResp.HealthCheckDiff.Template)
+
+	// 4. POST /api/services/:id/template-sync with sync_health_check: true
+	// Since health check is inherited, it should NOT overwrite svc.HealthCheckConfig
+	syncPayload := `{"sync_jvm":true,"sync_health_check":true}`
+	wSync := doRequest(f.router, "POST", fmt.Sprintf("/api/services/%d/template-sync", svcID), f.token, bytes.NewBufferString(syncPayload))
+	assert.Equal(t, http.StatusOK, wSync.Code)
+	var svcSynced model.Service
+	require.NoError(t, json.Unmarshal(wSync.Body.Bytes(), &svcSynced))
+	assert.Equal(t, "-Xms2g -Xmx4g", svcSynced.JVMOptions)
+	assert.Equal(t, "", svcSynced.HealthCheckConfig, "Health check should remain empty to continue inheriting template")
 }
 
 
