@@ -350,153 +350,188 @@ export const AuditList: React.FC = () => {
       </div>
 
       {/* Fixed Zone 2: Filters Bar */}
-      <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-ops-border bg-ops-card p-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-ops-text-muted" />
-          <input
-            type="text"
-            placeholder="搜索操作人、IP、详情关键词..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-4 py-2 text-xs text-white placeholder-ops-text-muted focus:border-ops-cyan focus:outline-none font-mono"
-          />
+      <div className="shrink-0 rounded-xl border border-ops-border bg-ops-card p-3 space-y-2.5">
+        {/* Main Filter Row: Search (fixed width) + Filter Selects + Reset */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative w-full md:w-72 shrink-0">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-ops-text-muted" />
+            <input
+              type="text"
+              placeholder="搜索操作人、IP、详情关键词..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-ops-border bg-ops-bg pl-9 pr-4 py-2 text-xs text-white placeholder-ops-text-muted focus:border-ops-cyan focus:outline-none font-mono"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Action Filter */}
+            <div className="relative">
+              <select
+                aria-label="action-filter"
+                value={actionFilter}
+                onChange={(e) => {
+                  setActionFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
+              >
+                <option value="">全部动作 (All Actions)</option>
+                <option value="START">启动 (START)</option>
+                <option value="STOP">停止 (STOP)</option>
+                <option value="RESTART">重启 (RESTART)</option>
+                <option value="DEPLOY">发版部署 (DEPLOY)</option>
+                <option value="ROLLBACK">回滚 (ROLLBACK)</option>
+                <option value="CONFIG_CHANGE">配置变更 (CONFIG)</option>
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                ▼
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                aria-label="status-filter"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
+              >
+                <option value="">全部状态 (All Status)</option>
+                <option value="SUCCESS">执行成功 (SUCCESS)</option>
+                <option value="FAILED">执行失败 (FAILED)</option>
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                ▼
+              </div>
+            </div>
+
+            {/* Target Type Filter */}
+            <div className="relative">
+              <select
+                aria-label="target-type-filter"
+                value={targetTypeFilter}
+                onChange={(e) => {
+                  setTargetTypeFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
+              >
+                <option value="">全部资源 (All Targets)</option>
+                <option value="service">服务 (service)</option>
+                <option value="template">模板 (template)</option>
+                <option value="jdk">JDK 资产 (jdk)</option>
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                ▼
+              </div>
+            </div>
+
+            {/* Time Range Preset Filter */}
+            <div className="relative">
+              <select
+                aria-label="time-range-filter"
+                value={timeRangePreset}
+                onChange={(e) => {
+                  setTimeRangePreset(e.target.value as any);
+                  setPage(1);
+                }}
+                className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
+              >
+                <option value="all">全部时间 (All Time)</option>
+                <option value="today">今天 (Today)</option>
+                <option value="week">最近 7 天 (Last 7 Days)</option>
+                <option value="month">本月 (This Month)</option>
+                <option value="custom">自定义时间 (Custom)</option>
+              </select>
+              <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                ▼
+              </div>
+            </div>
+
+            {(actionFilter || statusFilter || targetTypeFilter || searchQuery || timeRangePreset !== 'all' || customStartDate || customEndDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActionFilter('');
+                  setStatusFilter('');
+                  setTargetTypeFilter('');
+                  setSearchQuery('');
+                  setTimeRangePreset('all');
+                  setCustomStartDate('');
+                  setCustomEndDate('');
+                  setPage(1);
+                }}
+                className="px-2.5 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-mono text-ops-text-muted hover:text-white transition-colors"
+              >
+                重置
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Action Filter */}
-          <div className="relative">
-            <select
-              aria-label="action-filter"
-              value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
-              className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="">全部动作 (All Actions)</option>
-              <option value="START">启动 (START)</option>
-              <option value="STOP">停止 (STOP)</option>
-              <option value="RESTART">重启 (RESTART)</option>
-              <option value="DEPLOY">发版部署 (DEPLOY)</option>
-              <option value="ROLLBACK">回滚 (ROLLBACK)</option>
-              <option value="CONFIG_CHANGE">配置变更 (CONFIG)</option>
-            </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-              ▼
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <select
-              aria-label="status-filter"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="">全部状态 (All Status)</option>
-              <option value="SUCCESS">执行成功 (SUCCESS)</option>
-              <option value="FAILED">执行失败 (FAILED)</option>
-            </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-              ▼
-            </div>
-          </div>
-
-          {/* Target Type Filter */}
-          <div className="relative">
-            <select
-              aria-label="target-type-filter"
-              value={targetTypeFilter}
-              onChange={(e) => {
-                setTargetTypeFilter(e.target.value);
-                setPage(1);
-              }}
-              className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="">全部资源 (All Targets)</option>
-              <option value="service">服务 (service)</option>
-              <option value="template">模板 (template)</option>
-              <option value="jdk">JDK 资产 (jdk)</option>
-            </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-              ▼
-            </div>
-          </div>
-
-          {/* Time Range Preset Filter */}
-          <div className="relative">
-            <select
-              aria-label="time-range-filter"
-              value={timeRangePreset}
-              onChange={(e) => {
-                setTimeRangePreset(e.target.value as any);
-                setPage(1);
-              }}
-              className="bg-ops-bg border border-ops-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="all">全部时间 (All Time)</option>
-              <option value="today">今天 (Today)</option>
-              <option value="week">最近 7 天 (Last 7 Days)</option>
-              <option value="month">本月 (This Month)</option>
-              <option value="custom">自定义时间 (Custom)</option>
-            </select>
-            <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-              ▼
-            </div>
-          </div>
-
-          {/* Custom Date Range Picker */}
+        {/* Custom Date Range Sub-Row (Expands cleanly without squeezing search or reset buttons) */}
+        <AnimatePresence>
           {timeRangePreset === 'custom' && (
-            <div className="flex items-center gap-1.5 bg-ops-bg border border-ops-border rounded-lg px-2.5 py-1.5 text-xs font-mono text-ops-text-muted">
-              <Calendar className="h-3.5 w-3.5 text-ops-cyan shrink-0" />
-              <input
-                type="date"
-                aria-label="custom-start-date"
-                value={customStartDate}
-                onChange={(e) => {
-                  setCustomStartDate(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark]"
-              />
-              <span className="text-ops-text-muted">至</span>
-              <input
-                type="date"
-                aria-label="custom-end-date"
-                value={customEndDate}
-                onChange={(e) => {
-                  setCustomEndDate(e.target.value);
-                  setPage(1);
-                }}
-                className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark]"
-              />
-            </div>
-          )}
-
-          {(actionFilter || statusFilter || targetTypeFilter || searchQuery || timeRangePreset !== 'all' || customStartDate || customEndDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setActionFilter('');
-                setStatusFilter('');
-                setTargetTypeFilter('');
-                setSearchQuery('');
-                setTimeRangePreset('all');
-                setCustomStartDate('');
-                setCustomEndDate('');
-                setPage(1);
-              }}
-              className="px-2.5 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-mono text-ops-text-muted hover:text-white transition-colors"
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-ops-border/60 text-xs font-mono overflow-hidden"
             >
-              重置
-            </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-ops-cyan font-medium text-xs">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>自定义时间范围：</span>
+                </span>
+                <div className="flex items-center gap-1.5 bg-ops-bg border border-ops-border rounded-lg px-2.5 py-1 text-xs font-mono text-ops-text-muted focus-within:border-ops-cyan">
+                  <input
+                    type="date"
+                    aria-label="custom-start-date"
+                    value={customStartDate}
+                    onChange={(e) => {
+                      setCustomStartDate(e.target.value);
+                      setPage(1);
+                    }}
+                    className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark] cursor-pointer"
+                  />
+                  <span className="text-ops-text-muted px-1">至</span>
+                  <input
+                    type="date"
+                    aria-label="custom-end-date"
+                    value={customEndDate}
+                    onChange={(e) => {
+                      setCustomEndDate(e.target.value);
+                      setPage(1);
+                    }}
+                    className="bg-transparent text-white focus:outline-none text-xs [color-scheme:dark] cursor-pointer"
+                  />
+                </div>
+                {(customStartDate || customEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomStartDate('');
+                      setCustomEndDate('');
+                      setPage(1);
+                    }}
+                    className="text-ops-text-muted hover:text-white underline text-[11px] px-1 transition-colors"
+                  >
+                    清空起止时间
+                  </button>
+                )}
+              </div>
+
+              <span className="text-[11px] text-ops-text-muted/80 hidden sm:block">
+                精确区间过滤，支持跨日、跨月查询
+              </span>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       </div>
 
       {/* Error alert */}
