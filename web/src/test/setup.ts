@@ -1,4 +1,13 @@
 import '@testing-library/jest-dom';
+import React from 'react';
+import { vi } from 'vitest';
+
+// Mock @number-flow/react for JSDOM environment
+vi.mock('@number-flow/react', () => ({
+  default: ({ value, prefix = '', suffix = '', className, ...props }: any) => {
+    return React.createElement('span', { className, ...props }, `${prefix}${value ?? ''}${suffix}`);
+  },
+}));
 
 // JSDOM canvas mock for xterm.js
 if (typeof HTMLCanvasElement !== 'undefined') {

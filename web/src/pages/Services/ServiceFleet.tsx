@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Service, Template, ServiceStatus, JDKAsset } from '../../types';
 import { toast } from 'sonner';
+import NumberFlow from '@number-flow/react';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
 
@@ -473,7 +474,9 @@ export const ServiceFleet: React.FC = () => {
             <span>总服务纳管</span>
             <Layers className="h-4 w-4 text-ops-cyan" />
           </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-white">{counts.total}</div>
+          <div className="mt-2 text-2xl font-bold font-mono text-white">
+            <NumberFlow value={counts.total} />
+          </div>
         </div>
 
         <div
@@ -491,7 +494,9 @@ export const ServiceFleet: React.FC = () => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
           </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">{counts.running}</div>
+          <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
+            <NumberFlow value={counts.running} />
+          </div>
         </div>
 
         <div
@@ -506,7 +511,9 @@ export const ServiceFleet: React.FC = () => {
             <span>已停止离线</span>
             <span className="h-2 w-2 rounded-full bg-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-slate-400">{counts.stopped}</div>
+          <div className="mt-2 text-2xl font-bold font-mono text-slate-400">
+            <NumberFlow value={counts.stopped} />
+          </div>
         </div>
 
         <div
@@ -521,7 +528,9 @@ export const ServiceFleet: React.FC = () => {
             <span>故障异常</span>
             <AlertTriangle className="h-4 w-4 text-red-400" />
           </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-red-400">{counts.failed}</div>
+          <div className="mt-2 text-2xl font-bold font-mono text-red-400">
+            <NumberFlow value={counts.failed} />
+          </div>
         </div>
       </div>
 

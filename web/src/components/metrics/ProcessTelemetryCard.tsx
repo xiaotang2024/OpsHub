@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import NumberFlow from '@number-flow/react';
 import {
   Cpu,
   HardDrive,
@@ -183,8 +184,8 @@ export const ProcessTelemetryCard: React.FC<ProcessTelemetryCardProps> = ({
                 {cpuInfo.level === 'low' ? 'Normal' : cpuInfo.level === 'medium' ? 'Elevated' : 'High Load'}
               </span>
             </div>
-            <div className="text-base font-bold font-mono text-white">
-              {cpuPercent}%
+            <div className="text-base font-bold font-mono text-white flex items-baseline">
+              <NumberFlow value={cpuPercent} suffix="%" />
             </div>
             <div className="text-[11px] font-mono text-ops-text-muted truncate">
               {cpuInfo.level === 'low'
@@ -232,8 +233,8 @@ export const ProcessTelemetryCard: React.FC<ProcessTelemetryCardProps> = ({
             </svg>
             <div className="absolute flex flex-col items-center justify-center text-center">
               <HardDrive className="h-4 w-4 text-ops-cyan mb-0.5" />
-              <span className="text-[11px] font-mono font-bold text-ops-cyan">
-                {memPercent}%
+              <span className="text-[11px] font-mono font-bold text-ops-cyan flex items-baseline justify-center">
+                <NumberFlow value={memPercent} suffix="%" />
               </span>
             </div>
           </div>
@@ -246,8 +247,8 @@ export const ProcessTelemetryCard: React.FC<ProcessTelemetryCardProps> = ({
                 / {maxMemoryMb} MB
               </span>
             </div>
-            <div className="text-base font-bold font-mono text-emerald-400">
-              RSS: {memoryRssMb} MB
+            <div className="text-base font-bold font-mono text-emerald-400 flex items-baseline">
+              <NumberFlow value={memoryRssMb} prefix="RSS: " suffix=" MB" />
             </div>
             <div className="text-[11px] font-mono text-ops-text-muted truncate">
               已占用预估分配 {memPercent}%
