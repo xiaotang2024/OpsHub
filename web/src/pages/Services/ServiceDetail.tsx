@@ -28,6 +28,7 @@ import {
   Loader2,
   X,
   ShieldAlert,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Service,
@@ -38,12 +39,14 @@ import {
   AuditLog,
   ServiceMetrics,
   DeployPrecheckResult,
+  TemplateSyncDiff,
 } from '../../types';
 import { api } from '../../api';
 import { toast } from 'sonner';
 import { StatusBadge } from '../../components/service/StatusBadge';
 import { DeployWizardModal } from '../../components/deploy/DeployWizardModal';
 import { RollbackModal } from '../../components/deploy/RollbackModal';
+import { TemplateSyncModal } from '../../components/service/TemplateSyncModal';
 import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryCard';
 import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
 import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
@@ -95,6 +98,10 @@ export const ServiceDetail: React.FC = () => {
   const [permCheckError, setPermCheckError] = useState<DeployPrecheckResult | null>(null);
   const [copiedFixCmd, setCopiedFixCmd] = useState(false);
 
+  // Template Sync State
+  const [syncDiff, setSyncDiff] = useState<TemplateSyncDiff | null>(null);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+
   // Load all service data
   const loadServiceData = useCallback(async (isBackground = false) => {
     if (!serviceId) return;
@@ -102,17 +109,21 @@ export const ServiceDetail: React.FC = () => {
       if (!isBackground) setLoading(true);
       setError(null);
 
-      const [svc, allTemplates, allJdks, relList, artList] = await Promise.all([
+      const [svc, allTemplates, allJdks, relList, artList, diffData] = await Promise.all([
         api.getService(serviceId),
         api.getTemplates().catch(() => []),
         api.getJDKs().catch(() => []),
         api.getReleases(serviceId).catch(() => []),
         api.getArtifacts(serviceId).catch(() => []),
+        api.getTemplateSyncDiff(serviceId).catch(() => null),
       ]);
 
       setService(svc);
       setReleases(relList || []);
       setArtifacts(artList || []);
+      if (diffData) {
+        setSyncDiff(diffData);
+      }
 
       if (svc.template_id) {
         const foundTpl = allTemplates.find((t) => t.id === svc.template_id);
@@ -297,6 +308,17 @@ export const ServiceDetail: React.FC = () => {
     setTimeout(() => setCopiedFixCmd(false), 2000);
   };
 
+  const handleIgnoreSync = async () => {
+    if (!service) return;
+    try {
+      await api.syncTemplate(service.id, { ignore_update: true });
+      toast.success('已忽略当前模板版本更新提醒');
+      setSyncDiff((prev) => (prev ? { ...prev, ignored: true } : null));
+    } catch (err: any) {
+      toast.error(err.message || '操作失败');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb & Return Nav */}
@@ -321,6 +343,40 @@ export const ServiceDetail: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Template Sync Notification Banner */}
+      {syncDiff?.has_update && !syncDiff.ignored && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-xs text-amber-200 shadow-md">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+            <div>
+              <span className="font-bold text-amber-300">
+                所属部署模板「{syncDiff.template_name}」有新配置可同步
+              </span>
+              <p className="text-[11px] text-amber-300/70 mt-0.5">
+                检测到模板中的 JVM 参数或健康检查探针已更新，您可以选择性同步到当前服务。
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleIgnoreSync}
+              className="px-2.5 py-1.5 rounded-lg text-amber-300/80 hover:text-white hover:bg-amber-900/40 transition-colors"
+            >
+              忽略本次
+            </button>
+            <button
+              type="button"
+              onClick={() => setSyncModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-200 font-semibold hover:bg-amber-500/30 transition-colors shadow-sm"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>查看并同步配置</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Service Hero Banner */}
       <div className="rounded-2xl border border-ops-border bg-ops-card p-6 shadow-xl space-y-6">
@@ -591,14 +647,36 @@ export const ServiceDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* JVM Parameter Strategy */}
+              {/* JVM Parameter Strategy & Health Check */}
               <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
-                <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
-                  JVM 内存与系统调优参数
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
+                    JVM 内存与系统调优参数
+                  </h3>
+                  {template && (
+                    <button
+                      type="button"
+                      onClick={() => setSyncModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan hover:bg-ops-cyan/20 transition-colors"
+                      title="打开模板差异对比与同步弹窗"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      <span>同步模板配置</span>
+                    </button>
+                  )}
+                </div>
 
                 <div className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-emerald-400 break-all select-all leading-relaxed">
                   {service.jvm_options || '(未指定个性化 JVM 参数，将默认沿用模板配置)'}
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
+                    健康检测探针配置 (Health Check)
+                  </h3>
+                </div>
+                <div className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-ops-text-sub break-all select-all leading-relaxed">
+                  {service.health_check_config || template?.health_check_config || '(默认沿用模板端口/进程探针)'}
                 </div>
 
                 <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold pt-2">
@@ -997,6 +1075,23 @@ export const ServiceDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Template Sync Modal */}
+      {syncModalOpen && service && (
+        <TemplateSyncModal
+          isOpen={syncModalOpen}
+          onClose={() => setSyncModalOpen(false)}
+          service={service}
+          diff={syncDiff}
+          onSuccess={(updated) => {
+            setService(updated);
+            loadServiceData(true);
+          }}
+          onIgnored={() => {
+            loadServiceData(true);
+          }}
+        />
       )}
 
     </div>

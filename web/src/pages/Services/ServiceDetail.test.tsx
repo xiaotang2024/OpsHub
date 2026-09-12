@@ -18,6 +18,8 @@ vi.mock('../../api', () => ({
     stopService: vi.fn(),
     restartService: vi.fn(),
     checkDeployPermission: vi.fn(),
+    getTemplateSyncDiff: vi.fn(),
+    syncTemplate: vi.fn(),
   },
 }));
 
@@ -136,6 +138,15 @@ describe('ServiceDetail Component', () => {
       install_dir: '/opt/apps/order-center',
       operator: 'admin',
       role: 'admin',
+    });
+    (api.getTemplateSyncDiff as any).mockResolvedValue({
+      has_update: false,
+      template_id: 1,
+      template_name: 'Spring Boot Standard',
+      template_updated_at: '2026-09-10T08:00:00Z',
+      ignored: false,
+      jvm_diff: { current: '', template: '', is_different: false },
+      health_check_diff: { current: '', template: '', is_different: false },
     });
   });
 
@@ -294,6 +305,30 @@ describe('ServiceDetail Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/1. 预检/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays template sync banner when template update is detected and opens sync modal', async () => {
+    (api.getTemplateSyncDiff as any).mockResolvedValue({
+      has_update: true,
+      template_id: 1,
+      template_name: 'Spring Boot Standard',
+      template_updated_at: '2026-09-13T02:00:00Z',
+      ignored: false,
+      jvm_diff: { current: '-Xms512m -Xmx1g', template: '-Xms1g -Xmx2g', is_different: true },
+      health_check_diff: { current: '', template: '{"type":"http","port":8080}', is_different: true },
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText(/所属部署模板「Spring Boot Standard」有新配置可同步/i)).toBeInTheDocument();
+    });
+
+    const syncBtn = screen.getByRole('button', { name: /查看并同步配置/i });
+    fireEvent.click(syncBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('/ Sync Template Settings')).toBeInTheDocument();
     });
   });
 });
