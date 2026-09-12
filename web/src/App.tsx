@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Shell } from './components/layout/Shell';
 import { ServiceFleet } from './pages/Services/ServiceFleet';
 import { ServiceDetail } from './pages/Services/ServiceDetail';
@@ -8,7 +9,9 @@ import { JDKList } from './pages/JDKs/JDKList';
 
 export const App: React.FC = () => {
   return (
-    <Shell>
+    <>
+      <Toaster richColors position="top-right" theme="dark" closeButton />
+      <Shell>
       <Routes>
         <Route path="/" element={<Navigate to="/services" replace />} />
         <Route path="/services" element={<ServiceFleet />} />
@@ -32,6 +35,7 @@ export const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/services" replace />} />
       </Routes>
     </Shell>
+    </>
   );
 };
 

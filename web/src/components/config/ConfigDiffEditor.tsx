@@ -15,6 +15,7 @@ import {
   AlignLeft,
   Plus,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../../api';
 
 export interface ConfigDiffEditorProps {
@@ -407,9 +408,14 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
       existingFiles.add(fileToSave);
       const bakPath = res.backup || `${fileToSave}.bak`;
       setBackupMessage(`已成功生成安全备份: ${bakPath}`);
+      toast.success('配置保存成功！', {
+        description: `已成功生成安全备份: ${bakPath}`,
+      });
       onSaveSuccess?.(fileToSave);
     } catch (err: any) {
-      setError(err.message || '保存配置文件失败');
+      const msg = err.message || '保存配置文件失败';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -441,24 +447,6 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           每次保存将自动生成防损安全快照备份 (.bak)
         </span>
       </div>
-
-      {/* Backup Notification Toast / Banner */}
-      {backupMessage && (
-        <div className="flex items-center justify-between px-4 py-2 bg-emerald-950/60 border-b border-emerald-500/40 text-emerald-300 animate-in fade-in duration-200">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-            <span className="font-bold">配置保存成功！</span>
-            <span className="font-mono text-[11px] text-emerald-400/90">{backupMessage}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setBackupMessage(null)}
-            className="text-emerald-400/70 hover:text-white"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
 
       {/* Error alert */}
       {error && (

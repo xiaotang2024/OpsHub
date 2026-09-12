@@ -17,6 +17,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { api } from '../../api';
+import { toast } from 'sonner';
 import { UserProfile } from '../../types';
 
 export interface UserProfileModalProps {
@@ -89,9 +90,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       const updated = await api.updateProfile({ nickname, email });
       setProfile(updated);
       setSuccessMsg('个人资料更新成功！');
+      toast.success('个人资料更新成功！');
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setError(err.message || '更新个人资料失败');
+      toast.error(err.message || '更新个人资料失败');
     } finally {
       setSavingProfile(false);
     }
@@ -118,12 +121,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setError(null);
       await api.changePassword(oldPassword, newPassword);
       setSuccessMsg('登录密码修改成功，请妥善保存！');
+      toast.success('登录密码修改成功，请妥善保存！');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
-      setError(err.message || '修改密码失败，请核对旧密码是否正确');
+      const msg = err.message || '修改密码失败，请核对旧密码是否正确';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setChangingPass(false);
     }

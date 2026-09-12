@@ -18,6 +18,7 @@ import {
 import { LoginModal } from '../auth/LoginModal';
 import { UserProfileModal } from '../auth/UserProfileModal';
 import { ThemePicker } from '../theme/ThemePicker';
+import { toast } from 'sonner';
 import { api } from '../../api';
 import { UserProfile } from '../../types';
 
@@ -125,6 +126,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     setUserProfile(null);
     setIsLoginOpen(true);
     setIsProfileOpen(false);
+    toast.success('已安全退出登录');
   };
 
   const currentNav = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));

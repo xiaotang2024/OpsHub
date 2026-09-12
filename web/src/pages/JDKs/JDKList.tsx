@@ -16,6 +16,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { api } from '../../api';
+import { toast } from 'sonner';
 import { JDKAsset } from '../../types';
 
 export const JDKList: React.FC = () => {
@@ -109,10 +110,13 @@ export const JDKList: React.FC = () => {
         is_system: true,
       });
       setSuccessMsg(`成功入库 JDK: ${item.name}`);
+      toast.success(`成功入库 JDK: ${item.name}`);
       setTimeout(() => setSuccessMsg(null), 3000);
       await loadData(true);
     } catch (err: any) {
-      setError(err.message || `注册 JDK [${item.name}] 失败`);
+      const msg = err.message || `注册 JDK [${item.name}] 失败`;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setRegisteringScanId(null);
     }
@@ -135,12 +139,16 @@ export const JDKList: React.FC = () => {
           is_system: true,
         });
       }
-      setSuccessMsg(`成功批量入库 ${unregistered.length} 个系统 JDK`);
+      const msg = `成功批量入库 ${unregistered.length} 个系统 JDK`;
+      setSuccessMsg(msg);
+      toast.success(msg);
       setTimeout(() => setSuccessMsg(null), 3000);
       await loadData(true);
       setScanModalOpen(false);
     } catch (err: any) {
-      setError(err.message || '批量入库部分 JDK 失败');
+      const msg = err.message || '批量入库部分 JDK 失败';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setScanning(false);
     }
@@ -169,12 +177,15 @@ export const JDKList: React.FC = () => {
         is_system: false,
       });
       setSuccessMsg(`成功注册 JDK: ${registerForm.name}`);
+      toast.success(`成功注册 JDK: ${registerForm.name}`);
       setTimeout(() => setSuccessMsg(null), 3000);
       setRegisterModalOpen(false);
       setRegisterForm({ name: '', java_home: '', bin_path: '', version_str: '' });
       await loadData(true);
     } catch (err: any) {
-      setRegisterError(err.message || '注册 JDK 失败');
+      const msg = err.message || '注册 JDK 失败';
+      setRegisterError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -186,11 +197,14 @@ export const JDKList: React.FC = () => {
       setDeletingLoading(true);
       await api.deleteJDK(id);
       setSuccessMsg('JDK 资产已成功注销');
+      toast.success('JDK 资产已成功注销');
       setTimeout(() => setSuccessMsg(null), 3000);
       setDeletingId(null);
       await loadData(true);
     } catch (err: any) {
-      setError(err.message || '删除 JDK 资产失败');
+      const msg = err.message || '删除 JDK 资产失败';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setDeletingLoading(false);
     }

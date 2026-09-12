@@ -40,6 +40,7 @@ import {
   DeployPrecheckResult,
 } from '../../types';
 import { api } from '../../api';
+import { toast } from 'sonner';
 import { StatusBadge } from '../../components/service/StatusBadge';
 import { DeployWizardModal } from '../../components/deploy/DeployWizardModal';
 import { RollbackModal } from '../../components/deploy/RollbackModal';
@@ -172,9 +173,10 @@ export const ServiceDetail: React.FC = () => {
     try {
       const updated = await api.startService(service.id);
       setService(updated);
+      toast.success(`服务 ${service.name} 启动指令已下发`);
       await loadServiceData(true);
     } catch (err: any) {
-      alert(`启动服务失败: ${err.message}`);
+      toast.error(`启动服务失败: ${err.message}`);
       await loadServiceData(true);
     } finally {
       setInFlightAction(null);
@@ -188,9 +190,10 @@ export const ServiceDetail: React.FC = () => {
     try {
       const updated = await api.stopService(service.id);
       setService(updated);
+      toast.success(`服务 ${service.name} 停止指令已下发`);
       await loadServiceData(true);
     } catch (err: any) {
-      alert(`停止服务失败: ${err.message}`);
+      toast.error(`停止服务失败: ${err.message}`);
       await loadServiceData(true);
     } finally {
       setInFlightAction(null);
@@ -204,9 +207,10 @@ export const ServiceDetail: React.FC = () => {
     try {
       const updated = await api.restartService(service.id);
       setService(updated);
+      toast.success(`服务 ${service.name} 重启指令已下发`);
       await loadServiceData(true);
     } catch (err: any) {
-      alert(`重启服务失败: ${err.message}`);
+      toast.error(`重启服务失败: ${err.message}`);
       await loadServiceData(true);
     } finally {
       setInFlightAction(null);
@@ -216,6 +220,7 @@ export const ServiceDetail: React.FC = () => {
   const handleCopyPort = (port: number) => {
     navigator.clipboard?.writeText(String(port));
     setCopiedPort(true);
+    toast.success(`端口号 :${port} 已复制到剪贴板`);
     setTimeout(() => setCopiedPort(false), 2000);
   };
 

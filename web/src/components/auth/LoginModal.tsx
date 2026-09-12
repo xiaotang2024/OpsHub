@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../../api';
+import { toast } from 'sonner';
 import { InteractiveCanvasBackground } from './InteractiveCanvasBackground';
 import { AnimatedGradientBackground } from './AnimatedGradientBackground';
 import { AnimatedCharacters } from './AnimatedCharacters';
@@ -418,6 +419,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             })
           );
         }
+        toast.success('登录成功，欢迎回来！');
         if (onSuccess) {
           onSuccess(res.token, loginUsername.trim());
         }
@@ -470,6 +472,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       });
 
       setSuccessMsg('注册成功！正在为您自动登录系统...');
+      toast.success('注册成功！正在为您自动登录系统...');
       if (res && res.token) {
         localStorage.setItem('opshub_token', res.token);
         if (typeof window !== 'undefined') {
@@ -542,6 +545,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       });
 
       setSuccessMsg('密码重置成功！请使用新密码重新登录');
+      toast.success('密码重置成功！请使用新密码重新登录');
       setLoginUsername(forgotUsername.trim());
       setLoginPassword('');
       setTimeout(() => switchMode('login'), 1800);

@@ -2,6 +2,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfigDiffEditor } from './ConfigDiffEditor';
 import { api } from '../../api';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 vi.mock('../../api', () => ({
   api: {
@@ -101,9 +111,14 @@ describe('ConfigDiffEditor', () => {
       );
     });
 
-    // Check backup notification
+    // Check backup notification toast
     await waitFor(() => {
-      expect(screen.getByText(/已成功生成安全备份/i)).toBeInTheDocument();
+      expect(toast.success).toHaveBeenCalledWith(
+        '配置保存成功！',
+        expect.objectContaining({
+          description: expect.stringContaining('/opt/apps/order-center/application.yml.bak'),
+        })
+      );
     });
   });
 

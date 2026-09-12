@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Artifact, DeployRecord, DeployPrecheckResult } from '../../types';
 import { api } from '../../api';
+import { toast } from 'sonner';
 
 export interface DeployWizardModalProps {
   visible: boolean;
@@ -258,7 +259,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   // Trigger real or simulated deploy execution
   const handleStartDeploy = async () => {
     if (!serviceId) {
-      alert('未指定服务 ID，无法触发部署');
+      toast.error('未指定服务 ID，无法触发部署');
       return;
     }
 
@@ -353,12 +354,14 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
           ...prev,
           `[${new Date().toLocaleTimeString()}] ❌ 部署失败 (状态: ${record.status})`,
         ]);
+        toast.error(errMsg);
         return;
       }
 
       setActiveStep(7);
       setPipelineFinished(true);
       setPipelineRunning(false);
+      toast.success(`服务 ${serviceName || ''} 发版部署成功！`);
 
       if (!record.output_log) {
         setPipelineLogs((prev) => [
@@ -382,6 +385,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         ...prev,
         `[${new Date().toLocaleTimeString()}] ❌ 异常中断: ${err.message || '部署失败'}`,
       ]);
+      toast.error(err.message || '部署流水线执行失败');
     } finally {
       if (stepProgressionInterval) {
         clearInterval(stepProgressionInterval);

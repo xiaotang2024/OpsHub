@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { Template, JDKAsset, Service } from '../../types';
+import { toast } from 'sonner';
 import { api } from '../../api';
 import { TemplateEditorModal } from './TemplateEditorModal';
 
@@ -101,8 +102,10 @@ export const TemplateList: React.FC = () => {
   const handleSaveTemplate = async (templateData: Partial<Template>) => {
     if (editingTemplate && editingTemplate.id) {
       await api.updateTemplate(editingTemplate.id, templateData);
+      toast.success('部署模板更新成功');
     } else {
       await api.createTemplate(templateData);
+      toast.success('部署模板创建成功');
     }
     await loadData();
   };
@@ -124,9 +127,10 @@ export const TemplateList: React.FC = () => {
         uninstall_rules: tpl.uninstall_rules,
       };
       await api.createTemplate(copyPayload);
+      toast.success(`模板 ${tpl.name} 克隆成功`);
       await loadData();
     } catch (err: any) {
-      alert(`克隆失败: ${err.message}`);
+      toast.error(`克隆失败: ${err.message}`);
     }
   };
 
@@ -137,9 +141,10 @@ export const TemplateList: React.FC = () => {
     }
     try {
       await api.deleteTemplate(tpl.id);
+      toast.success(`模板 ${tpl.name} 已删除`);
       await loadData();
     } catch (err: any) {
-      alert(`删除失败: ${err.message}`);
+      toast.error(`删除失败: ${err.message}`);
     }
   };
 
@@ -183,6 +188,7 @@ export const TemplateList: React.FC = () => {
       };
 
       await api.createService(payload);
+      toast.success(`服务 ${serviceName.trim()} 基于模板创建成功！`);
       setCreateServiceModalOpen(false);
       navigate('/services');
     } catch (err: any) {

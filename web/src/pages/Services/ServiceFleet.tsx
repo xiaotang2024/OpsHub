@@ -29,6 +29,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Service, Template, ServiceStatus, JDKAsset } from '../../types';
+import { toast } from 'sonner';
 import { api } from '../../api';
 import { StatusBadge } from '../../components/service/StatusBadge';
 
@@ -190,8 +191,9 @@ export const ServiceFleet: React.FC = () => {
     try {
       const updated = await api.startService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
+      toast.success(`服务 ${service.name} 启动指令已下发`);
     } catch (err: any) {
-      alert(`启动服务失败: ${err.message}`);
+      toast.error(`启动服务失败: ${err.message}`);
       await loadData(true);
     } finally {
       setInFlightActions((prev) => {
@@ -215,8 +217,9 @@ export const ServiceFleet: React.FC = () => {
     try {
       const updated = await api.stopService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
+      toast.success(`服务 ${service.name} 停止指令已下发`);
     } catch (err: any) {
-      alert(`停止服务失败: ${err.message}`);
+      toast.error(`停止服务失败: ${err.message}`);
       await loadData(true);
     } finally {
       setInFlightActions((prev) => {
@@ -240,8 +243,9 @@ export const ServiceFleet: React.FC = () => {
     try {
       const updated = await api.restartService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
+      toast.success(`服务 ${service.name} 重启指令已下发`);
     } catch (err: any) {
-      alert(`重启服务失败: ${err.message}`);
+      toast.error(`重启服务失败: ${err.message}`);
       await loadData(true);
     } finally {
       setInFlightActions((prev) => {
@@ -263,11 +267,13 @@ export const ServiceFleet: React.FC = () => {
       setIsDeleting(true);
       setDeleteError(null);
       await api.deleteService(serviceToDelete.id);
+      toast.success(`服务 ${serviceToDelete.name} 已从舰队注销并删除`);
       setServiceToDelete(null);
       setSelectedServiceId(null);
       await loadData(true);
     } catch (err: any) {
       setDeleteError(err.message || '删除服务失败');
+      toast.error(err.message || '删除服务失败');
     } finally {
       setIsDeleting(false);
     }
@@ -276,6 +282,7 @@ export const ServiceFleet: React.FC = () => {
   const handleCopyPort = (port: number) => {
     navigator.clipboard?.writeText(String(port));
     setCopiedPort(true);
+    toast.success(`端口号 :${port} 已复制到剪贴板`);
     setTimeout(() => setCopiedPort(false), 2000);
   };
 
@@ -402,10 +409,13 @@ export const ServiceFleet: React.FC = () => {
       };
 
       await api.createService(payload);
+      toast.success(`服务 ${createName.trim()} 创建成功！`);
       setIsCreateModalOpen(false);
       await loadData(true);
     } catch (err: any) {
-      setCreateServiceError(err.message || '创建部署服务失败');
+      const msg = err.message || '创建部署服务失败';
+      setCreateServiceError(msg);
+      toast.error(msg);
     } finally {
       setIsCreatingService(false);
     }
