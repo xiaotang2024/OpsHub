@@ -182,79 +182,82 @@ export const AuditList: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-white">审计日志 / Audit Logs</h1>
-            <span className="rounded-full bg-cyan-950/60 border border-ops-cyan/30 px-2.5 py-0.5 text-xs font-mono font-medium text-ops-cyan">
-              不可篡改运维合规
-            </span>
+    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-7rem)] flex flex-col gap-3.5 overflow-hidden">
+      {/* Fixed Zone 1: Top Header & Metrics Summary Cards */}
+      <div className="shrink-0 space-y-3">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold tracking-tight text-white">审计日志 / Audit Logs</h1>
+              <span className="rounded-full bg-cyan-950/60 border border-ops-cyan/30 px-2.5 py-0.5 text-xs font-mono font-medium text-ops-cyan">
+                不可篡改运维合规
+              </span>
+            </div>
+            <p className="text-xs text-ops-text-muted font-mono mt-1">
+              记录集群内所有服务启停、发版部署、配置热更与生命周期操作记录
+            </p>
           </div>
-          <p className="text-xs text-ops-text-muted font-mono mt-1">
-            记录集群内所有服务启停、发版部署、配置热更与生命周期操作记录
-          </p>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={fetchLogs}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white hover:border-ops-border-hover transition-colors"
+              title="刷新审计日志"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-ops-cyan' : ''}`} />
+              <span>刷新日志</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={fetchLogs}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-ops-border bg-ops-surface text-xs font-medium text-ops-text-sub hover:text-white hover:border-ops-border-hover transition-colors"
-            title="刷新审计日志"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-ops-cyan' : ''}`} />
-            <span>刷新日志</span>
-          </button>
+        {/* Metrics Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-ops-text-muted font-mono">
+              <span>总审计记录</span>
+              <ShieldCheck className="h-4 w-4 text-ops-cyan" />
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-white">
+              <NumberFlow value={globalStats.total || total} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-emerald-400 font-mono">
+              <span>今日操作数</span>
+              <Clock className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
+              <NumberFlow value={globalStats.today} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-ops-cyan font-mono">
+              <span>发版部署动作</span>
+              <Rocket className="h-4 w-4 text-ops-cyan" />
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-ops-cyan">
+              <NumberFlow value={globalStats.deploy} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-rose-400 font-mono">
+              <span>异常拦截</span>
+              <AlertTriangle className="h-4 w-4 text-rose-400" />
+            </div>
+            <div className="mt-2 text-2xl font-bold font-mono text-rose-400">
+              <NumberFlow value={globalStats.failed} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Metrics Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-ops-text-muted font-mono">
-            <span>总审计记录</span>
-            <ShieldCheck className="h-4 w-4 text-ops-cyan" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-white">
-            <NumberFlow value={globalStats.total || total} />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-emerald-400 font-mono">
-            <span>今日操作数</span>
-            <Clock className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-emerald-400">
-            <NumberFlow value={globalStats.today} />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-ops-cyan font-mono">
-            <span>发版部署动作</span>
-            <Rocket className="h-4 w-4 text-ops-cyan" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-ops-cyan">
-            <NumberFlow value={globalStats.deploy} />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-ops-border bg-ops-card p-3.5 shadow-sm">
-          <div className="flex items-center justify-between text-xs text-rose-400 font-mono">
-            <span>异常拦截</span>
-            <AlertTriangle className="h-4 w-4 text-rose-400" />
-          </div>
-          <div className="mt-2 text-2xl font-bold font-mono text-rose-400">
-            <NumberFlow value={globalStats.failed} />
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-ops-border bg-ops-card p-3">
+      {/* Fixed Zone 2: Filters Bar */}
+      <div className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 rounded-xl border border-ops-border bg-ops-card p-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-ops-text-muted" />
           <input
@@ -352,39 +355,39 @@ export const AuditList: React.FC = () => {
 
       {/* Error alert */}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-xs text-red-400">
+        <div className="shrink-0 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-950/20 p-3 text-xs text-red-400">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Main Table */}
-      <div className="rounded-xl border border-ops-border bg-ops-card overflow-hidden shadow-lg">
+      {/* Zone 3: Main Table & Pagination Card (Fixed Outer, Scrollable Inner Data) */}
+      <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-ops-border bg-ops-card overflow-hidden shadow-lg">
         {loading ? (
-          <div className="p-12 text-center text-xs font-mono text-ops-text-muted space-y-3">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-12 text-center text-xs font-mono text-ops-text-muted space-y-3">
             <RefreshCw className="h-6 w-6 animate-spin mx-auto text-ops-cyan" />
             <p>正在拉取不可篡改审计追踪记录...</p>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="p-12 text-center text-xs font-mono text-ops-text-muted space-y-3">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-12 text-center text-xs font-mono text-ops-text-muted space-y-3">
             <ShieldCheck className="h-8 w-8 mx-auto text-ops-border-hover" />
             <p className="text-white font-medium text-sm">暂无符合条件的审计日志</p>
             <p className="text-ops-text-muted text-xs">尝试更换筛选条件或触发一次运维操作后再次查看。</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="border-b border-ops-border bg-ops-bg/90 text-ops-text-muted uppercase text-[11px]">
+              <thead className="sticky top-0 z-10 border-b border-ops-border bg-ops-card/95 backdrop-blur-sm text-ops-text-muted uppercase text-[11px] shadow-sm">
                 <tr>
-                  <th className="px-4 py-3.5">序号</th>
-                  <th className="px-4 py-3.5">操作动作</th>
-                  <th className="px-4 py-3.5">目标对象</th>
-                  <th className="px-4 py-3.5">操作人</th>
-                  <th className="px-4 py-3.5">客户端 IP</th>
-                  <th className="px-4 py-3.5">执行结果</th>
-                  <th className="px-4 py-3.5">记录时间</th>
-                  <th className="px-4 py-3.5">详情摘要</th>
-                  <th className="px-4 py-3.5 text-right">操作</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">序号</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">操作动作</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">目标对象</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">操作人</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">客户端 IP</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">执行结果</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">记录时间</th>
+                  <th className="px-4 py-3.5 bg-ops-card/95">详情摘要</th>
+                  <th className="px-4 py-3.5 text-right bg-ops-card/95">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ops-border/70 text-ops-text-sub">
@@ -460,8 +463,8 @@ export const AuditList: React.FC = () => {
           </div>
         )}
 
-        {/* Pagination Bar */}
-        <div className="border-t border-ops-border bg-ops-bg/80 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-ops-text-muted">
+        {/* Fixed Zone 4: Pagination Bar */}
+        <div className="shrink-0 border-t border-ops-border bg-ops-card/90 backdrop-blur-sm px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-ops-text-muted">
           <div>
             显示第 {total > 0 ? (page - 1) * pageSize + 1 : 0} -{' '}
             {Math.min(page * pageSize, total)} 条，共{' '}

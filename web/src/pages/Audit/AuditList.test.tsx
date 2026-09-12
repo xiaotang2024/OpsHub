@@ -162,4 +162,27 @@ describe('AuditList Component', () => {
       expect(screen.getAllByText('10')[0]).toBeInTheDocument();
     });
   });
+
+  it('applies fixed layout with sticky table header and internal scroll container', async () => {
+    const { container } = render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    // Check sticky table header
+    const tableHeader = container.querySelector('thead');
+    expect(tableHeader).toHaveClass('sticky');
+    expect(tableHeader).toHaveClass('top-0');
+
+    // Check internal scroll container wrapping the table
+    const table = container.querySelector('table');
+    const scrollContainer = table?.parentElement;
+    expect(scrollContainer).toHaveClass('overflow-auto');
+
+    // Check fixed pagination container
+    const pagination = screen.getByText(/显示第/i).parentElement;
+    expect(pagination).toHaveClass('shrink-0');
+  });
 });
+
