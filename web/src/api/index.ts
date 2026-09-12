@@ -196,10 +196,21 @@ export const api = {
     request<ServiceMetrics>(`/services/${serviceId}/metrics`),
 
   // Audit Logs
-  getAuditLogs: (params: { target_type?: string; target_id?: string; page?: number; page_size?: number } = {}) => {
+  getAuditLogs: (params: {
+    target_type?: string;
+    target_id?: string;
+    action?: string;
+    status?: string;
+    operator?: string;
+    page?: number;
+    page_size?: number;
+  } = {}) => {
     const query = new URLSearchParams();
     if (params.target_type) query.set('target_type', params.target_type);
     if (params.target_id) query.set('target_id', params.target_id);
+    if (params.action) query.set('action', params.action);
+    if (params.status) query.set('status', params.status);
+    if (params.operator) query.set('operator', params.operator);
     if (params.page) query.set('page', String(params.page));
     if (params.page_size) query.set('page_size', String(params.page_size));
     const qStr = query.toString();
