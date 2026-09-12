@@ -394,8 +394,8 @@ export const TemplateList: React.FC = () => {
             return (
               <motion.div
                 key={tpl.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="group relative flex flex-col justify-between rounded-xl border border-ops-border bg-ops-card hover:border-ops-border-hover hover:bg-ops-card-hover transition-all duration-200 overflow-hidden shadow-lg"
               >

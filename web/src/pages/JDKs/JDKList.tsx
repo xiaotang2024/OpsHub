@@ -384,8 +384,8 @@ export const JDKList: React.FC = () => {
             return (
               <motion.div
                 key={jdk.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className="group relative flex flex-col justify-between rounded-xl border border-ops-border bg-ops-surface/80 p-5 hover:border-ops-border-hover hover:bg-ops-card-hover transition-all shadow-sm"
               >
                 <div>
