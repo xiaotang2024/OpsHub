@@ -137,14 +137,49 @@ describe('TemplateList Component', () => {
         expect(btn).toBeDisabled();
       });
 
-      const deleteButtons = screen.getAllByRole('button', { name: /删除/i });
-      deleteButtons.forEach((btn) => {
-        expect(btn).toBeDisabled();
+        const deleteButtons = screen.getAllByRole('button', { name: /删除/i });
+        deleteButtons.forEach((btn) => {
+          expect(btn).toBeDisabled();
+        });
+
+        // Tooltips for template management
+        const tooltips = screen.getAllByTitle(/无模板管理权限/i);
+        expect(tooltips.length).toBeGreaterThanOrEqual(3);
       });
 
-      // Tooltips for template management
-      const tooltips = screen.getAllByTitle(/无模板管理权限/i);
-      expect(tooltips.length).toBeGreaterThanOrEqual(3);
+      it('opens ConfirmModal and deletes template on confirmation for authorized user', async () => {
+        localStorage.setItem(
+          'opshub_user',
+          JSON.stringify({
+            username: 'admin',
+            role: 'admin',
+            permissions: [],
+          })
+        );
+        (api.deleteTemplate as any).mockResolvedValue({ message: 'template deleted' });
+
+        render(
+          <BrowserRouter>
+            <TemplateList />
+          </BrowserRouter>
+        );
+
+        await waitFor(() => {
+          expect(screen.getByText('Standard-SpringBoot')).toBeInTheDocument();
+        });
+
+        const deleteButtons = screen.getAllByRole('button', { name: /删除/i });
+        fireEvent.click(deleteButtons[0]);
+
+        expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+        expect(screen.getByText(/确定要彻底删除部署模板/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('confirm-modal-btn'));
+
+        await waitFor(() => {
+          expect(api.deleteTemplate).toHaveBeenCalledWith(1);
+        });
+      });
     });
   });
-});
+

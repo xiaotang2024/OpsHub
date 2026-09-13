@@ -21,6 +21,7 @@ import { Artifact, DeployRecord, DeployPrecheckResult } from '../../types';
 import { api } from '../../api';
 import { toast } from 'sonner';
 import { usePermission } from '../../hooks/usePermission';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 export interface DeployWizardModalProps {
   visible: boolean;
@@ -114,6 +115,8 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   const [existingArtifacts, setExistingArtifacts] = useState<Artifact[]>([]);
   const [loadingArtifacts, setLoadingArtifacts] = useState(false);
   const [selectedArtifactId, setSelectedArtifactId] = useState<number | null>(null);
+  const [artifactToDelete, setArtifactToDelete] = useState<{ id: number; filename: string } | null>(null);
+  const [isDeletingArtifact, setIsDeletingArtifact] = useState(false);
 
   // File upload state
   const [file, setFile] = useState<File | null>(null);
@@ -261,21 +264,22 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
     }
   };
 
-  const handleDeleteArtifact = async (artId: number, filename: string) => {
-    if (!serviceId) return;
-    if (!window.confirm(`确定要永久删除历史制品包 "${filename}" 吗？此操作不可逆。`)) {
-      return;
-    }
+  const handleConfirmDeleteArtifact = async () => {
+    if (!serviceId || !artifactToDelete) return;
     try {
-      await api.deleteArtifact(serviceId, artId);
-      toast.success(`制品 ${filename} 已成功删除`);
-      if (selectedArtifactId === artId) {
+      setIsDeletingArtifact(true);
+      await api.deleteArtifact(serviceId, artifactToDelete.id);
+      toast.success(`制品 ${artifactToDelete.filename} 已成功删除`);
+      if (selectedArtifactId === artifactToDelete.id) {
         setSelectedArtifactId(null);
       }
+      setArtifactToDelete(null);
       const updated = await api.getArtifacts(serviceId);
       setExistingArtifacts(updated || []);
     } catch (err: any) {
       toast.error(err.message || '删除制品失败');
+    } finally {
+      setIsDeletingArtifact(false);
     }
   };
 
@@ -752,7 +756,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteArtifact(art.id, art.filename);
+                                    setArtifactToDelete({ id: art.id, filename: art.filename });
                                   }}
                                   className="p-1 rounded hover:bg-red-500/20 text-ops-text-muted hover:text-red-400 transition-colors"
                                   title="删除历史制品包（仅管理员）"
@@ -889,6 +893,24 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* Delete Artifact Confirmation Modal */}
+      <ConfirmModal
+        visible={!!artifactToDelete}
+        title="删除历史制品确认"
+        subtitle="高危操作 · 物理删除后无法找回"
+        message={
+          <span>
+            确定要永久删除历史制品包 <span className="text-white font-bold">{artifactToDelete?.filename}</span> 吗？此操作将从服务器磁盘物理移除该包，不可逆！
+          </span>
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={isDeletingArtifact}
+        onConfirm={handleConfirmDeleteArtifact}
+        onCancel={() => setArtifactToDelete(null)}
+      />
     </div>
   );
 };

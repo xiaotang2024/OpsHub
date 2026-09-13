@@ -361,7 +361,6 @@ describe('ConfigDiffEditor', () => {
   it('allows admin to view backups and delete backup snapshot', async () => {
     localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
     (api.deleteConfig as any).mockResolvedValue({ message: 'backup deleted' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(
       <ConfigDiffEditor
@@ -383,6 +382,9 @@ describe('ConfigDiffEditor', () => {
     const delBackupBtn = screen.getByTestId('delete-backup-application.yml.bak.20260913');
     fireEvent.click(delBackupBtn);
 
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-modal-btn'));
+
     await waitFor(() => {
       expect(api.deleteConfig).toHaveBeenCalledWith(10, 'application.yml.bak.20260913');
       expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('已成功删除'));
@@ -392,7 +394,6 @@ describe('ConfigDiffEditor', () => {
   it('allows admin to delete an existing configuration file from disk', async () => {
     localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
     (api.deleteConfig as any).mockResolvedValue({ message: 'config deleted' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const onDeleteSuccess = vi.fn();
 
     render(
@@ -408,6 +409,9 @@ describe('ConfigDiffEditor', () => {
     });
 
     fireEvent.click(screen.getByTestId('delete-current-config-button'));
+
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-modal-btn'));
 
     await waitFor(() => {
       expect(api.deleteConfig).toHaveBeenCalledWith(10, 'application.yml');

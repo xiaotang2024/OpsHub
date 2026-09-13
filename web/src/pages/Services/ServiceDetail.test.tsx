@@ -478,7 +478,6 @@ describe('ServiceDetail Component', () => {
   it('allows admin to delete historical artifact in releases tab', async () => {
     localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
     (api.deleteArtifact as any).mockResolvedValue({ message: 'artifact deleted' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     renderComponent();
     await waitFor(() => {
@@ -497,6 +496,10 @@ describe('ServiceDetail Component', () => {
     expect(delBtn).toBeInTheDocument();
 
     fireEvent.click(delBtn);
+
+    // ConfirmModal should appear
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-modal-btn'));
 
     await waitFor(() => {
       expect(api.deleteArtifact).toHaveBeenCalledWith(10, 100);

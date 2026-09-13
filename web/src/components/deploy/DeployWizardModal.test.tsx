@@ -255,7 +255,6 @@ describe('DeployWizardModal', () => {
   it('allows admin to delete historical artifact in existing artifacts tab', async () => {
     localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
     (api.deleteArtifact as any).mockResolvedValue({ message: 'artifact deleted' });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(
       <DeployWizardModal
@@ -282,6 +281,9 @@ describe('DeployWizardModal', () => {
     expect(delBtn).toBeInTheDocument();
 
     fireEvent.click(delBtn);
+
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-modal-btn'));
 
     await waitFor(() => {
       expect(api.deleteArtifact).toHaveBeenCalledWith(10, 2);

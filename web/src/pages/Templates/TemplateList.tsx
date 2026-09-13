@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { api } from '../../api';
 import { TemplateEditorModal } from './TemplateEditorModal';
 import { PermissionGate } from '../../components/common/PermissionGate';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 
 export const TemplateList: React.FC = () => {
   const navigate = useNavigate();
@@ -42,6 +43,8 @@ export const TemplateList: React.FC = () => {
   // Modal states
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Partial<Template> | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
 
   // Quick Service Creation Modal state
   const [createServiceModalOpen, setCreateServiceModalOpen] = useState(false);
@@ -136,16 +139,18 @@ export const TemplateList: React.FC = () => {
   };
 
   // Handle Delete
-  const handleDelete = async (tpl: Template) => {
-    if (!window.confirm(`确定要彻底删除部署模板 "${tpl.name}" 吗？`)) {
-      return;
-    }
+  const handleConfirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
     try {
-      await api.deleteTemplate(tpl.id);
-      toast.success(`模板 ${tpl.name} 已删除`);
+      setIsDeletingTemplate(true);
+      await api.deleteTemplate(templateToDelete.id);
+      toast.success(`模板 ${templateToDelete.name} 已删除`);
+      setTemplateToDelete(null);
       await loadData();
     } catch (err: any) {
       toast.error(`删除失败: ${err.message}`);
+    } finally {
+      setIsDeletingTemplate(false);
     }
   };
 
@@ -530,7 +535,7 @@ export const TemplateList: React.FC = () => {
                     >
                       <button
                         type="button"
-                        onClick={() => handleDelete(tpl)}
+                        onClick={() => setTemplateToDelete(tpl)}
                         className="p-1.5 rounded-lg text-ops-text-muted hover:text-red-400 hover:bg-red-950/30 transition-colors"
                         title="删除模板"
                         aria-label="删除"
@@ -628,7 +633,7 @@ export const TemplateList: React.FC = () => {
                         >
                           <button
                             type="button"
-                            onClick={() => handleDelete(tpl)}
+                            onClick={() => setTemplateToDelete(tpl)}
                             className="p-1 rounded text-ops-text-muted hover:text-red-400"
                             title="删除"
                             aria-label="删除"
@@ -749,6 +754,24 @@ export const TemplateList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Template Confirmation Modal */}
+      <ConfirmModal
+        visible={!!templateToDelete}
+        title="删除部署模板确认"
+        subtitle="高危操作 · 删除后不可恢复"
+        message={
+          <span>
+            确定要彻底删除部署模板 <span className="text-white font-bold">{templateToDelete?.name}</span> 吗？使用该模板创建的已有服务不会受影响，但无法再基于该模板派生新实例。
+          </span>
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={isDeletingTemplate}
+        onConfirm={handleConfirmDeleteTemplate}
+        onCancel={() => setTemplateToDelete(null)}
+      />
     </div>
   );
 };

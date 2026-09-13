@@ -52,6 +52,7 @@ import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryC
 import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
 import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
 import { PermissionGate } from '../../components/common/PermissionGate';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { ServiceStartAnimeOverlay } from '../../components/service/ServiceStartAnimeOverlay';
 import { usePermission } from '../../hooks/usePermission';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
@@ -77,17 +78,21 @@ export const ServiceDetail: React.FC = () => {
 
   const { hasPermission, isAdmin } = usePermission();
 
-  const handleDeleteArtifact = async (artifactId: number, filename: string) => {
-    if (!service) return;
-    if (!window.confirm(`确定要永久删除历史制品包 "${filename}" 吗？此操作不可逆。`)) {
-      return;
-    }
+  const [artifactToDelete, setArtifactToDelete] = useState<{ id: number; filename: string } | null>(null);
+  const [isDeletingArtifact, setIsDeletingArtifact] = useState(false);
+
+  const handleConfirmDeleteArtifact = async () => {
+    if (!service || !artifactToDelete) return;
     try {
-      await api.deleteArtifact(service.id, artifactId);
-      toast.success(`历史制品 ${filename} 已成功删除`);
+      setIsDeletingArtifact(true);
+      await api.deleteArtifact(service.id, artifactToDelete.id);
+      toast.success(`历史制品 ${artifactToDelete.filename} 已成功删除`);
+      setArtifactToDelete(null);
       loadServiceData(true);
     } catch (err: any) {
       toast.error(err.message || '删除制品失败');
+    } finally {
+      setIsDeletingArtifact(false);
     }
   };
   const canConfig = hasPermission('service:config');
@@ -1029,7 +1034,7 @@ export const ServiceDetail: React.FC = () => {
                                   {isAdmin && (
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteArtifact(matchedArtifact.id, matchedArtifact.filename)}
+                                      onClick={() => setArtifactToDelete({ id: matchedArtifact.id, filename: matchedArtifact.filename })}
                                       className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors"
                                       title="删除历史制品包（仅管理员）"
                                     >
@@ -1332,6 +1337,24 @@ export const ServiceDetail: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Artifact Confirmation Modal */}
+      <ConfirmModal
+        visible={!!artifactToDelete}
+        title="删除历史制品确认"
+        subtitle="高危操作 · 物理删除后无法找回"
+        message={
+          <span>
+            确定要永久删除历史制品包 <span className="text-white font-bold">{artifactToDelete?.filename}</span> 吗？此操作将从服务器磁盘物理移除该包，不可逆！
+          </span>
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={isDeletingArtifact}
+        onConfirm={handleConfirmDeleteArtifact}
+        onCancel={() => setArtifactToDelete(null)}
+      />
 
     </div>
   );

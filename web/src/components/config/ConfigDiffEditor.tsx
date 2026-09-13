@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { api } from '../../api';
 import { ConfigBackupInfo } from '../../types';
 import { usePermission } from '../../hooks/usePermission';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 export interface ConfigDiffEditorProps {
   serviceId: number;
@@ -232,6 +233,8 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [showBackupsDropdown, setShowBackupsDropdown] = useState(false);
   const [isDeletingConfig, setIsDeletingConfig] = useState(false);
   const [isDeletingBackup, setIsDeletingBackup] = useState<string | null>(null);
+  const [backupToDelete, setBackupToDelete] = useState<string | null>(null);
+  const [isDeleteCurrentConfigModalOpen, setIsDeleteCurrentConfigModalOpen] = useState(false);
 
   const loadBackups = useCallback(async () => {
     if (!serviceId) return;
@@ -253,14 +256,14 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     }
   }, [propsBackups, loadBackups]);
 
-  const handleDeleteBackup = async (backupFile: string) => {
-    if (!window.confirm(`确定要永久删除历史备份快照 "${backupFile}" 吗？此操作不可逆。`)) {
-      return;
-    }
+  const handleConfirmDeleteBackup = async () => {
+    if (!backupToDelete) return;
+    const backupFile = backupToDelete;
     setIsDeletingBackup(backupFile);
     try {
       await api.deleteConfig(serviceId, backupFile);
       toast.success(`备份文件 ${backupFile} 已成功删除`);
+      setBackupToDelete(null);
       await loadBackups();
     } catch (err: any) {
       toast.error(err.message || '删除备份文件失败');
@@ -269,14 +272,12 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
     }
   };
 
-  const handleDeleteCurrentConfig = async () => {
-    if (!window.confirm(`确定要永久删除配置文件 "${selectedFile}" 吗？此操作将物理删除文件且不可逆！`)) {
-      return;
-    }
+  const handleConfirmDeleteCurrentConfig = async () => {
     setIsDeletingConfig(true);
     try {
       await api.deleteConfig(serviceId, selectedFile);
       toast.success(`配置文件 ${selectedFile} 已成功删除`);
+      setIsDeleteCurrentConfigModalOpen(false);
       onDeleteSuccess?.(selectedFile);
       const remaining = (files || []).filter((f) => f !== selectedFile);
       if (remaining.length > 0) {
@@ -824,7 +825,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                             type="button"
                             data-testid={`delete-backup-${bak.file}`}
                             disabled={isDeletingBackup === bak.file}
-                            onClick={() => handleDeleteBackup(bak.file)}
+                            onClick={() => setBackupToDelete(bak.file)}
                             className="p-1 rounded text-ops-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                             title="删除该历史备份（仅管理员）"
                           >
@@ -849,7 +850,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               type="button"
               data-testid="delete-current-config-button"
               disabled={isDeletingConfig}
-              onClick={handleDeleteCurrentConfig}
+              onClick={() => setIsDeleteCurrentConfigModalOpen(true)}
               title="删除当前磁盘上的配置文件（仅管理员）"
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all text-xs shrink-0"
             >
@@ -1119,6 +1120,42 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           </div>
         </div>
       )}
+
+      {/* Delete Backup Confirmation Modal */}
+      <ConfirmModal
+        visible={!!backupToDelete}
+        title="删除备份快照确认"
+        subtitle="高危操作 · 快照删除后无法还原"
+        message={
+          <span>
+            确定要永久删除历史备份快照 <span className="text-white font-bold">{backupToDelete}</span> 吗？此操作不可逆！
+          </span>
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={!!isDeletingBackup}
+        onConfirm={handleConfirmDeleteBackup}
+        onCancel={() => setBackupToDelete(null)}
+      />
+
+      {/* Delete Current Config File Confirmation Modal */}
+      <ConfirmModal
+        visible={isDeleteCurrentConfigModalOpen}
+        title="删除配置文件确认"
+        subtitle="高危操作 · 将物理删除配置文件"
+        message={
+          <span>
+            确定要永久删除配置文件 <span className="text-white font-bold">{selectedFile}</span> 吗？此操作将从服务器磁盘物理删除该文件，不可逆！
+          </span>
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={isDeletingConfig}
+        onConfirm={handleConfirmDeleteCurrentConfig}
+        onCancel={() => setIsDeleteCurrentConfigModalOpen(false)}
+      />
     </div>
   );
 };
