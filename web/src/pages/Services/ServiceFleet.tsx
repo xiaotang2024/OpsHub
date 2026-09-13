@@ -81,11 +81,12 @@ export const ServiceFleet: React.FC = () => {
   // Optimistic tracking: serviceId -> action type ('start' | 'stop' | 'restart')
   const [inFlightActions, setInFlightActions] = useState<Record<number, string>>({});
 
-  // Anime Startup Overlay State
-  const [startAnimeState, setStartAnimeState] = useState<{
+  // Anime Action Overlay State (start, stop, restart)
+  const [actionAnimeState, setActionAnimeState] = useState<{
     serviceId: number;
     serviceName: string;
-    status: 'starting' | 'success' | 'error';
+    action: 'start' | 'stop' | 'restart';
+    status: 'starting' | 'stopping' | 'restarting' | 'success' | 'error';
     errorMessage?: string;
   } | null>(null);
 
@@ -196,9 +197,10 @@ export const ServiceFleet: React.FC = () => {
     const sid = service.id;
     setInFlightActions((prev) => ({ ...prev, [sid]: 'start' }));
 
-    setStartAnimeState({
+    setActionAnimeState({
       serviceId: sid,
       serviceName: service.name,
+      action: 'start',
       status: 'starting',
     });
 
@@ -218,13 +220,14 @@ export const ServiceFleet: React.FC = () => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
       setTimeout(() => {
-        setStartAnimeState({
+        setActionAnimeState({
           serviceId: sid,
           serviceName: service.name,
+          action: 'start',
           status: 'success',
         });
         setTimeout(() => {
-          setStartAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
         }, 850);
       }, remaining);
     } catch (err: any) {
@@ -234,14 +237,15 @@ export const ServiceFleet: React.FC = () => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
       setTimeout(() => {
-        setStartAnimeState({
+        setActionAnimeState({
           serviceId: sid,
           serviceName: service.name,
+          action: 'start',
           status: 'error',
           errorMessage: err.message,
         });
         setTimeout(() => {
-          setStartAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
         }, 1500);
       }, remaining);
     } finally {
@@ -258,18 +262,57 @@ export const ServiceFleet: React.FC = () => {
     const sid = service.id;
     setInFlightActions((prev) => ({ ...prev, [sid]: 'stop' }));
 
+    setActionAnimeState({
+      serviceId: sid,
+      serviceName: service.name,
+      action: 'stop',
+      status: 'stopping',
+    });
+
     // Optimistically mark status as STOPPING
     setServices((prev) =>
       prev.map((s) => (s.id === sid ? { ...s, status: 'STOPPING' } : s))
     );
 
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.stopService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
       toast.success(`服务 ${service.name} 停止指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          action: 'stop',
+          status: 'success',
+        });
+        setTimeout(() => {
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 850);
+      }, remaining);
     } catch (err: any) {
       toast.error(`停止服务失败: ${err.message}`);
       await loadData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          action: 'stop',
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 1500);
+      }, remaining);
     } finally {
       setInFlightActions((prev) => {
         const next = { ...prev };
@@ -284,18 +327,57 @@ export const ServiceFleet: React.FC = () => {
     const sid = service.id;
     setInFlightActions((prev) => ({ ...prev, [sid]: 'restart' }));
 
+    setActionAnimeState({
+      serviceId: sid,
+      serviceName: service.name,
+      action: 'restart',
+      status: 'restarting',
+    });
+
     // Optimistically mark status as STARTING
     setServices((prev) =>
       prev.map((s) => (s.id === sid ? { ...s, status: 'STARTING' } : s))
     );
 
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.restartService(sid);
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
       toast.success(`服务 ${service.name} 重启指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          action: 'restart',
+          status: 'success',
+        });
+        setTimeout(() => {
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 850);
+      }, remaining);
     } catch (err: any) {
       toast.error(`重启服务失败: ${err.message}`);
       await loadData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceId: sid,
+          serviceName: service.name,
+          action: 'restart',
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
+        }, 1500);
+      }, remaining);
     } finally {
       setInFlightActions((prev) => {
         const next = { ...prev };
@@ -724,14 +806,15 @@ export const ServiceFleet: React.FC = () => {
                 onClick={() => setSelectedServiceId(svc.id)}
                 className="group relative flex flex-col justify-between rounded-xl border border-ops-border bg-ops-card hover:border-ops-border-hover hover:bg-ops-card-hover transition-all duration-200 overflow-hidden shadow-lg cursor-pointer"
               >
-                {/* Anime Start Loading Overlay */}
+                {/* Anime Action Transition Overlay */}
                 <AnimatePresence>
-                  {startAnimeState && startAnimeState.serviceId === svc.id && (
+                  {actionAnimeState && actionAnimeState.serviceId === svc.id && (
                     <ServiceStartAnimeOverlay
-                      serviceName={startAnimeState.serviceName}
-                      status={startAnimeState.status}
-                      errorMessage={startAnimeState.errorMessage}
-                      onClose={() => setStartAnimeState(null)}
+                      serviceName={actionAnimeState.serviceName}
+                      action={actionAnimeState.action}
+                      status={actionAnimeState.status}
+                      errorMessage={actionAnimeState.errorMessage}
+                      onClose={() => setActionAnimeState(null)}
                     />
                   )}
                 </AnimatePresence>

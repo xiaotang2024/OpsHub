@@ -125,8 +125,39 @@ describe('ServiceFleet Component', () => {
     const stopBtn = screen.getByRole('button', { name: /停止服务 order-center/i });
     fireEvent.click(stopBtn);
 
+    expect(screen.getByTestId('anime-start-overlay')).toBeInTheDocument();
+    expect(screen.getByText(/优雅停机中/i)).toBeInTheDocument();
+
     await waitFor(() => {
       expect(api.stopService).toHaveBeenCalledWith(101);
+    });
+  });
+
+  it('optimistically calls restartService and triggers anime overlay when clicking 重启 button', async () => {
+    (api.restartService as any).mockResolvedValueOnce({
+      ...mockServices[0],
+      status: 'RUNNING',
+      pid: 24103,
+    });
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    const restartBtn = screen.getByRole('button', { name: /重启服务 order-center/i });
+    fireEvent.click(restartBtn);
+
+    expect(screen.getByTestId('anime-start-overlay')).toBeInTheDocument();
+    expect(screen.getByText(/热启动重装中/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(api.restartService).toHaveBeenCalledWith(101);
     });
   });
 
