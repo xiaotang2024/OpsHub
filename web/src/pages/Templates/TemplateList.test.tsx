@@ -48,6 +48,8 @@ describe('TemplateList Component', () => {
   ];
 
   beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('opshub_user', JSON.stringify({ username: 'admin', role: 'admin' }));
     vi.clearAllMocks();
     (api.getTemplates as any).mockResolvedValue(mockTemplates);
     (api.getJDKs as any).mockResolvedValue([{ id: 1, name: 'OpenJDK 17', version_str: '17.0.2' }]);
@@ -102,5 +104,47 @@ describe('TemplateList Component', () => {
     fireEvent.click(createBtn);
 
     expect(screen.getByText(/配置部署模板/i)).toBeInTheDocument();
+  });
+
+  describe('Permission Guarding', () => {
+    it('disables 新建模板, 编辑, and 删除 buttons with tooltip when user lacks template:manage permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view'],
+        })
+      );
+
+      render(
+        <BrowserRouter>
+          <TemplateList />
+        </BrowserRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Standard-SpringBoot')).toBeInTheDocument();
+      });
+
+      // "新建模板" should be disabled
+      const createBtn = screen.getByRole('button', { name: /新建模板/i });
+      expect(createBtn).toBeDisabled();
+
+      // "编辑" and "删除" buttons should be disabled
+      const editButtons = screen.getAllByRole('button', { name: /编辑/i });
+      editButtons.forEach((btn) => {
+        expect(btn).toBeDisabled();
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: /删除/i });
+      deleteButtons.forEach((btn) => {
+        expect(btn).toBeDisabled();
+      });
+
+      // Tooltips for template management
+      const tooltips = screen.getAllByTitle(/无模板管理权限/i);
+      expect(tooltips.length).toBeGreaterThanOrEqual(3);
+    });
   });
 });

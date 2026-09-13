@@ -328,6 +328,17 @@ describe('ConfigDiffEditor', () => {
       );
     });
   });
+
+  it('disables saving and makes editor read-only when readOnly prop is true', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} readOnly={true} />);
+
+    await waitFor(() => {
+      const textarea = screen.getByTestId('config-editor-textarea') as HTMLTextAreaElement;
+      expect(textarea).toHaveAttribute('readonly');
+    });
+
+    const saveBtn = screen.getByRole('button', { name: /保存修改/i });
+    expect(saveBtn).toBeDisabled();
+    expect(screen.getByTitle('无配置修改权限，请联系管理员授予')).toBeInTheDocument();
+  });
 });
-
-

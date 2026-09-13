@@ -18,6 +18,7 @@ import {
 import { api } from '../../api';
 import { toast } from 'sonner';
 import { JDKAsset } from '../../types';
+import { PermissionGate } from '../../components/common/PermissionGate';
 
 export const JDKList: React.FC = () => {
   const [jdks, setJdks] = useState<JDKAsset[]>([]);
@@ -244,32 +245,44 @@ export const JDKList: React.FC = () => {
 
         <div className="flex items-center gap-3">
           {/* Scan Button */}
-          <button
-            type="button"
-            onClick={handleStartScan}
-            disabled={scanning}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-ops-border bg-ops-surface text-ops-text-main text-xs font-mono font-semibold hover:border-ops-cyan hover:text-ops-cyan transition-all shadow-sm"
+          <PermissionGate
+            permission="jdk:manage"
+            disableOnDenied
+            deniedTooltip="无 JDK 管理权限，请联系管理员授予"
           >
-            {scanning ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-ops-cyan" />
-            ) : (
-              <FolderSearch className="h-3.5 w-3.5 text-ops-cyan" />
-            )}
-            <span>扫描系统 JDK</span>
-          </button>
+            <button
+              type="button"
+              onClick={handleStartScan}
+              disabled={scanning}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-ops-border bg-ops-surface text-ops-text-main text-xs font-mono font-semibold hover:border-ops-cyan hover:text-ops-cyan transition-all shadow-sm"
+            >
+              {scanning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-ops-cyan" />
+              ) : (
+                <FolderSearch className="h-3.5 w-3.5 text-ops-cyan" />
+              )}
+              <span>扫描系统 JDK</span>
+            </button>
+          </PermissionGate>
 
           {/* Register Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setRegisterError(null);
-              setRegisterModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
+          <PermissionGate
+            permission="jdk:manage"
+            disableOnDenied
+            deniedTooltip="无 JDK 管理权限，请联系管理员授予"
           >
-            <Plus className="h-4 w-4" />
-            <span>注册 JDK</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRegisterError(null);
+                setRegisterModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>注册 JDK</span>
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -413,15 +426,21 @@ export const JDKList: React.FC = () => {
                     </div>
 
                     {/* Delete Button */}
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(jdk.id)}
-                      className="opacity-0 group-hover:opacity-100 rounded-lg p-1.5 text-ops-text-muted hover:bg-red-950/40 hover:text-red-400 transition-all"
-                      title="注销该 JDK 资产"
-                      aria-label="注销 JDK"
+                    <PermissionGate
+                      permission="jdk:manage"
+                      disableOnDenied
+                      deniedTooltip="无 JDK 管理权限，请联系管理员授予"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingId(jdk.id)}
+                        className="opacity-0 group-hover:opacity-100 rounded-lg p-1.5 text-ops-text-muted hover:bg-red-950/40 hover:text-red-400 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                        title="注销该 JDK 资产"
+                        aria-label="注销 JDK"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </PermissionGate>
                   </div>
 
                   {/* Paths Info */}

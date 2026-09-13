@@ -9,6 +9,8 @@ export interface PermissionGateProps {
   userPermissions?: string[];
   fallback?: React.ReactNode;
   disabled?: boolean;
+  disableOnDenied?: boolean;
+  deniedTooltip?: string;
   children: React.ReactNode;
 }
 
@@ -20,6 +22,8 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   userPermissions,
   fallback = null,
   disabled,
+  disableOnDenied = false,
+  deniedTooltip,
   children,
 }) => {
   const permHook = usePermission(
@@ -48,11 +52,26 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
     return <>{fallback}</>;
   }
 
-  if (disabled && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
+  if ((disableOnDenied || disabled) && React.isValidElement(children)) {
+    const child = children as React.ReactElement<any>;
+    const title = deniedTooltip || child.props?.title || '无操作权限';
+    const originalClassName = child.props?.className || '';
+    const disabledClassName = originalClassName.includes('disabled:')
+      ? originalClassName
+      : `${originalClassName} disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none`;
+
+    const cloned = React.cloneElement(child, {
       disabled: true,
       'aria-disabled': true,
+      className: disabledClassName,
+      style: { ...child.props?.style, pointerEvents: 'none' },
     });
+
+    return (
+      <span title={title} className="inline-flex cursor-not-allowed">
+        {cloned}
+      </span>
+    );
   }
 
   return null;

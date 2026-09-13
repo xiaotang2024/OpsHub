@@ -102,6 +102,8 @@ describe('ServiceDetail Component', () => {
   ];
 
   beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('opshub_user', JSON.stringify({ username: 'admin', role: 'admin' }));
     vi.clearAllMocks();
     (api.getService as any).mockResolvedValue(mockService);
     (api.getTemplates as any).mockResolvedValue([mockTemplate]);
@@ -329,6 +331,104 @@ describe('ServiceDetail Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('/ Sync Template Settings')).toBeInTheDocument();
+    });
+  });
+
+  describe('Permission Guarding', () => {
+    it('disables start, stop, and restart buttons with tooltip when user lacks service:control permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view', 'service:deploy'],
+        })
+      );
+
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('order-center')).toBeInTheDocument();
+      });
+
+      const startBtn = screen.getByRole('button', { name: /启动/i });
+      const stopBtn = screen.getByRole('button', { name: /停止/i });
+      const restartBtn = screen.getByRole('button', { name: /重启/i });
+
+      expect(startBtn).toBeDisabled();
+      expect(stopBtn).toBeDisabled();
+      expect(restartBtn).toBeDisabled();
+
+      const tooltips = screen.getAllByTitle(/无服务控制权限/i);
+      expect(tooltips.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('disables deploy buttons with tooltip when user lacks service:deploy permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view', 'service:control'],
+        })
+      );
+
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('order-center')).toBeInTheDocument();
+      });
+
+      const deployButtons = screen.getAllByRole('button', { name: /部署新版本/i });
+      expect(deployButtons[0]).toBeDisabled();
+      expect(screen.getAllByTitle(/无发版部署权限/i).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('disables rollback button with tooltip when user lacks service:rollback permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view'],
+        })
+      );
+
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('order-center')).toBeInTheDocument();
+      });
+
+      const releasesTab = screen.getByRole('button', { name: /版本与发布/i });
+      fireEvent.click(releasesTab);
+
+      const rollbackBtn = screen.getByRole('button', { name: /一键回滚/i });
+      expect(rollbackBtn).toBeDisabled();
+      expect(screen.getByTitle(/无版本回滚权限/i)).toBeInTheDocument();
+    });
+
+    it('disables config saving with tooltip when user lacks service:config permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view'],
+        })
+      );
+
+      renderComponent();
+      await waitFor(() => {
+        expect(screen.getByText('order-center')).toBeInTheDocument();
+      });
+
+      const configsTab = screen.getByRole('button', { name: /配置文件/i });
+      fireEvent.click(configsTab);
+
+      await waitFor(() => {
+        const saveBtn = screen.getByRole('button', { name: /保存修改/i });
+        expect(saveBtn).toBeDisabled();
+      });
+
+      expect(screen.getByTitle(/无配置修改权限/i)).toBeInTheDocument();
     });
   });
 });

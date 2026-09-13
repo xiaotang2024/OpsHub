@@ -26,6 +26,7 @@ import { Template, JDKAsset, Service } from '../../types';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { TemplateEditorModal } from './TemplateEditorModal';
+import { PermissionGate } from '../../components/common/PermissionGate';
 
 export const TemplateList: React.FC = () => {
   const navigate = useNavigate();
@@ -225,17 +226,23 @@ export const TemplateList: React.FC = () => {
             <span>刷新</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setEditingTemplate(null);
-              setEditorOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
+          <PermissionGate
+            permission="template:manage"
+            disableOnDenied
+            deniedTooltip="无模板管理权限，请联系管理员授予"
           >
-            <Plus className="h-4 w-4" />
-            <span>新建模板</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTemplate(null);
+                setEditorOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>新建模板</span>
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -372,17 +379,23 @@ export const TemplateList: React.FC = () => {
           <p className="text-xs text-ops-text-muted mt-1 max-w-sm">
             您可以新建定制的 JVM 生产模板，或清除筛选条件查看全部。
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingTemplate(null);
-              setEditorOpen(true);
-            }}
-            className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan text-xs font-semibold hover:bg-ops-cyan/20 transition-colors"
+          <PermissionGate
+            permission="template:manage"
+            disableOnDenied
+            deniedTooltip="无模板管理权限，请联系管理员授予"
           >
-            <Plus className="h-4 w-4" />
-            <span>立即创建第一套模板</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTemplate(null);
+                setEditorOpen(true);
+              }}
+              className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan text-xs font-semibold hover:bg-ops-cyan/20 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>立即创建第一套模板</span>
+            </button>
+          </PermissionGate>
         </div>
       )}
 
@@ -477,36 +490,54 @@ export const TemplateList: React.FC = () => {
                   </button>
 
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleDuplicate(tpl)}
-                      className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
-                      title="克隆模板"
-                      aria-label="克隆"
+                    <PermissionGate
+                      permission="template:manage"
+                      disableOnDenied
+                      deniedTooltip="无模板管理权限，请联系管理员授予"
                     >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingTemplate(tpl);
-                        setEditorOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
-                      title="编辑模板"
-                      aria-label="编辑"
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicate(tpl)}
+                        className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
+                        title="克隆模板"
+                        aria-label="克隆"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate
+                      permission="template:manage"
+                      disableOnDenied
+                      deniedTooltip="无模板管理权限，请联系管理员授予"
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(tpl)}
-                      className="p-1.5 rounded-lg text-ops-text-muted hover:text-red-400 hover:bg-red-950/30 transition-colors"
-                      title="删除模板"
-                      aria-label="删除"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTemplate(tpl);
+                          setEditorOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
+                        title="编辑模板"
+                        aria-label="编辑"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                    </PermissionGate>
+                    <PermissionGate
+                      permission="template:manage"
+                      disableOnDenied
+                      deniedTooltip="无模板管理权限，请联系管理员授予"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(tpl)}
+                        className="p-1.5 rounded-lg text-ops-text-muted hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                        title="删除模板"
+                        aria-label="删除"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </PermissionGate>
                   </div>
                 </div>
               </motion.div>
@@ -557,36 +588,54 @@ export const TemplateList: React.FC = () => {
                         >
                           基于此模板创建服务
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingTemplate(tpl);
-                            setEditorOpen(true);
-                          }}
-                          className="p-1 rounded text-ops-text-muted hover:text-white"
-                          title="编辑"
-                          aria-label="编辑"
+                        <PermissionGate
+                          permission="template:manage"
+                          disableOnDenied
+                          deniedTooltip="无模板管理权限，请联系管理员授予"
                         >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDuplicate(tpl)}
-                          className="p-1 rounded text-ops-text-muted hover:text-white"
-                          title="克隆"
-                          aria-label="克隆"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTemplate(tpl);
+                              setEditorOpen(true);
+                            }}
+                            className="p-1 rounded text-ops-text-muted hover:text-white"
+                            title="编辑"
+                            aria-label="编辑"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                        </PermissionGate>
+                        <PermissionGate
+                          permission="template:manage"
+                          disableOnDenied
+                          deniedTooltip="无模板管理权限，请联系管理员授予"
                         >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(tpl)}
-                          className="p-1 rounded text-ops-text-muted hover:text-red-400"
-                          title="删除"
-                          aria-label="删除"
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicate(tpl)}
+                            className="p-1 rounded text-ops-text-muted hover:text-white"
+                            title="克隆"
+                            aria-label="克隆"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </PermissionGate>
+                        <PermissionGate
+                          permission="template:manage"
+                          disableOnDenied
+                          deniedTooltip="无模板管理权限，请联系管理员授予"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(tpl)}
+                            className="p-1 rounded text-ops-text-muted hover:text-red-400"
+                            title="删除"
+                            aria-label="删除"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

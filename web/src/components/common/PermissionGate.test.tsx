@@ -146,4 +146,42 @@ describe('PermissionGate Component', () => {
 
     expect(screen.getByTestId('content')).toBeInTheDocument();
   });
+
+  it('renders disabled child wrapped with title when disableOnDenied is true and permission is denied', () => {
+    render(
+      <PermissionGate
+        permission="service:control"
+        role="operator"
+        userPermissions={['service:view']}
+        disableOnDenied={true}
+        deniedTooltip="无服务控制权限，请联系管理员授予"
+      >
+        <button>启动服务</button>
+      </PermissionGate>
+    );
+
+    const btn = screen.getByRole('button', { name: '启动服务' });
+    expect(btn).toBeInTheDocument();
+    expect(btn).toBeDisabled();
+    expect(screen.getByTitle('无服务控制权限，请联系管理员授予')).toBeInTheDocument();
+  });
+
+  it('renders normal enabled child without disabled attribute when user has permission even if disableOnDenied is true', () => {
+    render(
+      <PermissionGate
+        permission="service:control"
+        role="operator"
+        userPermissions={['service:control']}
+        disableOnDenied={true}
+        deniedTooltip="无服务控制权限，请联系管理员授予"
+      >
+        <button>启动服务</button>
+      </PermissionGate>
+    );
+
+    const btn = screen.getByRole('button', { name: '启动服务' });
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toBeDisabled();
+    expect(screen.queryByTitle('无服务控制权限，请联系管理员授予')).not.toBeInTheDocument();
+  });
 });

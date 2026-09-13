@@ -17,12 +17,14 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
+import { PermissionGate } from '../common/PermissionGate';
 
 export interface ConfigDiffEditorProps {
   serviceId: number;
   files?: string[];
   onSaveSuccess?: (fileName: string) => void;
   className?: string;
+  readOnly?: boolean;
 }
 
 type ViewMode = 'edit' | 'diff';
@@ -188,6 +190,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   files = [],
   onSaveSuccess,
   className = '',
+  readOnly = false,
 }) => {
   // Custom user-added config names
   const [customNames, setCustomNames] = useState<string[]>([]);
@@ -355,12 +358,12 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   };
 
   const canSave = useMemo(() => {
-    if (saving || loading) return false;
+    if (readOnly || saving || loading) return false;
     if (isCustomName) {
       return customName.trim().length > 0;
     }
     return hasChanges || isNewFile;
-  }, [saving, loading, isCustomName, customName, hasChanges, isNewFile]);
+  }, [readOnly, saving, loading, isCustomName, customName, hasChanges, isNewFile]);
 
   const handleSaveClick = () => {
     if (isCustomName) {
@@ -586,8 +589,9 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           {/* Save Button (Moved left next to file selection!) */}
           <button
             type="button"
-            disabled={!canSave}
+            disabled={!canSave || readOnly}
             onClick={handleSaveClick}
+            title={readOnly ? '无配置修改权限，请联系管理员授予' : undefined}
             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none shrink-0"
           >
             {saving ? (
@@ -724,10 +728,16 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               data-testid="config-editor-textarea"
               aria-label="config-textarea"
               value={modifiedContent}
-              onChange={(e) => setModifiedContent(e.target.value)}
+              onChange={(e) => {
+                if (readOnly) return;
+                setModifiedContent(e.target.value);
+              }}
+              readOnly={readOnly}
               onScroll={handleTextareaScroll}
               spellCheck={false}
-              className="flex-1 p-4 bg-transparent text-slate-200 font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-cyan-950 selection:text-ops-cyan"
+              className={`flex-1 p-4 bg-transparent text-slate-200 font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-cyan-950 selection:text-ops-cyan ${
+                readOnly ? 'cursor-not-allowed opacity-80' : ''
+              }`}
             />
           </div>
         ) : (

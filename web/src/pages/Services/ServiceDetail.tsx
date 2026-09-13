@@ -50,6 +50,8 @@ import { TemplateSyncModal } from '../../components/service/TemplateSyncModal';
 import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryCard';
 import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
 import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
+import { PermissionGate } from '../../components/common/PermissionGate';
+import { usePermission } from '../../hooks/usePermission';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 type TabType = 'overview' | 'releases' | 'configs' | 'logs' | 'audit';
@@ -70,6 +72,9 @@ export const ServiceDetail: React.FC = () => {
 
   const [releasesListRef] = useAutoAnimate();
   const [auditListRef] = useAutoAnimate();
+
+  const { hasPermission } = usePermission();
+  const canConfig = hasPermission('service:config');
 
   // Core data
   const [service, setService] = useState<Service | null>(null);
@@ -445,64 +450,88 @@ export const ServiceDetail: React.FC = () => {
           {/* Quick Lifecycle & Deployment Action Bar */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Start */}
-            <button
-              type="button"
-              disabled={isRunning || isStarting || isActionBusy}
-              onClick={handleStart}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            <PermissionGate
+              permission="service:control"
+              disableOnDenied
+              deniedTooltip="无服务控制权限，请联系管理员授予"
             >
-              {inFlightAction === 'start' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Play className="h-3.5 w-3.5 fill-current" />
-              )}
-              <span>启动</span>
-            </button>
+              <button
+                type="button"
+                disabled={isRunning || isStarting || isActionBusy}
+                onClick={handleStart}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {inFlightAction === 'start' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                )}
+                <span>启动</span>
+              </button>
+            </PermissionGate>
 
             {/* Stop */}
-            <button
-              type="button"
-              disabled={isStopped || isStopping || isActionBusy}
-              onClick={handleStop}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            <PermissionGate
+              permission="service:control"
+              disableOnDenied
+              deniedTooltip="无服务控制权限，请联系管理员授予"
             >
-              {inFlightAction === 'stop' ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Square className="h-3.5 w-3.5 fill-current" />
-              )}
-              <span>停止</span>
-            </button>
+              <button
+                type="button"
+                disabled={isStopped || isStopping || isActionBusy}
+                onClick={handleStop}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-500/40 bg-red-950/30 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {inFlightAction === 'stop' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                )}
+                <span>停止</span>
+              </button>
+            </PermissionGate>
 
             {/* Restart */}
-            <button
-              type="button"
-              disabled={!isRunning || isActionBusy}
-              onClick={handleRestart}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            <PermissionGate
+              permission="service:control"
+              disableOnDenied
+              deniedTooltip="无服务控制权限，请联系管理员授予"
             >
-              {inFlightAction === 'restart' ? (
-                <RotateCw className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RotateCw className="h-3.5 w-3.5" />
-              )}
-              <span>重启</span>
-            </button>
+              <button
+                type="button"
+                disabled={!isRunning || isActionBusy}
+                onClick={handleRestart}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-950/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {inFlightAction === 'restart' ? (
+                  <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCw className="h-3.5 w-3.5" />
+                )}
+                <span>重启</span>
+              </button>
+            </PermissionGate>
 
             {/* Deploy New Version (Directive Highlight!) */}
-            <button
-              type="button"
-              disabled={isCheckingDeployPerm}
-              onClick={handleOpenDeployModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-50"
+            <PermissionGate
+              permission="service:deploy"
+              disableOnDenied
+              deniedTooltip="无发版部署权限，请联系管理员授予"
             >
-              {isCheckingDeployPerm ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Layers className="h-4 w-4" />
-              )}
-              <span>{isCheckingDeployPerm ? '检测权限中...' : '部署新版本'}</span>
-            </button>
+              <button
+                type="button"
+                disabled={isCheckingDeployPerm}
+                onClick={handleOpenDeployModal}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {isCheckingDeployPerm ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Layers className="h-4 w-4" />
+                )}
+                <span>{isCheckingDeployPerm ? '检测权限中...' : '部署新版本'}</span>
+              </button>
+            </PermissionGate>
           </div>
         </div>
 
@@ -729,19 +758,25 @@ export const ServiceDetail: React.FC = () => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                disabled={isCheckingDeployPerm}
-                onClick={handleOpenDeployModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 disabled:opacity-50"
+              <PermissionGate
+                permission="service:deploy"
+                disableOnDenied
+                deniedTooltip="无发版部署权限，请联系管理员授予"
               >
-                {isCheckingDeployPerm ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Layers className="h-3.5 w-3.5" />
-                )}
-                <span>{isCheckingDeployPerm ? '检测权限中...' : '部署新版本'}</span>
-              </button>
+                <button
+                  type="button"
+                  disabled={isCheckingDeployPerm}
+                  onClick={handleOpenDeployModal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 disabled:opacity-50"
+                >
+                  {isCheckingDeployPerm ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Layers className="h-3.5 w-3.5" />
+                  )}
+                  <span>{isCheckingDeployPerm ? '检测权限中...' : '部署新版本'}</span>
+                </button>
+              </PermissionGate>
             </div>
 
             {releases.length === 0 ? (
@@ -824,14 +859,20 @@ export const ServiceDetail: React.FC = () => {
 
                             <td className="px-4 py-3 text-right">
                               {matchedArtifact && !isCurrentActive && (
-                                <button
-                                  type="button"
-                                  onClick={() => openRollbackForArtifact(matchedArtifact)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors"
+                                <PermissionGate
+                                  permission="service:rollback"
+                                  disableOnDenied
+                                  deniedTooltip="无版本回滚权限，请联系管理员授予"
                                 >
-                                  <RotateCcw className="h-3 w-3" />
-                                  <span>一键回滚</span>
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openRollbackForArtifact(matchedArtifact)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                  >
+                                    <RotateCcw className="h-3 w-3" />
+                                    <span>一键回滚</span>
+                                  </button>
+                                </PermissionGate>
                               )}
                               {isCurrentActive && (
                                 <span className="rounded px-2 py-0.5 text-[10px] bg-emerald-950 border border-emerald-500/30 text-emerald-400">
@@ -869,6 +910,7 @@ export const ServiceDetail: React.FC = () => {
               <ConfigDiffEditor
                 serviceId={service.id}
                 files={effectiveConfigFiles}
+                readOnly={!canConfig}
                 onSaveSuccess={() => {
                   loadServiceData(true);
                 }}

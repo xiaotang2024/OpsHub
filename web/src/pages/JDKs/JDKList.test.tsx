@@ -36,6 +36,8 @@ describe('JDKList Component', () => {
   ];
 
   beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('opshub_user', JSON.stringify({ username: 'admin', role: 'admin' }));
     vi.clearAllMocks();
     (api.getJDKs as any).mockResolvedValue(mockJDKs);
   });
@@ -195,6 +197,68 @@ describe('JDKList Component', () => {
 
     await waitFor(() => {
       expect(api.deleteJDK).toHaveBeenCalledWith(2);
+    });
+  });
+
+  describe('Permission Guarding', () => {
+    it('disables 扫描系统 JDK and 注册 JDK buttons with tooltip when user lacks jdk:manage permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view'],
+        })
+      );
+
+      render(
+        <BrowserRouter>
+          <JDKList />
+        </BrowserRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('OpenJDK 17')).toBeInTheDocument();
+      });
+
+      const scanBtn = screen.getByRole('button', { name: /扫描系统 JDK/i });
+      const registerBtn = screen.getByRole('button', { name: /注册 JDK/i });
+
+      expect(scanBtn).toBeDisabled();
+      expect(registerBtn).toBeDisabled();
+
+      const tooltips = screen.getAllByTitle(/无 JDK 管理权限/i);
+      expect(tooltips.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('disables 注销 JDK button with tooltip when user lacks jdk:manage permission', async () => {
+      localStorage.setItem(
+        'opshub_user',
+        JSON.stringify({
+          username: 'operator1',
+          role: 'operator',
+          permissions: ['service:view'],
+        })
+      );
+
+      render(
+        <BrowserRouter>
+          <JDKList />
+        </BrowserRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Corretto 21')).toBeInTheDocument();
+      });
+
+      const deleteButtons = screen.getAllByRole('button', { name: /注销 JDK/i });
+      expect(deleteButtons.length).toBeGreaterThan(0);
+      deleteButtons.forEach((btn) => {
+        expect(btn).toBeDisabled();
+      });
+
+      const tooltips = screen.getAllByTitle(/无 JDK 管理权限/i);
+      expect(tooltips.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
