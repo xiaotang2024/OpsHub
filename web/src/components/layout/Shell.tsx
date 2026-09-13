@@ -14,6 +14,7 @@ import {
   Clock,
   User,
   LogOut,
+  Users,
 } from 'lucide-react';
 import { LoginModal } from '../auth/LoginModal';
 import { UserProfileModal } from '../auth/UserProfileModal';
@@ -23,6 +24,8 @@ import { ThemePicker } from '../theme/ThemePicker';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { UserProfile } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
+
 
 interface ShellProps {
   children?: React.ReactNode;
@@ -36,12 +39,13 @@ interface NavItem {
   badge?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { name: '服务列表', nameEn: 'Services', path: '/services', icon: Layers },
   { name: '部署模板', nameEn: 'Templates', path: '/templates', icon: FileCode2 },
   { name: 'JDK 资产', nameEn: 'JDKs', path: '/jdks', icon: Cpu },
   { name: '审计日志', nameEn: 'Audit', path: '/audit', icon: ShieldCheck },
 ];
+
 
 export const Shell: React.FC<ShellProps> = ({ children }) => {
   const location = useLocation();
@@ -69,9 +73,30 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('opshub_username') || (localStorage.getItem('opshub_token') ? 'admin' : null);
   });
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem('opshub_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const { isAdmin } = usePermission();
+  const isUserAdmin = isAdmin || userProfile?.role === 'admin';
+
+  const navItems = React.useMemo<NavItem[]>(() => {
+    if (isUserAdmin) {
+      return [
+        ...BASE_NAV_ITEMS,
+        { name: '用户管理', nameEn: 'Users', path: '/users', icon: Users },
+      ];
+    }
+    return BASE_NAV_ITEMS;
+  }, [isUserAdmin]);
 
   useEffect(() => {
     const token = localStorage.getItem('opshub_token');
@@ -85,6 +110,8 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
             setCurrentUser(user.username);
             setUserProfile(user);
             localStorage.setItem('opshub_username', user.username);
+            localStorage.setItem('opshub_user', JSON.stringify(user));
+            window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user } }));
           }
         })
         .catch(() => {
@@ -95,6 +122,9 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     const handleUnauthorized = () => {
       localStorage.removeItem('opshub_token');
       localStorage.removeItem('opshub_username');
+      localStorage.removeItem('opshub_user');
+      localStorage.removeItem('opshub_role');
+      localStorage.removeItem('opshub_permissions');
       setCurrentUser(null);
       setUserProfile(null);
       setIsLoginOpen(true);
@@ -106,8 +136,17 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       setCurrentUser(u);
       if (e.detail?.user) {
         setUserProfile(e.detail.user);
+        localStorage.setItem('opshub_user', JSON.stringify(e.detail.user));
+        window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user: e.detail.user } }));
       } else {
-        api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+        api
+          .getMe()
+          .then((p) => {
+            setUserProfile(p);
+            localStorage.setItem('opshub_user', JSON.stringify(p));
+            window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user: p } }));
+          })
+          .catch(() => {});
       }
       localStorage.setItem('opshub_username', u);
       setIsLoginOpen(false);
@@ -116,8 +155,15 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     const handleProfileUpdated = (e: any) => {
       if (e.detail?.user) {
         setUserProfile(e.detail.user);
+        localStorage.setItem('opshub_user', JSON.stringify(e.detail.user));
       } else {
-        api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+        api
+          .getMe()
+          .then((p) => {
+            setUserProfile(p);
+            localStorage.setItem('opshub_user', JSON.stringify(p));
+          })
+          .catch(() => {});
       }
     };
 
@@ -134,15 +180,20 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
   const handleLogout = () => {
     localStorage.removeItem('opshub_token');
     localStorage.removeItem('opshub_username');
+    localStorage.removeItem('opshub_user');
+    localStorage.removeItem('opshub_role');
+    localStorage.removeItem('opshub_permissions');
     setCurrentUser(null);
     setUserProfile(null);
+    window.dispatchEvent(new CustomEvent('opshub:unauthorized'));
     setIsLoginOpen(true);
     setIsProfileOpen(false);
     toast.success('已安全退出登录');
   };
 
-  const currentNav = NAV_ITEMS.find((item) => location.pathname.startsWith(item.path));
+  const currentNav = navItems.find((item) => location.pathname.startsWith(item.path));
   const activeTitle = currentNav ? currentNav.name : '控制台';
+
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-ops-bg text-ops-text-main font-sans antialiased">
@@ -212,7 +263,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
           <div className="px-2 pb-1.5 pt-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-ops-text-muted">
             控制中心 / NAVIGATION
           </div>
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               location.pathname === item.path ||
@@ -360,7 +411,14 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
         onSuccess={(token, username) => {
           setCurrentUser(username);
           setIsLoginOpen(false);
-          api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+          api
+            .getMe()
+            .then((p) => {
+              setUserProfile(p);
+              localStorage.setItem('opshub_user', JSON.stringify(p));
+              window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user: p } }));
+            })
+            .catch(() => {});
         }}
       />
 
@@ -369,7 +427,14 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
         isOpen={isProfileOpen}
         onClose={() => {
           setIsProfileOpen(false);
-          api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+          api
+            .getMe()
+            .then((p) => {
+              setUserProfile(p);
+              localStorage.setItem('opshub_user', JSON.stringify(p));
+              window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user: p } }));
+            })
+            .catch(() => {});
         }}
         onLogout={handleLogout}
       />

@@ -21,6 +21,10 @@ describe('Shell Component', () => {
     expect(screen.getByText('Content Slot')).toBeInTheDocument();
   });
 
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it('renders live system status indicator and user profile badge', () => {
     render(
       <BrowserRouter>
@@ -34,4 +38,32 @@ describe('Shell Component', () => {
     expect(screen.getByText('运维管理员')).toBeInTheDocument();
     expect(screen.getByText('Ops Admin')).toBeInTheDocument();
   });
+
+  it('renders "用户管理" navigation link when admin logs in', () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ username: 'admin', role: 'admin' }));
+    render(
+      <BrowserRouter>
+        <Shell>
+          <div>Admin View</div>
+        </Shell>
+      </BrowserRouter>
+    );
+
+    expect(screen.getByText('用户管理')).toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
+  });
+
+  it('hides "用户管理" navigation link when operator logs in', () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ username: 'operator1', role: 'operator' }));
+    render(
+      <BrowserRouter>
+        <Shell>
+          <div>Operator View</div>
+        </Shell>
+      </BrowserRouter>
+    );
+
+    expect(screen.queryByText('用户管理')).not.toBeInTheDocument();
+  });
 });
+
