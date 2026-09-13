@@ -982,12 +982,26 @@ export const ServiceDetail: React.FC = () => {
                             </td>
 
                             <td className="px-4 py-3">
-                              <div className="font-semibold text-white">
-                                {matchedArtifact ? matchedArtifact.filename : `制品 #${rec.artifact_id || '-'}`}
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white">
+                                  {matchedArtifact ? matchedArtifact.filename : `制品 #${rec.artifact_id || '-'}`}
+                                </span>
+                                {!matchedArtifact && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800/80 border border-slate-700 text-ops-text-muted"
+                                    title="该制品的物理文件与元数据已从服务器清理，仅保留发版审计流水"
+                                  >
+                                    实体包已清理
+                                  </span>
+                                )}
                               </div>
-                              {matchedArtifact?.version_tag && (
+                              {matchedArtifact?.version_tag ? (
                                 <div className="text-[10px] text-ops-text-muted">
                                   Tag: {matchedArtifact.version_tag}
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-ops-text-muted">
+                                  已保留发版审计记录
                                 </div>
                               )}
                             </td>
@@ -1047,6 +1061,11 @@ export const ServiceDetail: React.FC = () => {
                               {isCurrentActive && (
                                 <span className="rounded px-2 py-0.5 text-[10px] bg-emerald-950 border border-emerald-500/30 text-emerald-400">
                                   当前活跃
+                                </span>
+                              )}
+                              {!matchedArtifact && !isCurrentActive && (
+                                <span className="text-[11px] font-mono text-ops-text-muted/70">
+                                  包已清理 (不可回滚)
                                 </span>
                               )}
                             </td>
