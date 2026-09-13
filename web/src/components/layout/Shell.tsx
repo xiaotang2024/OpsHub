@@ -18,6 +18,7 @@ import {
 import { LoginModal } from '../auth/LoginModal';
 import { UserProfileModal } from '../auth/UserProfileModal';
 import { UserAvatar } from '../auth/UserAvatar';
+import { OpsHubLogo } from '../common/OpsHubLogo';
 import { ThemePicker } from '../theme/ThemePicker';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -167,11 +168,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-between px-5 border-b border-ops-border">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-950/60 border border-ops-cyan/40 text-ops-cyan shadow-cyan-glow">
-              <Terminal className="h-5 w-5" />
-              <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-ops-emerald animate-ping" />
-              <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-ops-emerald" />
-            </div>
+            <OpsHubLogo size="md" showLiveBadge={true} />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-lg tracking-wider text-white">OpsHub</span>

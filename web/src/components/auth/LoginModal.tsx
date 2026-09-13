@@ -22,6 +22,7 @@ import { InteractiveCanvasBackground } from './InteractiveCanvasBackground';
 import { AnimatedGradientBackground } from './AnimatedGradientBackground';
 import { AnimatedCharacters } from './AnimatedCharacters';
 import { InteractiveHoverButton } from '../ui/InteractiveHoverButton';
+import { OpsHubLogo } from '../common/OpsHubLogo';
 
 export type AuthMode = 'login' | 'register' | 'forgot-password';
 
@@ -630,9 +631,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
               {/* Brand Header */}
               <div className="relative z-20 flex items-center gap-3">
-                <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${currentTheme.brandIconBg} border ${currentTheme.brandIconBorder} ${currentTheme.brandIconText} shadow-md transition-colors duration-300`}>
-                  <Terminal className="h-6 w-6" />
-                </div>
+                <OpsHubLogo size="lg" showGlow={true} />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-lg text-white tracking-wide">OpsHub Gateway</span>
