@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -68,12 +69,51 @@ func DefaultConfig() *AppConfig {
 	}
 }
 
+// ResolveConfigPath locates the configuration file to load.
+// If path is non-empty, it returns path directly.
+// Otherwise, it checks for "config.yaml" and "config/config.yaml" in the current working directory.
+func ResolveConfigPath(path string) string {
+	return resolveConfigPath(path, "")
+}
+
+func resolveConfigPath(path, baseDir string) string {
+	if path != "" {
+		if baseDir != "" && !filepath.IsAbs(path) {
+			return filepath.Join(baseDir, path)
+		}
+		return path
+	}
+	candidates := []string{
+		"config.yaml",
+		filepath.Join("config", "config.yaml"),
+	}
+	for _, candidate := range candidates {
+		checkPath := candidate
+		if baseDir != "" {
+			checkPath = filepath.Join(baseDir, candidate)
+		}
+		if fi, err := os.Stat(checkPath); err == nil && !fi.IsDir() {
+			return checkPath
+		}
+	}
+	return ""
+}
+
+// LoadConfig loads application configuration from the specified path,
+// or automatically searches for "config.yaml" and "config/config.yaml" if path is empty.
 func LoadConfig(path string) (*AppConfig, error) {
+	return LoadConfigFromDir(path, "")
+}
+
+// LoadConfigFromDir loads configuration relative to a base directory (useful for testing and specific working directories).
+func LoadConfigFromDir(path, baseDir string) (*AppConfig, error) {
 	cfg := DefaultConfig()
-	if path == "" {
+	targetPath := resolveConfigPath(path, baseDir)
+	if targetPath == "" {
 		return cfg, nil
 	}
-	data, err := os.ReadFile(path)
+
+	data, err := os.ReadFile(targetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return cfg, nil
@@ -81,7 +121,8 @@ func LoadConfig(path string) (*AppConfig, error) {
 		return nil, err
 	}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse config %s: %w", targetPath, err)
 	}
 	return cfg, nil
 }
+

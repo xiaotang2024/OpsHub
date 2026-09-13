@@ -19,11 +19,18 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "", "Path to opshub.yaml configuration file")
+	configPath := flag.String("config", "", "Path to config.yaml configuration file (defaults to ./config.yaml or ./config/config.yaml)")
 	resetPass := flag.String("reset-password", "", "Reset administrator password (e.g. -reset-password=admin123)")
 	flag.Parse()
 
 	// 1. Load application configuration
+	resolvedConfig := config.ResolveConfigPath(*configPath)
+	if resolvedConfig != "" {
+		log.Printf("[OpsHub] Loading configuration from %s", resolvedConfig)
+	} else {
+		log.Println("[OpsHub] No config file found; using default configuration")
+	}
+
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("[OpsHub] Failed to load configuration: %v", err)

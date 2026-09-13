@@ -132,3 +132,81 @@ func TestDatabaseConfig_SQLiteWithCustomDSN(t *testing.T) {
 	assert.Equal(t, "sqlite", resolved.Driver)
 	assert.Equal(t, "/custom/path/my.db", resolved.DSN, "custom SQLite DSN should be preserved")
 }
+
+func TestLoadConfig_AutoDiscovery_CurrentDir(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "config.yaml")
+	yamlContent := []byte(`
+server:
+  port: 8888
+data_dir: "` + tempDir + `"
+`)
+	err := os.WriteFile(cfgPath, yamlContent, 0644)
+	require.NoError(t, err)
+
+	cfg, err := config.LoadConfigFromDir("", tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, 8888, cfg.Server.Port)
+	assert.Equal(t, tempDir, cfg.DataDir)
+}
+
+func TestLoadConfig_AutoDiscovery_SubDir(t *testing.T) {
+	tempDir := t.TempDir()
+	subDir := filepath.Join(tempDir, "config")
+	err := os.MkdirAll(subDir, 0755)
+	require.NoError(t, err)
+
+	cfgPath := filepath.Join(subDir, "config.yaml")
+	yamlContent := []byte(`
+server:
+  port: 7777
+data_dir: "` + tempDir + `"
+`)
+	err = os.WriteFile(cfgPath, yamlContent, 0644)
+	require.NoError(t, err)
+
+	cfg, err := config.LoadConfigFromDir("", tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, 7777, cfg.Server.Port)
+}
+
+func TestLoadConfig_AutoDiscovery_Precedence(t *testing.T) {
+	tempDir := t.TempDir()
+	// Both ./config.yaml and ./config/config.yaml exist
+	err := os.WriteFile(filepath.Join(tempDir, "config.yaml"), []byte("server:\n  port: 1111\n"), 0644)
+	require.NoError(t, err)
+
+	subDir := filepath.Join(tempDir, "config")
+	err = os.MkdirAll(subDir, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(subDir, "config.yaml"), []byte("server:\n  port: 2222\n"), 0644)
+	require.NoError(t, err)
+
+	cfg, err := config.LoadConfigFromDir("", tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, 1111, cfg.Server.Port, "root config.yaml should take precedence over config/config.yaml")
+}
+
+func TestLoadConfig_AutoDiscovery_NoneFound(t *testing.T) {
+	tempDir := t.TempDir()
+	cfg, err := config.LoadConfigFromDir("", tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, 8080, cfg.Server.Port, "should fallback to DefaultConfig()")
+}
+
+func TestLoadConfig_ExplicitPath_OverridesAutoDiscovery(t *testing.T) {
+	tempDir := t.TempDir()
+	// Create default candidate
+	err := os.WriteFile(filepath.Join(tempDir, "config.yaml"), []byte("server:\n  port: 1111\n"), 0644)
+	require.NoError(t, err)
+
+	// Create custom file
+	customFile := filepath.Join(tempDir, "custom.yaml")
+	err = os.WriteFile(customFile, []byte("server:\n  port: 9999\n"), 0644)
+	require.NoError(t, err)
+
+	cfg, err := config.LoadConfigFromDir(customFile, tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, 9999, cfg.Server.Port, "explicit path should override auto-discovered config.yaml")
+}
+
