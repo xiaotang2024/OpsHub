@@ -589,30 +589,163 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
         </div>
       )}
 
-      {/* Controls Bar: File Selector, Mode Switcher, Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#080D18] border-b border-ops-border">
-        {/* Left: Two-part File Selector (Name + Suffix) */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      {/* Tier 1: File Asset & Navigation Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-[#080D18] border-b border-ops-border">
+        {/* Left: File Selector & State Badges */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1.5 text-ops-cyan font-bold text-xs sm:text-sm">
             <FileCode2 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">配置文件:</span>
+            <span>配置文件</span>
           </div>
+
+          {/* Integrated File Selector Box */}
+          <div className="flex items-center rounded-lg border border-ops-border bg-slate-900 shadow-inner divide-x divide-ops-border/60">
+            {/* Part 1: Select Name or Custom Input */}
+            <div className="relative">
+              {!isCustomName ? (
+                <div className="relative">
+                  <select
+                    aria-label="config-name-select"
+                    data-testid="config-name-select"
+                    value={selectedName}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomName(true);
+                        setCustomName('');
+                        setIsNewFile(true);
+                        setOriginalContent('');
+                        setModifiedContent('');
+                        setError(null);
+                      } else {
+                        handleNameChange(e.target.value);
+                      }
+                    }}
+                    className="bg-transparent text-white font-mono text-xs px-2.5 py-1.5 pr-7 focus:outline-none appearance-none cursor-pointer"
+                  >
+                    {nameList.map((n) => (
+                      <option key={n} value={n} className="bg-slate-900 text-white">
+                        {n}
+                      </option>
+                    ))}
+                    <option value="__custom__" className="bg-slate-900 text-ops-cyan">自定义名称...</option>
+                  </select>
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                    ▼
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-1.5 py-0.5">
+                  <input
+                    type="text"
+                    data-testid="config-custom-name-input"
+                    aria-label="config-custom-name-input"
+                    value={customName}
+                    onChange={(e) => {
+                      setCustomName(e.target.value);
+                      setError(null);
+                    }}
+                    onBlur={handleCustomNameBlur}
+                    placeholder="输入自定义名称"
+                    className="bg-slate-950 border border-ops-cyan rounded px-2 py-0.5 text-white font-mono text-xs focus:outline-none w-32"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsCustomName(false);
+                        setCustomName('');
+                        setError(null);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomName(false);
+                      setCustomName('');
+                      setError(null);
+                    }}
+                    className="p-0.5 text-ops-text-muted hover:text-white transition-colors"
+                    title="返回名称列表"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Part 2: Select Suffix */}
+            <div className="relative">
+              <select
+                aria-label="config-suffix-select"
+                data-testid="config-suffix-select"
+                value={selectedExt}
+                onChange={(e) => handleExtChange(e.target.value)}
+                className="bg-transparent text-ops-cyan font-mono text-xs font-semibold px-2 py-1.5 pr-6 focus:outline-none appearance-none cursor-pointer"
+              >
+                {extList.map((ext) => (
+                  <option key={ext} value={ext} className="bg-slate-900 text-white">
+                    .{ext}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
+                ▼
+              </div>
+            </div>
+          </div>
+
+          {/* Refresh button */}
+          <button
+            type="button"
+            onClick={() => loadFileContent(selectedFile)}
+            title="刷新重新加载当前文件"
+            className="p-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-muted hover:text-white transition-colors shrink-0"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* File Status Badges */}
+          {isNewFile ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300 shrink-0">
+              新文件 (保存后生成)
+            </span>
+          ) : hasChanges ? (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 border border-amber-500/30 text-amber-400 shrink-0">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              未保存变更
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900/60 border border-ops-border/50 text-slate-400 shrink-0">
+              已就绪
+            </span>
+          )}
+        </div>
+
+        {/* Right: Docs, Backups & File Actions */}
+        <div className="flex items-center gap-2">
+          {/* Current full filename preview badge */}
+          <span
+            data-testid="config-current-filename"
+            className="hidden xl:inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900/90 border border-ops-border text-ops-cyan font-mono text-xs font-semibold"
+            title="当前选中的完整配置文件名"
+          >
+            {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
+          </span>
 
           {/* Config Effect & Priority Tooltip Trigger */}
           <div className="relative group inline-block">
             <button
               type="button"
               onClick={() => setShowHelpTooltip((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-[11px] text-ops-cyan hover:text-cyan-300 font-mono bg-ops-cyan/10 hover:bg-ops-cyan/20 border border-ops-cyan/30 px-2 py-0.5 rounded-md transition-colors"
-              title="点击或悬浮查看配置生效机理与端口优先级说明"
+              className="inline-flex items-center gap-1 text-xs text-ops-text-muted hover:text-ops-cyan font-mono bg-slate-900 hover:bg-slate-800 border border-ops-border px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+              title="查看配置生效机理与端口优先级说明"
             >
-              <HelpCircle className="h-3.5 w-3.5" />
+              <HelpCircle className="h-3.5 w-3.5 text-ops-cyan" />
               <span>配置生效与优先级说明</span>
             </button>
 
             {/* Hover Tooltip Card */}
             <div
-              className={`absolute left-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+              className={`absolute right-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
                 showHelpTooltip
                   ? 'opacity-100 visible pointer-events-auto'
                   : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
@@ -665,150 +798,6 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Part 1: Select Name */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-ops-text-muted font-mono">名称:</span>
-            {!isCustomName ? (
-              <div className="relative">
-                <select
-                  aria-label="config-name-select"
-                  data-testid="config-name-select"
-                  value={selectedName}
-                  onChange={(e) => {
-                    if (e.target.value === '__custom__') {
-                      setIsCustomName(true);
-                      setCustomName('');
-                      setIsNewFile(true);
-                      setOriginalContent('');
-                      setModifiedContent('');
-                      setError(null);
-                    } else {
-                      handleNameChange(e.target.value);
-                    }
-                  }}
-                  className="bg-slate-900 border border-ops-border rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-7 cursor-pointer"
-                >
-                  {nameList.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                  <option value="__custom__">自定义名称</option>
-                </select>
-                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-                  ▼
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  data-testid="config-custom-name-input"
-                  aria-label="config-custom-name-input"
-                  value={customName}
-                  onChange={(e) => {
-                    setCustomName(e.target.value);
-                    setError(null);
-                  }}
-                  onBlur={handleCustomNameBlur}
-                  placeholder="输入自定义名称"
-                  className="bg-slate-950 border border-ops-cyan rounded-lg px-2.5 py-1 text-white font-mono text-xs focus:outline-none w-36 shadow-sm shadow-cyan-500/10"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setIsCustomName(false);
-                      setCustomName('');
-                      setError(null);
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCustomName(false);
-                    setCustomName('');
-                    setError(null);
-                  }}
-                  className="p-1 text-ops-text-muted hover:text-white transition-colors"
-                  title="返回名称列表"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Dot Separator */}
-          <span className="text-ops-text-muted font-mono text-xs hidden sm:inline">.</span>
-
-          {/* Part 2: Select Suffix */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-ops-text-muted font-mono">后缀:</span>
-            <div className="relative">
-              <select
-                aria-label="config-suffix-select"
-                data-testid="config-suffix-select"
-                value={selectedExt}
-                onChange={(e) => handleExtChange(e.target.value)}
-                className="bg-slate-900 border border-ops-border rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-ops-cyan focus:outline-none appearance-none pr-7 cursor-pointer"
-              >
-                {extList.map((ext) => (
-                  <option key={ext} value={ext}>
-                    {ext}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
-                ▼
-              </div>
-            </div>
-          </div>
-
-          {/* Refresh button */}
-          <button
-            type="button"
-            onClick={() => loadFileContent(selectedFile)}
-            title="刷新重新加载当前文件"
-            className="p-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-muted hover:text-white transition-colors shrink-0"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          {/* Save Button (Moved left next to file selection!) */}
-          <button
-            type="button"
-            disabled={!canSave || readOnly}
-            onClick={handleSaveClick}
-            title={readOnly ? '无配置修改权限，请联系管理员授予' : undefined}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none shrink-0"
-          >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            <span>保存修改</span>
-          </button>
-
-          {/* Revert Button (when changed) */}
-          {hasChanges && (
-            <button
-              type="button"
-              onClick={handleRevert}
-              title="放弃修改并还原"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors shrink-0"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>放弃修改</span>
-            </button>
-          )}
-
-          {isNewFile && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300 shrink-0">
-              新文件 (保存后生成)
-            </span>
-          )}
 
           {/* History Backups Dropdown */}
           <div className="relative inline-block shrink-0">
@@ -933,18 +922,53 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             </button>
           )}
         </div>
+      </div>
 
-        {/* Right: View Switcher (Edit vs Diff) & Current File Badge */}
-        <div className="flex items-center gap-2">
-          {/* Current full filename preview badge */}
-          <span
-            data-testid="config-current-filename"
-            className="hidden xl:inline-flex items-center px-2 py-1 rounded bg-slate-900 border border-ops-border/80 text-ops-cyan font-mono text-xs font-semibold"
-            title="当前选中的完整配置文件名"
+      {/* Tier 2: Editor Action & View Mode Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-[#060A14] border-b border-ops-border/80">
+        {/* Left: Save / Revert & Changes Summary */}
+        <div className="flex items-center gap-3">
+          {/* Save Button */}
+          <button
+            type="button"
+            disabled={!canSave || readOnly}
+            onClick={handleSaveClick}
+            title={readOnly ? '无配置修改权限，请联系管理员授予' : undefined}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-ops-cyan text-slate-950 font-bold shadow-cyan-glow hover:bg-cyan-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:pointer-events-none text-xs shrink-0"
           >
-            {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
-          </span>
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            <span>保存修改</span>
+          </button>
 
+          {/* Revert Button (when changed) */}
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleRevert}
+              title="放弃修改并还原"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors text-xs shrink-0"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>放弃修改</span>
+            </button>
+          )}
+
+          {/* Diff Summary Indicator */}
+          {hasChanges && (
+            <span className="hidden sm:inline-flex items-center gap-2 text-xs font-mono text-ops-text-muted">
+              <span className="text-emerald-400 font-semibold">+{diffSummary.added}</span>
+              <span className="text-red-400 font-semibold">-{diffSummary.removed}</span>
+              <span>行变更</span>
+            </span>
+          )}
+        </div>
+
+        {/* Right: View Switcher (Edit vs Diff) & Diff Style */}
+        <div className="flex items-center gap-2">
           <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5 shrink-0">
             <button
               type="button"
