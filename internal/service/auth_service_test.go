@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"opshub/internal/database"
+	"opshub/internal/model"
 	"opshub/internal/service"
 )
 
@@ -309,3 +310,77 @@ func TestAuthService_SecurityQuestionAndReset(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, token2)
 }
+
+func TestAuthService_DisabledUserCannotLogin(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	authSvc := service.NewAuthService(db, "my-secret-key")
+	u, err := authSvc.Register("disabled_op", "password123", "禁用用户", "dis@example.com", "问？", "答")
+	require.NoError(t, err)
+
+	// 禁用该用户
+	_, err = db.Exec("UPDATE users SET status = ? WHERE id = ?", model.UserStatusDisabled, u.ID)
+	require.NoError(t, err)
+
+	// 尝试登录应返回 account is disabled
+	_, err = authSvc.Login("disabled_op", "password123")
+	assert.Error(t, err)
+	assert.Equal(t, "account is disabled", err.Error())
+}
+
+func TestAuthService_ClaimsAndProfileCarryPermissions(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	authSvc := service.NewAuthService(db, "my-secret-key")
+	u, err := authSvc.Register("op_perms", "password123", "权限用户", "perm@example.com", "问？", "答")
+	require.NoError(t, err)
+
+	// 注册默认应具有状态 active
+	assert.Equal(t, model.UserStatusActive, u.Status)
+
+	// 模拟写入指定权限
+	_, err = db.Exec("UPDATE users SET permissions = ? WHERE id = ?", `["service:view","service:deploy"]`, u.ID)
+	require.NoError(t, err)
+
+	// 登录获取 Token
+	token, err := authSvc.Login("op_perms", "password123")
+	require.NoError(t, err)
+
+	// 验证 Claims 携带 permissions
+	claims, err := authSvc.VerifyToken(token)
+	require.NoError(t, err)
+	assert.Equal(t, "op_perms", claims.Username)
+	assert.Equal(t, model.RoleOperator, claims.Role)
+	assert.ElementsMatch(t, []string{"service:view", "service:deploy"}, claims.Permissions)
+
+	// 验证 GetProfile 携带 permissions 与 status
+	profile, err := authSvc.GetProfile("op_perms")
+	require.NoError(t, err)
+	assert.Equal(t, model.UserStatusActive, profile.Status)
+	assert.ElementsMatch(t, []string{"service:view", "service:deploy"}, profile.Permissions)
+}
+
+func TestAuthService_EnsureDefaultAdmin(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	authSvc := service.NewAuthService(db, "my-secret-key")
+
+	pass, err := authSvc.EnsureDefaultAdmin()
+	require.NoError(t, err)
+	assert.NotEmpty(t, pass)
+
+	// 第二次调用应返回空密码（无错误）
+	pass2, err := authSvc.EnsureDefaultAdmin()
+	require.NoError(t, err)
+	assert.Empty(t, pass2)
+}
+

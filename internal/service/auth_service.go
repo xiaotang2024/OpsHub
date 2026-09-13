@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -16,10 +17,11 @@ import (
 	"opshub/internal/model"
 )
 
-// Claims represents the JWT payload containing user identity and role.
+// Claims represents the JWT payload containing user identity, role, and permissions.
 type Claims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Username    string   `json:"username"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -83,19 +85,26 @@ func (s *AuthService) InitAdmin() (string, error) {
 	return s.InitAdminIfNeeded()
 }
 
+// EnsureDefaultAdmin initializes the default admin account if not present.
+func (s *AuthService) EnsureDefaultAdmin() (string, error) {
+	return s.InitAdminIfNeeded()
+}
+
 // Login validates user credentials against the database and returns a signed 24-hour JWT token.
 func (s *AuthService) Login(username, password string) (string, error) {
 	var (
-		id       int64
-		uName    string
-		hash     string
-		userRole string
+		id         int64
+		uName      string
+		hash       string
+		userRole   string
+		permStr    sql.NullString
+		userStatus sql.NullString
 	)
 
 	err := s.db.QueryRow(
-		"SELECT id, username, password_hash, role FROM users WHERE username = ?",
+		"SELECT id, username, password_hash, role, permissions, status FROM users WHERE username = ?",
 		username,
-	).Scan(&id, &uName, &hash, &userRole)
+	).Scan(&id, &uName, &hash, &userRole, &permStr, &userStatus)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", errors.New("invalid credentials")
@@ -103,14 +112,34 @@ func (s *AuthService) Login(username, password string) (string, error) {
 		return "", fmt.Errorf("query user failed: %w", err)
 	}
 
+	status := userStatus.String
+	if status == "" {
+		status = model.UserStatusActive
+	}
+	if status == model.UserStatusDisabled {
+		return "", errors.New("account is disabled")
+	}
+
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
+	var perms []string
+	if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
+		_ = json.Unmarshal([]byte(permStr.String), &perms)
+	}
+	if len(perms) == 0 && userRole == model.RoleOperator {
+		perms = model.DefaultOperatorPermissions
+	}
+	if perms == nil {
+		perms = []string{}
+	}
+
 	now := time.Now()
 	claims := Claims{
-		Username: uName,
-		Role:     userRole,
+		Username:    uName,
+		Role:        userRole,
+		Permissions: perms,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -263,10 +292,15 @@ func (s *AuthService) Register(username, password, nickname, email, securityQues
 		return nil, fmt.Errorf("hash security answer failed: %w", err)
 	}
 
+	permsBytes, err := json.Marshal(model.DefaultOperatorPermissions)
+	if err != nil {
+		return nil, fmt.Errorf("marshal default permissions failed: %w", err)
+	}
+
 	now := time.Now()
 	res, err := s.db.Exec(
-		`INSERT INTO users (username, password_hash, role, nickname, email, security_question, security_answer_hash, created_at, updated_at) 
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO users (username, password_hash, role, nickname, email, security_question, security_answer_hash, permissions, status, created_at, updated_at) 
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		username,
 		string(passHash),
 		model.RoleOperator,
@@ -274,6 +308,8 @@ func (s *AuthService) Register(username, password, nickname, email, securityQues
 		email,
 		securityQuestion,
 		string(answerHash),
+		string(permsBytes),
+		model.UserStatusActive,
 		now,
 		now,
 	)
@@ -296,6 +332,8 @@ func (s *AuthService) Register(username, password, nickname, email, securityQues
 		Nickname:         nickname,
 		Email:            email,
 		SecurityQuestion: securityQuestion,
+		Permissions:      model.DefaultOperatorPermissions,
+		Status:           model.UserStatusActive,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}, nil
@@ -378,15 +416,33 @@ func (s *AuthService) GetProfile(username string) (*model.User, error) {
 	}
 
 	var u model.User
+	var permStr sql.NullString
+	var statusStr sql.NullString
 	err := s.db.QueryRow(
-		"SELECT id, username, role, nickname, email, avatar, security_question, created_at, updated_at FROM users WHERE username = ?",
+		"SELECT id, username, role, nickname, email, avatar, security_question, permissions, status, created_at, updated_at FROM users WHERE username = ?",
 		username,
-	).Scan(&u.ID, &u.Username, &u.Role, &u.Nickname, &u.Email, &u.Avatar, &u.SecurityQuestion, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Role, &u.Nickname, &u.Email, &u.Avatar, &u.SecurityQuestion, &permStr, &statusStr, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("user not found")
 		}
 		return nil, fmt.Errorf("query user profile failed: %w", err)
+	}
+
+	if statusStr.Valid && statusStr.String != "" {
+		u.Status = statusStr.String
+	} else {
+		u.Status = model.UserStatusActive
+	}
+
+	if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
+		_ = json.Unmarshal([]byte(permStr.String), &u.Permissions)
+	}
+	if len(u.Permissions) == 0 && u.Role == model.RoleOperator {
+		u.Permissions = model.DefaultOperatorPermissions
+	}
+	if u.Permissions == nil {
+		u.Permissions = []string{}
 	}
 
 	return &u, nil
