@@ -888,14 +888,15 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                               data-testid={`delete-backup-${bak.file}`}
                               disabled={isDeletingBackup === bak.file}
                               onClick={() => setBackupToDelete(bak.file)}
-                              className="p-1 rounded text-ops-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all text-xs font-semibold shrink-0"
                               title="删除该历史备份快照（仅管理员）"
                             >
                               {isDeletingBackup === bak.file ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                                <Loader2 className="h-3 w-3 animate-spin text-red-400" />
                               ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 className="h-3 w-3" />
                               )}
+                              <span>删除</span>
                             </button>
                           )}
                         </div>
