@@ -143,5 +143,30 @@ describe('TemplateEditorModal', () => {
     expect(savedConfig.port).toBeUndefined();
     expect(savedConfig.path).toBeUndefined();
   });
+
+  it('renders built-in placeholders tooltip and dynamically updates start-cmd placeholder for generic_archive', () => {
+    render(<TemplateEditorModal {...defaultProps} />);
+
+    // 1. Check help trigger exists
+    expect(screen.getByText(/内置变量说明/i)).toBeInTheDocument();
+    expect(screen.getByText(/\${JAVA_BIN}/i)).toBeInTheDocument();
+    expect(screen.getByText(/\${INSTALL_DIR}/i)).toBeInTheDocument();
+
+    // 2. Default placeholder for java_jar
+    const startCmdInput = screen.getByLabelText(/启动命令重载/i);
+    expect(startCmdInput).toHaveAttribute('placeholder', expect.stringContaining('${JAVA_BIN}'));
+
+    // 3. Switch to generic_archive
+    const typeSelect = screen.getByLabelText(/工程制品类型/i);
+    fireEvent.change(typeSelect, { target: { value: 'generic_archive' } });
+
+    // Placeholder now reflects startup.sh
+    expect(startCmdInput).toHaveAttribute('placeholder', expect.stringContaining('startup.sh'));
+
+    // 4. Click a variable in the tooltip to insert it into start-cmd
+    const javaBinBadge = screen.getByText(/\${JAVA_BIN}/i);
+    fireEvent.click(javaBinBadge);
+    expect(startCmdInput).toHaveValue('${JAVA_BIN}');
+  });
 });
 

@@ -36,6 +36,23 @@ const GC_OPTIONS: { id: GCStrategy; name: string; flag: string; desc: string }[]
   { id: 'Custom', name: '自定义', flag: '', desc: '不显式注入 GC 策略或完全手动指定' },
 ];
 
+interface PlaceholderVar {
+  name: string;
+  desc: string;
+  example: string;
+}
+
+const BUILTIN_VARIABLES: PlaceholderVar[] = [
+  { name: '${JAVA_BIN}', desc: '绑定的 JDK 可执行程序绝对路径', example: '/usr/bin/java' },
+  { name: '${INSTALL_DIR}', desc: '服务在宿主机的实际安装目录绝对路径', example: '/opt/apps/order-service' },
+  { name: '${JVM_OPTS}', desc: '调优计算编译出的完整 JVM 启动参数', example: '-Xms1024m -Xmx2048m -XX:+UseG1GC' },
+  { name: '${PORT}', desc: '服务配置的主监听业务端口号', example: '8080' },
+  { name: '${SERVICE_NAME}', desc: '当前服务唯一英文标识名', example: 'order-service' },
+  { name: '${PACKAGE_FILE}', desc: '部署包目标文件存储绝对路径', example: '.../app.jar' },
+  { name: '${PID}', desc: '当前运行进程 PID（停止命令专用）', example: '12345' },
+  { name: '${ENV_xxx}', desc: '自定义注入的环境变量（如 ${ENV_SPRING_PROFILES_ACTIVE}）', example: 'prod' },
+];
+
 function formatMemoryString(mb: number): string {
   if (mb >= 1024 && mb % 1024 === 0) {
     return `${mb / 1024}g`;
@@ -102,8 +119,22 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
   const [healthType, setHealthType] = useState<'http' | 'tcp' | 'process'>('http');
   const [healthPath, setHealthPath] = useState<string>('/actuator/health');
   const [healthInterval, setHealthInterval] = useState<number>(5);
+  const [showVarTooltip, setShowVarTooltip] = useState(false);
 
-  // Load initial data when modal opens
+  const handleInsertVar = (varName: string) => {
+    setStartCmd((prev) => (prev ? `${prev} ${varName}` : varName));
+  };
+
+  const startCmdPlaceholder =
+    type === 'generic_archive'
+      ? '留空则按 ${INSTALL_DIR}/bin/startup.sh 自动执行'
+      : '留空则按 ${JAVA_BIN} ${JVM_OPTS} -jar app.jar 自动生成';
+
+  const stopCmdPlaceholder =
+    type === 'generic_archive'
+      ? '留空向 PID 发送 SIGTERM，可填 ${INSTALL_DIR}/bin/shutdown.sh'
+      : '例如: kill -15 ${PID} (留空自动向 PID 发送优雅 SIGTERM)';
+
   useEffect(() => {
     if (initialData) {
       setName(initialData.name || '');
@@ -694,15 +725,91 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label htmlFor="start-cmd" className="block text-xs font-medium text-ops-text-sub mb-1.5">
-                    启动命令重载 (默认留空自动渲染)
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="start-cmd" className="block text-xs font-medium text-ops-text-sub">
+                      启动命令重载 (默认留空自动渲染)
+                    </label>
+
+                    {/* 内置变量说明 Tooltip Trigger */}
+                    <div className="relative group inline-block">
+                      <button
+                        type="button"
+                        onClick={() => setShowVarTooltip((v) => !v)}
+                        className="inline-flex items-center gap-1 text-[11px] text-ops-cyan hover:text-cyan-300 transition-colors py-0.5 px-1.5 rounded hover:bg-ops-cyan/10"
+                        title="点击或悬浮查看内置占位符变量"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                        <span>内置变量说明</span>
+                      </button>
+
+                      {/* Floating Tooltip Card */}
+                      <div
+                        className={`absolute right-0 sm:left-0 bottom-full mb-2 w-80 sm:w-[450px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+                          showVarTooltip
+                            ? 'opacity-100 visible pointer-events-auto'
+                            : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between border-b border-ops-border/60 pb-2 mb-2.5">
+                          <div className="flex items-center gap-2">
+                            <Info className="h-4 w-4 text-ops-cyan" />
+                            <h4 className="text-xs font-bold text-white tracking-wide">
+                              内置运行时占位符 (点击快速插入)
+                            </h4>
+                          </div>
+                          {showVarTooltip && (
+                            <button
+                              type="button"
+                              onClick={() => setShowVarTooltip(false)}
+                              className="text-ops-text-muted hover:text-white text-xs p-1"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {type === 'generic_archive' && (
+                          <div className="mb-2.5 p-2 rounded-lg border border-amber-500/30 bg-amber-950/30 text-amber-200 text-[11px] leading-relaxed">
+                            <span className="font-bold text-amber-400">📦 通用压缩包模式提示：</span>
+                            若解压后包含启动脚本，推荐在启动命令中填入安装目录下的脚本（如 bin/startup.sh）；亦可通过 JDK 绝对路径执行特定主类。
+                          </div>
+                        )}
+
+                        <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                          {BUILTIN_VARIABLES.map((v) => (
+                            <div
+                              key={v.name}
+                              className="flex items-start justify-between gap-2 p-1.5 rounded-lg hover:bg-slate-900/60 border border-transparent hover:border-ops-border/60 transition-colors"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleInsertVar(v.name)}
+                                    className="px-1.5 py-0.5 rounded bg-ops-cyan/15 hover:bg-ops-cyan/30 text-ops-cyan border border-ops-cyan/40 font-mono text-[11px] font-bold transition-all shrink-0 active:scale-95"
+                                    title="点击插入到启动命令"
+                                  >
+                                    {v.name}
+                                  </button>
+                                  <span className="text-xs text-slate-200 truncate">{v.desc}</span>
+                                </div>
+                                <div className="text-[10px] text-ops-text-muted font-mono mt-0.5 pl-0.5">
+                                  示例: <span className="text-slate-400">{v.example}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <input
                     id="start-cmd"
                     type="text"
                     value={startCmd}
                     onChange={(e) => setStartCmd(e.target.value)}
-                    placeholder="留空则按 ${JAVA_BIN} ${JVM_OPTS} -jar app.jar 自动生成"
+                    placeholder={startCmdPlaceholder}
                     className="w-full rounded-lg border border-ops-border bg-ops-bg px-3.5 py-2 text-xs font-mono text-white placeholder-ops-text-muted/40 focus:border-ops-cyan focus:outline-none"
                   />
                 </div>
@@ -716,7 +823,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                     type="text"
                     value={stopCmd}
                     onChange={(e) => setStopCmd(e.target.value)}
-                    placeholder="例如: kill -15 ${PID}"
+                    placeholder={stopCmdPlaceholder}
                     className="w-full rounded-lg border border-ops-border bg-ops-bg px-3.5 py-2 text-xs font-mono text-white placeholder-ops-text-muted/40 focus:border-ops-cyan focus:outline-none"
                   />
                 </div>
