@@ -29,6 +29,7 @@ import {
   X,
   ShieldAlert,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import {
   Service,
@@ -74,7 +75,21 @@ export const ServiceDetail: React.FC = () => {
   const [releasesListRef] = useAutoAnimate();
   const [auditListRef] = useAutoAnimate();
 
-  const { hasPermission } = usePermission();
+  const { hasPermission, isAdmin } = usePermission();
+
+  const handleDeleteArtifact = async (artifactId: number, filename: string) => {
+    if (!service) return;
+    if (!window.confirm(`确定要永久删除历史制品包 "${filename}" 吗？此操作不可逆。`)) {
+      return;
+    }
+    try {
+      await api.deleteArtifact(service.id, artifactId);
+      toast.success(`历史制品 ${filename} 已成功删除`);
+      loadServiceData(true);
+    } catch (err: any) {
+      toast.error(err.message || '删除制品失败');
+    }
+  };
   const canConfig = hasPermission('service:config');
 
   // Core data
@@ -995,20 +1010,34 @@ export const ServiceDetail: React.FC = () => {
 
                             <td className="px-4 py-3 text-right">
                               {matchedArtifact && !isCurrentActive && (
-                                <PermissionGate
-                                  permission="service:rollback"
-                                  disableOnDenied
-                                  deniedTooltip="无版本回滚权限，请联系管理员授予"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => openRollbackForArtifact(matchedArtifact)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                <div className="inline-flex items-center gap-2 justify-end">
+                                  <PermissionGate
+                                    permission="service:rollback"
+                                    disableOnDenied
+                                    deniedTooltip="无版本回滚权限，请联系管理员授予"
                                   >
-                                    <RotateCcw className="h-3 w-3" />
-                                    <span>一键回滚</span>
-                                  </button>
-                                </PermissionGate>
+                                    <button
+                                      type="button"
+                                      onClick={() => openRollbackForArtifact(matchedArtifact)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                      <span>一键回滚</span>
+                                    </button>
+                                  </PermissionGate>
+
+                                  {isAdmin && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteArtifact(matchedArtifact.id, matchedArtifact.filename)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-xs font-bold transition-colors"
+                                      title="删除历史制品包（仅管理员）"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                      <span>删除</span>
+                                    </button>
+                                  )}
+                                </div>
                               )}
                               {isCurrentActive && (
                                 <span className="rounded px-2 py-0.5 text-[10px] bg-emerald-950 border border-emerald-500/30 text-emerald-400">
@@ -1048,6 +1077,9 @@ export const ServiceDetail: React.FC = () => {
                 files={effectiveConfigFiles}
                 readOnly={!canConfig}
                 onSaveSuccess={() => {
+                  loadServiceData(true);
+                }}
+                onDeleteSuccess={() => {
                   loadServiceData(true);
                 }}
               />
@@ -1147,6 +1179,7 @@ export const ServiceDetail: React.FC = () => {
           visible={deployModalVisible}
           serviceId={service.id}
           serviceName={service.name}
+          currentArtifactId={service.current_artifact_id}
           onClose={() => setDeployModalVisible(false)}
           onSuccess={() => {
             loadServiceData(true);

@@ -16,14 +16,20 @@ import {
   Plus,
   HelpCircle,
   Info,
+  Trash2,
+  History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
+import { ConfigBackupInfo } from '../../types';
+import { usePermission } from '../../hooks/usePermission';
 
 export interface ConfigDiffEditorProps {
   serviceId: number;
   files?: string[];
+  backups?: ConfigBackupInfo[];
   onSaveSuccess?: (fileName: string) => void;
+  onDeleteSuccess?: (fileName: string) => void;
   className?: string;
   readOnly?: boolean;
 }
@@ -189,10 +195,13 @@ export function parseFileName(file: string): { name: string; ext: string } {
 export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   serviceId,
   files = [],
+  backups: propsBackups,
   onSaveSuccess,
+  onDeleteSuccess,
   className = '',
   readOnly = false,
 }) => {
+  const { isAdmin } = usePermission();
   // Custom user-added config names
   const [customNames, setCustomNames] = useState<string[]>([]);
   const [isCustomName, setIsCustomName] = useState<boolean>(false);
@@ -217,6 +226,76 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isNewFile, setIsNewFile] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
+
+  // Historical backups & deletion state
+  const [backups, setBackups] = useState<ConfigBackupInfo[]>(propsBackups || []);
+  const [showBackupsDropdown, setShowBackupsDropdown] = useState(false);
+  const [isDeletingConfig, setIsDeletingConfig] = useState(false);
+  const [isDeletingBackup, setIsDeletingBackup] = useState<string | null>(null);
+
+  const loadBackups = useCallback(async () => {
+    if (!serviceId) return;
+    try {
+      const res = await api.getServiceConfigs(serviceId);
+      if (res.backups) {
+        setBackups(res.backups);
+      }
+    } catch {
+      // ignore
+    }
+  }, [serviceId]);
+
+  useEffect(() => {
+    if (propsBackups) {
+      setBackups(propsBackups);
+    } else {
+      loadBackups();
+    }
+  }, [propsBackups, loadBackups]);
+
+  const handleDeleteBackup = async (backupFile: string) => {
+    if (!window.confirm(`确定要永久删除历史备份快照 "${backupFile}" 吗？此操作不可逆。`)) {
+      return;
+    }
+    setIsDeletingBackup(backupFile);
+    try {
+      await api.deleteConfig(serviceId, backupFile);
+      toast.success(`备份文件 ${backupFile} 已成功删除`);
+      await loadBackups();
+    } catch (err: any) {
+      toast.error(err.message || '删除备份文件失败');
+    } finally {
+      setIsDeletingBackup(null);
+    }
+  };
+
+  const handleDeleteCurrentConfig = async () => {
+    if (!window.confirm(`确定要永久删除配置文件 "${selectedFile}" 吗？此操作将物理删除文件且不可逆！`)) {
+      return;
+    }
+    setIsDeletingConfig(true);
+    try {
+      await api.deleteConfig(serviceId, selectedFile);
+      toast.success(`配置文件 ${selectedFile} 已成功删除`);
+      onDeleteSuccess?.(selectedFile);
+      const remaining = (files || []).filter((f) => f !== selectedFile);
+      if (remaining.length > 0) {
+        const { name, ext } = parseFileName(remaining[0]);
+        setSelectedName(name);
+        setSelectedExt(ext);
+      } else {
+        setSelectedName('application');
+        setSelectedExt('yml');
+      }
+      setIsCustomName(false);
+      setCustomName('');
+      await loadBackups();
+    } catch (err: any) {
+      toast.error(err.message || '删除配置文件失败');
+    } finally {
+      setIsDeletingConfig(false);
+    }
+  };
 
   const gutterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -417,6 +496,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
         description: `已成功生成安全备份: ${bakPath}`,
       });
       onSaveSuccess?.(fileToSave);
+      await loadBackups();
     } catch (err: any) {
       const msg = err.message || '保存配置文件失败';
       setError(msg);
@@ -689,6 +769,97 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/30 text-purple-300 shrink-0">
               新文件 (保存后生成)
             </span>
+          )}
+
+          {/* History Backups Dropdown */}
+          <div className="relative inline-block shrink-0">
+            <button
+              type="button"
+              data-testid="config-backups-button"
+              onClick={() => setShowBackupsDropdown((prev) => !prev)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors text-xs font-mono shrink-0"
+              title="查看与管理自动生成的 .bak 历史备份快照"
+            >
+              <History className="h-3.5 w-3.5 text-purple-400" />
+              <span>历史备份 ({backups.length})</span>
+            </button>
+
+            {showBackupsDropdown && (
+              <div
+                data-testid="config-backups-dropdown"
+                className="absolute left-0 top-full mt-2 w-96 max-h-80 overflow-y-auto rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 p-3 space-y-2"
+              >
+                <div className="flex items-center justify-between border-b border-ops-border/60 pb-2">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <History className="h-3.5 w-3.5 text-purple-400" />
+                    <span>历史快照备份文件</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowBackupsDropdown(false)}
+                    className="text-ops-text-muted hover:text-white text-xs p-0.5 rounded"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {backups.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-ops-text-muted font-mono">
+                    暂无历史备份快照（修改并保存配置后将自动生成）
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 divide-y divide-ops-border/40">
+                    {backups.map((bak) => (
+                      <div key={bak.file} className="pt-1.5 flex items-center justify-between gap-2 text-xs">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-mono text-white truncate text-[11px]" title={bak.file}>
+                            {bak.file}
+                          </div>
+                          <div className="text-[10px] text-ops-text-muted font-mono">
+                            {bak.updated_at} | {(bak.size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            data-testid={`delete-backup-${bak.file}`}
+                            disabled={isDeletingBackup === bak.file}
+                            onClick={() => handleDeleteBackup(bak.file)}
+                            className="p-1 rounded text-ops-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                            title="删除该历史备份（仅管理员）"
+                          >
+                            {isDeletingBackup === bak.file ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Delete Current Config File Button (Admin only & file exists on disk) */}
+          {isAdmin && existingFiles.has(selectedFile) && !isNewFile && (
+            <button
+              type="button"
+              data-testid="delete-current-config-button"
+              disabled={isDeletingConfig}
+              onClick={handleDeleteCurrentConfig}
+              title="删除当前磁盘上的配置文件（仅管理员）"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all text-xs shrink-0"
+            >
+              {isDeletingConfig ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              <span>删除配置</span>
+            </button>
           )}
         </div>
 

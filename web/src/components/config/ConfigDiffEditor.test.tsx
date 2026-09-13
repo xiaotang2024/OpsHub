@@ -17,6 +17,7 @@ vi.mock('../../api', () => ({
   api: {
     getServiceConfigs: vi.fn(),
     saveServiceConfig: vi.fn(),
+    deleteConfig: vi.fn(),
   },
 }));
 
@@ -355,5 +356,83 @@ describe('ConfigDiffEditor', () => {
       expect(screen.getAllByText(/server\.port/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/服务矩阵/i)).toBeInTheDocument();
     });
+  });
+
+  it('allows admin to view backups and delete backup snapshot', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteConfig as any).mockResolvedValue({ message: 'backup deleted' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <ConfigDiffEditor
+        serviceId={10}
+        files={['application.yml']}
+        backups={[{ file: 'application.yml.bak.20260913', size: 2048, updated_at: '2026-09-13 19:00:00' }]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-backups-button')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('config-backups-button'));
+
+    expect(screen.getByTestId('config-backups-dropdown')).toBeInTheDocument();
+    expect(screen.getByText('application.yml.bak.20260913')).toBeInTheDocument();
+
+    const delBackupBtn = screen.getByTestId('delete-backup-application.yml.bak.20260913');
+    fireEvent.click(delBackupBtn);
+
+    await waitFor(() => {
+      expect(api.deleteConfig).toHaveBeenCalledWith(10, 'application.yml.bak.20260913');
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('已成功删除'));
+    });
+  });
+
+  it('allows admin to delete an existing configuration file from disk', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteConfig as any).mockResolvedValue({ message: 'config deleted' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onDeleteSuccess = vi.fn();
+
+    render(
+      <ConfigDiffEditor
+        serviceId={10}
+        files={['application.yml', 'application-prod.yml']}
+        onDeleteSuccess={onDeleteSuccess}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-current-config-button')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('delete-current-config-button'));
+
+    await waitFor(() => {
+      expect(api.deleteConfig).toHaveBeenCalledWith(10, 'application.yml');
+      expect(onDeleteSuccess).toHaveBeenCalledWith('application.yml');
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('已成功删除'));
+    });
+  });
+
+  it('hides delete buttons for non-admin operator users', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'operator', permissions: ['service:config'] }));
+
+    render(
+      <ConfigDiffEditor
+        serviceId={10}
+        files={['application.yml']}
+        backups={[{ file: 'application.yml.bak.20260913', size: 2048, updated_at: '2026-09-13 19:00:00' }]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('delete-current-config-button')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('config-backups-button'));
+    expect(screen.getByTestId('config-backups-dropdown')).toBeInTheDocument();
+    expect(screen.queryByTestId('delete-backup-application.yml.bak.20260913')).not.toBeInTheDocument();
   });
 });

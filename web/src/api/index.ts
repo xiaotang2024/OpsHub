@@ -17,6 +17,7 @@ import {
   UpdatePermissionsPayload,
   UpdateUserStatusPayload,
   ResetUserPasswordPayload,
+  ConfigBackupInfo,
 } from '../types';
 
 const API_BASE = '/api';
@@ -195,7 +196,7 @@ export const api = {
 
   // Configs
   getServiceConfigs: (serviceId: number, file?: string) =>
-    request<{ files?: string[]; file?: string; path?: string; content?: string }>(
+    request<{ files?: string[]; backups?: ConfigBackupInfo[]; file?: string; path?: string; content?: string }>(
       `/services/${serviceId}/configs${file ? `?file=${encodeURIComponent(file)}` : ''}`
     ),
   saveServiceConfig: (serviceId: number, file: string, content: string) =>
@@ -203,6 +204,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ file, content }),
     }),
+  deleteConfig: (serviceId: number, file: string) =>
+    request<{ message: string; file: string }>(
+      `/services/${serviceId}/configs?file=${encodeURIComponent(file)}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 
   // Metrics
   getServiceMetrics: (serviceId: number) =>

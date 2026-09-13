@@ -15,15 +15,18 @@ import {
   ArrowRight,
   Clock,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { Artifact, DeployRecord, DeployPrecheckResult } from '../../types';
 import { api } from '../../api';
 import { toast } from 'sonner';
+import { usePermission } from '../../hooks/usePermission';
 
 export interface DeployWizardModalProps {
   visible: boolean;
   serviceId?: number;
   serviceName?: string;
+  currentArtifactId?: number | null;
   currentStep?: number;
   onClose: () => void;
   onSuccess?: (record: DeployRecord) => void;
@@ -94,10 +97,12 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   visible,
   serviceId,
   serviceName = '服务',
+  currentArtifactId,
   currentStep: externalCurrentStep,
   onClose,
   onSuccess,
 }) => {
+  const { isAdmin } = usePermission();
   // Stepper state
   const [activeStep, setActiveStep] = useState<number>(externalCurrentStep ?? 1);
   const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
@@ -253,6 +258,24 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDeleteArtifact = async (artId: number, filename: string) => {
+    if (!serviceId) return;
+    if (!window.confirm(`确定要永久删除历史制品包 "${filename}" 吗？此操作不可逆。`)) {
+      return;
+    }
+    try {
+      await api.deleteArtifact(serviceId, artId);
+      toast.success(`制品 ${filename} 已成功删除`);
+      if (selectedArtifactId === artId) {
+        setSelectedArtifactId(null);
+      }
+      const updated = await api.getArtifacts(serviceId);
+      setExistingArtifacts(updated || []);
+    } catch (err: any) {
+      toast.error(err.message || '删除制品失败');
     }
   };
 
@@ -720,8 +743,23 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                                 </div>
                               </div>
                             </div>
-                            <div className="text-[11px] font-mono text-ops-text-muted">
-                              {new Date(art.upload_time).toLocaleString()}
+                            <div className="flex items-center gap-3">
+                              <div className="text-[11px] font-mono text-ops-text-muted">
+                                {new Date(art.upload_time).toLocaleString()}
+                              </div>
+                              {isAdmin && art.id !== currentArtifactId && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteArtifact(art.id, art.filename);
+                                  }}
+                                  className="p-1 rounded hover:bg-red-500/20 text-ops-text-muted hover:text-red-400 transition-colors"
+                                  title="删除历史制品包（仅管理员）"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         );

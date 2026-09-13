@@ -19,6 +19,7 @@ vi.mock('../../api', () => ({
     getJDKs: vi.fn(),
     getReleases: vi.fn(),
     getArtifacts: vi.fn(),
+    deleteArtifact: vi.fn(),
     getServiceMetrics: vi.fn(),
     getServiceConfigs: vi.fn(),
     getAuditLogs: vi.fn(),
@@ -472,6 +473,54 @@ describe('ServiceDetail Component', () => {
       },
       { timeout: 2500 }
     );
+  });
+
+  it('allows admin to delete historical artifact in releases tab', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteArtifact as any).mockResolvedValue({ message: 'artifact deleted' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    // Switch to Releases tab
+    fireEvent.click(screen.getByRole('button', { name: /版本与发布/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center-v1\.0\.jar/i)).toBeInTheDocument();
+    });
+
+    // The historical artifact has "删除" button
+    const delBtn = screen.getByRole('button', { name: /删除/i });
+    expect(delBtn).toBeInTheDocument();
+
+    fireEvent.click(delBtn);
+
+    await waitFor(() => {
+      expect(api.deleteArtifact).toHaveBeenCalledWith(10, 100);
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('已成功删除'));
+    });
+  });
+
+  it('hides delete artifact button in releases tab for non-admin operator', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'operator', permissions: ['service:deploy', 'service:rollback'] }));
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /版本与发布/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center-v1\.0\.jar/i)).toBeInTheDocument();
+    });
+
+    // Rollback button is shown, but delete button is not
+    expect(screen.getByRole('button', { name: /一键回滚/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^删除$/i })).not.toBeInTheDocument();
   });
 });
 

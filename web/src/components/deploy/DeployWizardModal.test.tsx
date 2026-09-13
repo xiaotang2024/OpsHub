@@ -8,6 +8,7 @@ vi.mock('../../api', () => ({
     getArtifacts: vi.fn(),
     uploadArtifact: vi.fn(),
     deployService: vi.fn(),
+    deleteArtifact: vi.fn(),
     checkDeployPermission: vi.fn(),
   },
 }));
@@ -249,6 +250,66 @@ describe('DeployWizardModal', () => {
     expect(
       screen.getByText(/sudo mkdir -p \/opt\/apps\/order-service/i)
     ).toBeInTheDocument();
+  });
+
+  it('allows admin to delete historical artifact in existing artifacts tab', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteArtifact as any).mockResolvedValue({ message: 'artifact deleted' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <DeployWizardModal
+        visible={true}
+        serviceId={10}
+        currentArtifactId={1}
+        onClose={() => {}}
+      />
+    );
+
+    // Click tab to view existing artifacts
+    await waitFor(() => {
+      expect(screen.getByText(/选择已有历史版本/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(/选择已有历史版本/i));
+
+    // Wait for artifacts to load
+    await waitFor(() => {
+      expect(screen.getByText('order-service-v1.1.jar')).toBeInTheDocument();
+    });
+
+    // Artifact 2 is historical (not currentArtifactId 1), should have delete button
+    const delBtn = screen.getByTitle('删除历史制品包（仅管理员）');
+    expect(delBtn).toBeInTheDocument();
+
+    fireEvent.click(delBtn);
+
+    await waitFor(() => {
+      expect(api.deleteArtifact).toHaveBeenCalledWith(10, 2);
+    });
+  });
+
+  it('hides delete artifact button for non-admin operator users', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'operator', permissions: ['service:deploy'] }));
+
+    render(
+      <DeployWizardModal
+        visible={true}
+        serviceId={10}
+        currentArtifactId={1}
+        onClose={() => {}}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/选择已有历史版本/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(/选择已有历史版本/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('order-service-v1.1.jar')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTitle('删除历史制品包（仅管理员）')).not.toBeInTheDocument();
   });
 });
 

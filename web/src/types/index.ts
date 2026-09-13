@@ -100,6 +100,12 @@ export interface Artifact {
   upload_time: string;
 }
 
+export interface ConfigBackupInfo {
+  file: string;
+  size: number;
+  updated_at: string;
+}
+
 export interface DeployRecord {
   id: number;
   service_id: number;

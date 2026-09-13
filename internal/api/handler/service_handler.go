@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -816,10 +817,12 @@ func (h *ServiceHandler) GetConfigs(c *gin.Context) {
 		return
 	}
 
-	// Discover config files in install_dir and install_dir/config
+	// Discover config files and backups in install_dir and install_dir/config
 	files := discoverConfigFiles(svc.InstallDir)
+	backups := discoverConfigBackups(svc.InstallDir)
 	c.JSON(http.StatusOK, gin.H{
-		"files": files,
+		"files":   files,
+		"backups": backups,
 	})
 }
 
@@ -890,6 +893,73 @@ func (h *ServiceHandler) SaveConfig(c *gin.Context) {
 		"message": "config saved successfully",
 		"file":    cleaned,
 		"backup":  backupPath,
+	})
+}
+
+// DeleteConfig deletes a specified configuration file or historical backup file.
+// DELETE /api/services/:id/configs
+func (h *ServiceHandler) DeleteConfig(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+		return
+	}
+
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if svc.InstallDir == "" || !filepath.IsAbs(svc.InstallDir) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service install_dir is invalid or not an absolute path"})
+		return
+	}
+
+	reqFile := strings.TrimSpace(c.Query("file"))
+	if reqFile == "" {
+		var req ConfigFileRequest
+		if err := c.ShouldBindJSON(&req); err == nil {
+			reqFile = strings.TrimSpace(req.File)
+		}
+	}
+
+	if reqFile == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file query or body parameter is required"})
+		return
+	}
+
+	cleaned := filepath.Clean(reqFile)
+	if filepath.IsAbs(cleaned) || strings.Contains(cleaned, "..") || cleaned == "." {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file path: directory traversal prohibited"})
+		return
+	}
+
+	targetPath := filepath.Join(svc.InstallDir, cleaned)
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		altPath := filepath.Join(svc.InstallDir, "config", cleaned)
+		if _, err2 := os.Stat(altPath); err2 == nil {
+			targetPath = altPath
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "config file not found: " + reqFile})
+			return
+		}
+	}
+
+	if err := os.Remove(targetPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete config file: " + err.Error()})
+		return
+	}
+
+	middleware.SetAudit(c, "CONFIG_DELETE", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Deleted config file %s for service %s", cleaned, svc.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "config file deleted successfully",
+		"file":    cleaned,
 	})
 }
 
@@ -1483,6 +1553,61 @@ func discoverConfigFiles(installDir string) []string {
 			}
 		}
 	}
+	return results
+}
+
+// ConfigBackupInfo represents metadata about a backup snapshot of a config file.
+type ConfigBackupInfo struct {
+	File      string `json:"file"`
+	Size      int64  `json:"size"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+func discoverConfigBackups(installDir string) []ConfigBackupInfo {
+	results := make([]ConfigBackupInfo, 0)
+	searchDirs := []string{installDir, filepath.Join(installDir, "config")}
+
+	seen := make(map[string]bool)
+	for _, dir := range searchDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if strings.Contains(name, ".bak") {
+				rel := name
+				if dir != installDir {
+					rel = filepath.Join("config", name)
+				}
+				if !seen[rel] {
+					seen[rel] = true
+					fi, err := e.Info()
+					var size int64
+					var modTime time.Time
+					if err == nil {
+						size = fi.Size()
+						modTime = fi.ModTime()
+					} else {
+						modTime = time.Now()
+					}
+					results = append(results, ConfigBackupInfo{
+						File:      rel,
+						Size:      size,
+						UpdatedAt: modTime.Format("2006-01-02 15:04:05"),
+					})
+				}
+			}
+		}
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].UpdatedAt > results[j].UpdatedAt
+	})
+
 	return results
 }
 

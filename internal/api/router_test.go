@@ -440,10 +440,25 @@ func TestRouter_ServiceLifecycleAndConfigs(t *testing.T) {
 	assert.Equal(t, http.StatusOK, wReadConfig.Code)
 	assert.Contains(t, wReadConfig.Body.String(), "port: 8083")
 
-	// List config files
+	// List config files and verify backups
 	wListConfigs := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/configs", svc.ID), f.token, nil)
 	assert.Equal(t, http.StatusOK, wListConfigs.Code)
 	assert.Contains(t, wListConfigs.Body.String(), "application.yml")
+	assert.Contains(t, wListConfigs.Body.String(), "backups")
+
+	// Delete backup file as admin
+	wDelBackup := doRequest(f.router, "DELETE", fmt.Sprintf("/api/services/%d/configs?file=application.yml.bak", svc.ID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDelBackup.Code)
+	assert.NoFileExists(t, filepath.Join(svcDir, "application.yml.bak"))
+
+	// Delete config file as admin
+	wDelConfig := doRequest(f.router, "DELETE", fmt.Sprintf("/api/services/%d/configs?file=application.yml", svc.ID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDelConfig.Code)
+	assert.NoFileExists(t, filepath.Join(svcDir, "application.yml"))
+
+	// Directory traversal attempt is rejected
+	wBadTraversal := doRequest(f.router, "DELETE", fmt.Sprintf("/api/services/%d/configs?file=../../etc/passwd", svc.ID), f.token, nil)
+	assert.Equal(t, http.StatusBadRequest, wBadTraversal.Code)
 
 	// 6. Service metrics endpoint
 	wMetrics := doRequest(f.router, "GET", fmt.Sprintf("/api/services/%d/metrics", svc.ID), f.token, nil)
@@ -1009,6 +1024,16 @@ func TestRouter_ProtectedRoutes_RoleAndPermissions(t *testing.T) {
 	wJdkDel := doRequest(f.router, "DELETE", "/api/jdks/500", tokenDef, nil)
 	assert.Equal(t, http.StatusForbidden, wJdkDel.Code)
 	assert.Contains(t, wJdkDel.Body.String(), "jdk:manage")
+
+	// - Artifact deletion is strictly admin-only -> 403
+	wArtDel := doRequest(f.router, "DELETE", "/api/services/500/artifacts/999", tokenDef, nil)
+	assert.Equal(t, http.StatusForbidden, wArtDel.Code)
+	assert.Contains(t, wArtDel.Body.String(), "仅管理员拥有此操作权限")
+
+	// - Config deletion is strictly admin-only -> 403
+	wCfgDel := doRequest(f.router, "DELETE", "/api/services/500/configs?file=app.yml", tokenDef, nil)
+	assert.Equal(t, http.StatusForbidden, wCfgDel.Code)
+	assert.Contains(t, wCfgDel.Body.String(), "仅管理员拥有此操作权限")
 
 	// 2. Create operator with only read-only permission (service:view)
 	opReadOnly, err := userSvc.CreateUser(httptest.NewRequest("GET", "/", nil).Context(), service.CreateUserRequest{

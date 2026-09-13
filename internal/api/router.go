@@ -239,6 +239,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.POST("/services/:id/restart", middleware.RequirePermission(db, model.PermServiceControl), serviceHandler.Restart)
 			protected.GET("/services/:id/configs", serviceHandler.GetConfigs)
 			protected.POST("/services/:id/configs", middleware.RequirePermission(db, model.PermServiceConfig), serviceHandler.SaveConfig)
+			protected.DELETE("/services/:id/configs", middleware.RequireAdmin(), serviceHandler.DeleteConfig)
 			protected.GET("/services/:id/releases", serviceHandler.Releases)
 			protected.GET("/services/:id/deploy-precheck", serviceHandler.DeployPrecheck)
 			protected.POST("/services/:id/deploy", middleware.RequirePermission(db, model.PermServiceDeploy), serviceHandler.Deploy)
@@ -250,8 +251,8 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			// Artifacts
 			protected.POST("/services/:id/artifacts", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Upload)
 			protected.GET("/services/:id/artifacts", artifactHandler.ListByService)
-			protected.DELETE("/services/:id/artifacts/:artifactId", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Delete)
-			protected.DELETE("/artifacts/:id", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Delete)
+			protected.DELETE("/services/:id/artifacts/:artifactId", middleware.RequireAdmin(), artifactHandler.Delete)
+			protected.DELETE("/artifacts/:id", middleware.RequireAdmin(), artifactHandler.Delete)
 
 			// WebSocket Real-time Log Streaming
 			protected.GET("/services/:id/logs/ws", func(c *gin.Context) {
