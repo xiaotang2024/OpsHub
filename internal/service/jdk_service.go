@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"opshub/internal/database"
 	"opshub/internal/model"
 )
 
@@ -85,7 +86,7 @@ func (s *JDKService) Register(asset *model.JDKAsset) error {
 		asset.CreatedAt,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if database.IsUniqueViolation(err) {
 			return fmt.Errorf("%w: %s", ErrAlreadyExists, asset.Name)
 		}
 		return fmt.Errorf("failed to register jdk asset: %w", err)

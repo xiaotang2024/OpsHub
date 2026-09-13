@@ -2,9 +2,11 @@ package database_test
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"opshub/internal/database"
@@ -205,4 +207,32 @@ func TestInitDBWithDriver_MySQLEmptyDSN(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mysql DSN must not be empty")
 }
+
+func TestIsUniqueViolation(t *testing.T) {
+	assert.False(t, database.IsUniqueViolation(nil), "nil error is not a violation")
+	assert.False(t, database.IsUniqueViolation(errors.New("table not found")), "unrelated error is not a violation")
+
+	// SQLite error patterns
+	assert.True(t, database.IsUniqueViolation(errors.New("UNIQUE constraint failed: services.name")))
+	assert.True(t, database.IsUniqueViolation(errors.New("unique constraint failed: templates.name")))
+
+	// MySQL string error patterns
+	assert.True(t, database.IsUniqueViolation(errors.New("Error 1062 (23000): Duplicate entry 'nginx' for key 'services.name'")))
+	assert.True(t, database.IsUniqueViolation(errors.New("duplicate entry 'admin' for key 'PRIMARY'")))
+
+	// MySQL typed error
+	mysqlTypedErr := &mysql.MySQLError{
+		Number:  1062,
+		Message: "Duplicate entry 'test' for key 'name'",
+	}
+	assert.True(t, database.IsUniqueViolation(mysqlTypedErr))
+
+	// Other MySQL error
+	mysqlOtherErr := &mysql.MySQLError{
+		Number:  1146,
+		Message: "Table 'test' doesn't exist",
+	}
+	assert.False(t, database.IsUniqueViolation(mysqlOtherErr))
+}
+
 

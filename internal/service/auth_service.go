@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"opshub/internal/database"
 	"opshub/internal/model"
 )
 
@@ -277,6 +278,9 @@ func (s *AuthService) Register(username, password, nickname, email, securityQues
 		now,
 	)
 	if err != nil {
+		if database.IsUniqueViolation(err) {
+			return nil, errors.New("username already exists")
+		}
 		return nil, fmt.Errorf("insert user failed: %w", err)
 	}
 

@@ -2,12 +2,13 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 )
 
@@ -240,6 +241,25 @@ func InitDBWithDriver(driver, dsn string) (*sql.DB, error) {
 	default:
 		return nil, fmt.Errorf("unsupported database driver: %q (supported: sqlite, mysql)", driver)
 	}
+}
+
+// IsUniqueViolation checks whether an error is caused by a unique constraint or duplicate key violation
+// across both SQLite ("UNIQUE constraint failed") and MySQL (error 1062 / "Duplicate entry").
+func IsUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "unique constraint failed") ||
+		strings.Contains(msg, "duplicate entry") ||
+		strings.Contains(msg, "1062") {
+		return true
+	}
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+		return true
+	}
+	return false
 }
 
 // --------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"opshub/internal/api/middleware"
+	"opshub/internal/database"
 	"opshub/internal/model"
 	"opshub/internal/service"
 	"opshub/internal/supervisor"
@@ -259,7 +260,7 @@ func (h *ServiceHandler) Create(c *gin.Context) {
 		now,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if database.IsUniqueViolation(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "service name already exists"})
 			return
 		}
@@ -372,7 +373,7 @@ func (h *ServiceHandler) Update(c *gin.Context) {
 		id,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if database.IsUniqueViolation(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "service name already exists"})
 			return
 		}
