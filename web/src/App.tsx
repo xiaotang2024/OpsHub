@@ -7,6 +7,7 @@ import { ServiceDetail } from './pages/Services/ServiceDetail';
 import { TemplateList } from './pages/Templates/TemplateList';
 import { JDKList } from './pages/JDKs/JDKList';
 import { AuditList } from './pages/Audit/AuditList';
+import { UserManagement } from './pages/Users/UserManagement';
 import { usePermission } from './hooks/usePermission';
 
 // Protected Route for Admin only
@@ -26,13 +27,6 @@ export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }
   return <>{children}</>;
 };
 
-// Placeholder for UserManagement (implemented in Task 6)
-export const UserManagementPlaceholder: React.FC = () => (
-  <div data-testid="user-management-page" className="p-6 text-white font-mono">
-    用户管理 (User Management)
-  </div>
-);
-
 export const App: React.FC = () => {
   return (
     <>
@@ -49,7 +43,7 @@ export const App: React.FC = () => {
             path="/users"
             element={
               <AdminRoute>
-                <UserManagementPlaceholder />
+                <UserManagement />
               </AdminRoute>
             }
           />
