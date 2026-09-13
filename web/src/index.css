@@ -96,6 +96,11 @@
     backdrop-filter: blur(12px);
     border: 1px solid var(--ops-border, #1E293B);
   }
+  .modal-backdrop {
+    background-color: rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }
 
 /* =========================================================

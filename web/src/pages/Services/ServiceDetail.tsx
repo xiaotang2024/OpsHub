@@ -996,7 +996,7 @@ export const ServiceDetail: React.FC = () => {
 
       {/* Deploy Permission Precheck Alert Modal */}
       {permCheckError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-md">
           <div className="relative w-full max-w-lg rounded-2xl border border-rose-500/30 bg-ops-surface shadow-2xl p-6 space-y-5">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">

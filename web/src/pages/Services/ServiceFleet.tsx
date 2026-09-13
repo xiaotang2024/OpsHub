@@ -944,7 +944,7 @@ export const ServiceFleet: React.FC = () => {
           <AnimatePresence>
             {selectedService && (
               <div
-                className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
+                className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-md cursor-pointer"
                 onClick={() => setSelectedServiceId(null)}
               >
                 <motion.div
@@ -1255,7 +1255,7 @@ export const ServiceFleet: React.FC = () => {
           <AnimatePresence>
             {serviceToDelete && (
               <div
-                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 cursor-default"
             onClick={() => {
               if (!isDeleting) {
                 setServiceToDelete(null);
@@ -1395,7 +1395,7 @@ export const ServiceFleet: React.FC = () => {
           <AnimatePresence>
             {isCreateModalOpen && (
               <div
-                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 cursor-default"
+                className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 cursor-default"
             onClick={() => {
               if (!isCreatingService) {
                 setIsCreateModalOpen(false);

@@ -711,7 +711,7 @@ export const AuditList: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedLog(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-slate-950/45 backdrop-blur-md z-40"
             />
 
             {/* Drawer */}

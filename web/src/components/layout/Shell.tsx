@@ -154,7 +154,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-md md:hidden"
           />
         )}
       </AnimatePresence>

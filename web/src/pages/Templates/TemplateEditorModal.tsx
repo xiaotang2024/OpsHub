@@ -261,7 +261,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
           {/* Stable Backdrop */}
           <div
             onClick={onClose}
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-950/45 backdrop-blur-md"
           />
 
         {/* Modal Container */}

@@ -208,7 +208,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 bg-slate-950/45 backdrop-blur-md"
         />
 
         {/* Modal Content */}
@@ -570,7 +570,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         {/* Avatar Edit Sub-Modal */}
         <AnimatePresence>
           {isAvatarModalOpen && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-md">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
