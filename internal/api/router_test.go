@@ -1068,6 +1068,79 @@ func TestRouter_ProtectedRoutes_RoleAndPermissions(t *testing.T) {
 	assert.Contains(t, wDisabledReq.Body.String(), "账号已被禁用或不存在")
 }
 
+func TestRouter_ServiceLifecycleAuditCommandsAndFailure(t *testing.T) {
+	f := setupTestRouter(t)
+
+	svcDir := t.TempDir()
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, start_cmd) 
+		VALUES (40, 'tpl-audit-test', 'java_jar', '` + svcDir + `', 'native', 'sleep 15')`)
+	require.NoError(t, err)
+
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (40, 'audit-svc', 40, '` + svcDir + `', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	// 1. Start service
+	wStart := doRequest(f.router, "POST", "/api/services/40/start", f.token, nil)
+	assert.Equal(t, http.StatusOK, wStart.Code)
+
+	// Verify audit log for START contains concrete start command
+	var startAction, startStatus, startDetails string
+	err = f.db.QueryRow(`SELECT action, status, details FROM audit_logs WHERE target_id = '40' AND action = 'START' ORDER BY id DESC LIMIT 1`).
+		Scan(&startAction, &startStatus, &startDetails)
+	require.NoError(t, err)
+	assert.Equal(t, "START", startAction)
+	assert.Equal(t, model.DeployStatusSuccess, startStatus)
+	assert.Contains(t, startDetails, "执行命令: sleep 15")
+
+	// 2. Restart service
+	wRestart := doRequest(f.router, "POST", "/api/services/40/restart", f.token, nil)
+	assert.Equal(t, http.StatusOK, wRestart.Code)
+
+	var restartAction, restartStatus, restartDetails string
+	err = f.db.QueryRow(`SELECT action, status, details FROM audit_logs WHERE target_id = '40' AND action = 'RESTART' ORDER BY id DESC LIMIT 1`).
+		Scan(&restartAction, &restartStatus, &restartDetails)
+	require.NoError(t, err)
+	assert.Equal(t, "RESTART", restartAction)
+	assert.Equal(t, model.DeployStatusSuccess, restartStatus)
+	assert.Contains(t, restartDetails, "停止命令:")
+	assert.Contains(t, restartDetails, "启动命令: sleep 15")
+
+	// 3. Stop service
+	wStop := doRequest(f.router, "POST", "/api/services/40/stop", f.token, nil)
+	assert.Equal(t, http.StatusOK, wStop.Code)
+
+	var stopAction, stopStatus, stopDetails string
+	err = f.db.QueryRow(`SELECT action, status, details FROM audit_logs WHERE target_id = '40' AND action = 'STOP' ORDER BY id DESC LIMIT 1`).
+		Scan(&stopAction, &stopStatus, &stopDetails)
+	require.NoError(t, err)
+	assert.Equal(t, "STOP", stopAction)
+	assert.Equal(t, model.DeployStatusSuccess, stopStatus)
+	assert.Contains(t, stopDetails, "执行命令:")
+
+	// 4. Test Failure: Template with command that immediately exits/fails
+	failDir := t.TempDir()
+	_, err = f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, start_cmd) 
+		VALUES (41, 'tpl-fail', 'java_jar', '` + failDir + `', 'native', 'exit 1')`)
+	require.NoError(t, err)
+
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (41, 'fail-svc', 41, '` + failDir + `', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	wFail := doRequest(f.router, "POST", "/api/services/41/start", f.token, nil)
+	assert.Equal(t, http.StatusInternalServerError, wFail.Code)
+
+	var failAction, failStatus, failDetails string
+	err = f.db.QueryRow(`SELECT action, status, details FROM audit_logs WHERE target_id = '41' AND action = 'START' ORDER BY id DESC LIMIT 1`).
+		Scan(&failAction, &failStatus, &failDetails)
+	require.NoError(t, err)
+	assert.Equal(t, "START", failAction)
+	assert.Equal(t, model.DeployStatusFailed, failStatus)
+	assert.Contains(t, failDetails, "失败")
+	assert.Contains(t, failDetails, "尝试执行命令: exit 1")
+}
+
 
 
 

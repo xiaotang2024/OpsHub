@@ -51,6 +51,7 @@ import { ProcessTelemetryCard } from '../../components/metrics/ProcessTelemetryC
 import { ConfigDiffEditor } from '../../components/config/ConfigDiffEditor';
 import { LiveLogViewer } from '../../components/terminal/LiveLogViewer';
 import { PermissionGate } from '../../components/common/PermissionGate';
+import { ServiceStartAnimeOverlay } from '../../components/service/ServiceStartAnimeOverlay';
 import { usePermission } from '../../hooks/usePermission';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
@@ -92,6 +93,12 @@ export const ServiceDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [inFlightAction, setInFlightAction] = useState<string | null>(null);
   const [copiedPort, setCopiedPort] = useState(false);
+  const [actionAnimeState, setActionAnimeState] = useState<{
+    serviceName: string;
+    action: 'start' | 'stop' | 'restart';
+    status: 'starting' | 'stopping' | 'restarting' | 'success' | 'error';
+    errorMessage?: string;
+  } | null>(null);
 
   // Modals
   const [deployModalVisible, setDeployModalVisible] = useState(false);
@@ -207,14 +214,53 @@ export const ServiceDetail: React.FC = () => {
     if (!service) return;
     setInFlightAction('start');
     setService((prev) => (prev ? { ...prev, status: 'STARTING' } : prev));
+    setActionAnimeState({
+      serviceName: service.name,
+      action: 'start',
+      status: 'starting',
+    });
+
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.startService(service.id);
+      if (updated.status !== 'RUNNING') {
+        throw new Error('服务启动后未能在预定时间内就绪或探针健康检查未通过');
+      }
       setService(updated);
-      toast.success(`服务 ${service.name} 启动指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'start',
+          status: 'success',
+        });
+        toast.success(`服务 ${service.name} 启动成功，运行就绪`);
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 1200);
+      }, remaining);
       await loadServiceData(true);
     } catch (err: any) {
-      toast.error(`启动服务失败: ${err.message}`);
+      toast.error(`启动服务失败: ${err.message || '未知异常'}`);
       await loadServiceData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'start',
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 3500);
+      }, remaining);
     } finally {
       setInFlightAction(null);
     }
@@ -224,14 +270,53 @@ export const ServiceDetail: React.FC = () => {
     if (!service) return;
     setInFlightAction('stop');
     setService((prev) => (prev ? { ...prev, status: 'STOPPING' } : prev));
+    setActionAnimeState({
+      serviceName: service.name,
+      action: 'stop',
+      status: 'stopping',
+    });
+
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.stopService(service.id);
+      if (updated.status !== 'STOPPED') {
+        throw new Error('服务未能成功停止');
+      }
       setService(updated);
-      toast.success(`服务 ${service.name} 停止指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'stop',
+          status: 'success',
+        });
+        toast.success(`服务 ${service.name} 已成功停止`);
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 1200);
+      }, remaining);
       await loadServiceData(true);
     } catch (err: any) {
-      toast.error(`停止服务失败: ${err.message}`);
+      toast.error(`停止服务失败: ${err.message || '未知异常'}`);
       await loadServiceData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'stop',
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 3500);
+      }, remaining);
     } finally {
       setInFlightAction(null);
     }
@@ -241,14 +326,53 @@ export const ServiceDetail: React.FC = () => {
     if (!service) return;
     setInFlightAction('restart');
     setService((prev) => (prev ? { ...prev, status: 'STARTING' } : prev));
+    setActionAnimeState({
+      serviceName: service.name,
+      action: 'restart',
+      status: 'restarting',
+    });
+
+    const startTime = Date.now();
+    const MIN_ANIME_MS = 1200;
+
     try {
       const updated = await api.restartService(service.id);
+      if (updated.status !== 'RUNNING') {
+        throw new Error('服务重启后未能在预定时间内就绪或探针健康检查未通过');
+      }
       setService(updated);
-      toast.success(`服务 ${service.name} 重启指令已下发`);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'restart',
+          status: 'success',
+        });
+        toast.success(`服务 ${service.name} 重启成功，运行就绪`);
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 1200);
+      }, remaining);
       await loadServiceData(true);
     } catch (err: any) {
-      toast.error(`重启服务失败: ${err.message}`);
+      toast.error(`重启服务失败: ${err.message || '未知异常'}`);
       await loadServiceData(true);
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
+      setTimeout(() => {
+        setActionAnimeState({
+          serviceName: service.name,
+          action: 'restart',
+          status: 'error',
+          errorMessage: err.message,
+        });
+        setTimeout(() => {
+          setActionAnimeState(null);
+        }, 3500);
+      }, remaining);
     } finally {
       setInFlightAction(null);
     }
@@ -412,7 +536,19 @@ export const ServiceDetail: React.FC = () => {
       )}
 
       {/* Service Hero Banner */}
-      <div className="rounded-2xl border border-ops-border bg-ops-card p-6 shadow-xl space-y-6">
+      <div className="relative overflow-hidden rounded-2xl border border-ops-border bg-ops-card p-6 shadow-xl space-y-6">
+        <AnimatePresence>
+          {actionAnimeState && (
+            <ServiceStartAnimeOverlay
+              serviceName={actionAnimeState.serviceName}
+              action={actionAnimeState.action}
+              status={actionAnimeState.status}
+              errorMessage={actionAnimeState.errorMessage}
+              onClose={() => setActionAnimeState(null)}
+            />
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-cyan-950/80 border border-ops-cyan/40 text-ops-cyan shadow-cyan-glow">

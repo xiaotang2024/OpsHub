@@ -3,6 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ServiceDetail } from './ServiceDetail';
 import { api } from '../../api';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock('../../api', () => ({
   api: {
@@ -430,6 +438,40 @@ describe('ServiceDetail Component', () => {
 
       expect(screen.getByTitle(/无配置修改权限/i)).toBeInTheDocument();
     });
+  });
+
+  it('displays failure anime overlay and error toast without success toast when startService fails', async () => {
+    (api.getService as any).mockResolvedValueOnce({
+      ...mockService,
+      status: 'STOPPED',
+      pid: 0,
+    });
+    (api.startService as any).mockRejectedValueOnce(new Error('服务启动后立即退出 (PID 9999)'));
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    const startBtn = screen.getByRole('button', { name: /^启动$/i });
+    fireEvent.click(startBtn);
+
+    // Initial overlay is starting
+    expect(screen.getByTestId('anime-start-overlay')).toBeInTheDocument();
+
+    // After failure, error toast is called, and overlay switches to error state
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('启动服务失败: 服务启动后立即退出'));
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+
+    // Error message is displayed in the overlay after MIN_ANIME_MS
+    await waitFor(
+      () => {
+        expect(screen.getByText(/PID 9999/i)).toBeInTheDocument();
+      },
+      { timeout: 2500 }
+    );
   });
 });
 

@@ -22,6 +22,7 @@ import (
 	"opshub/internal/database"
 	"opshub/internal/model"
 	"opshub/internal/service"
+	"opshub/internal/prober"
 	"opshub/internal/supervisor"
 	"opshub/internal/template"
 )
@@ -33,6 +34,7 @@ type ServiceHandler struct {
 	supervisor        supervisor.Supervisor
 	systemdSupervisor *supervisor.SystemdSupervisor
 	engine            *template.Engine
+	prober            prober.Prober
 }
 
 // NewServiceHandler constructs a new ServiceHandler.
@@ -42,13 +44,18 @@ func NewServiceHandler(
 	sup supervisor.Supervisor,
 	systemdSup *supervisor.SystemdSupervisor,
 	engine *template.Engine,
+	prob prober.Prober,
 ) *ServiceHandler {
+	if prob == nil {
+		prob = prober.NewProber()
+	}
 	return &ServiceHandler{
 		db:                db,
 		pipeline:          pipeline,
 		supervisor:        sup,
 		systemdSupervisor: systemdSup,
 		engine:            engine,
+		prober:            prob,
 	}
 }
 
@@ -443,19 +450,34 @@ func (h *ServiceHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "service deleted successfully"})
 }
 
-func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Service) error {
+func readConsoleLogTail(logFile string, maxLines int) string {
+	if logFile == "" {
+		return ""
+	}
+	data, err := os.ReadFile(logFile)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Service) (string, error) {
 	if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
-		return errors.New("service is already running")
+		return "", errors.New("service is already running")
 	}
 	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
 		if active, _ := h.systemdSupervisor.IsActive(ctx, svc.Name); active {
-			return errors.New("service is already running")
+			return "", errors.New("service is already running")
 		}
 	}
 
 	tpl, err := h.getTemplate(ctx, svc.TemplateID)
 	if err != nil {
-		return fmt.Errorf("template not found: %w", err)
+		return "", fmt.Errorf("template not found: %w", err)
 	}
 
 	var jdk *model.JDKAsset
@@ -473,12 +495,12 @@ func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Se
 
 	startCmd, err := h.engine.RenderStartCommand(tpl, svc, jdk, targetFile)
 	if err != nil {
-		return fmt.Errorf("failed to render start command: %w", err)
+		return "", fmt.Errorf("failed to render start command: %w", err)
 	}
 
 	envMap, err := h.engine.RenderEnvVars(tpl, svc)
 	if err != nil {
-		return fmt.Errorf("failed to render env vars: %w", err)
+		return startCmd, fmt.Errorf("failed to render env vars: %w", err)
 	}
 	var envSlice []string
 	for k, v := range envMap {
@@ -492,14 +514,75 @@ func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Se
 	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
 		unitContent := h.systemdSupervisor.RenderUnit(svc.Name, installDir, startCmd)
 		if err := h.systemdSupervisor.InstallAndStart(ctx, svc.Name, unitContent); err != nil {
-			return fmt.Errorf("start systemd service failed: %w", err)
+			return startCmd, fmt.Errorf("start systemd service failed: %w", err)
 		}
 	} else {
 		pid, err := h.supervisor.Start(ctx, installDir, startCmd, envSlice, logFile)
 		if err != nil {
-			return fmt.Errorf("start supervisor failed: %w", err)
+			return startCmd, fmt.Errorf("start supervisor failed: %w", err)
 		}
 		newPID = pid
+	}
+
+	// Brief settling period to catch immediate startup crashes (bad flags, instant exit, etc.)
+	time.Sleep(150 * time.Millisecond)
+	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
+		active, _ := h.systemdSupervisor.IsActive(ctx, svc.Name)
+		if !active {
+			tailInfo := readConsoleLogTail(logFile, 5)
+			if tailInfo != "" {
+				return startCmd, fmt.Errorf("systemd 服务启动后未保持运行状态。日志输出:\n%s", tailInfo)
+			}
+			return startCmd, fmt.Errorf("systemd 服务启动后未保持运行状态")
+		}
+	} else if h.supervisor != nil {
+		if !h.supervisor.IsRunning(newPID) {
+			tailInfo := readConsoleLogTail(logFile, 5)
+			if tailInfo != "" {
+				return startCmd, fmt.Errorf("服务进程启动后立即退出 (PID %d)。日志输出:\n%s", newPID, tailInfo)
+			}
+			return startCmd, fmt.Errorf("服务进程启动后立即退出 (PID %d)", newPID)
+		}
+	}
+
+	// Health check probe
+	rawHealthCheck := tpl.HealthCheckConfig
+	if strings.TrimSpace(svc.HealthCheckConfig) != "" {
+		rawHealthCheck = svc.HealthCheckConfig
+	}
+	hcCfg := prober.ParseHealthCheckConfig(rawHealthCheck, newPID, svc.Port)
+
+	probeInterval := 100 * time.Millisecond
+	probeTimeout := 5 * time.Second
+	if hcCfg.Timeout > 0 {
+		probeTimeout = hcCfg.Timeout
+	}
+
+	proberInst := h.prober
+	if proberInst == nil {
+		proberInst = prober.NewProber()
+	}
+
+	probeErr := proberInst.WaitUntilHealthy(ctx, hcCfg, probeInterval, probeTimeout)
+	if probeErr != nil {
+		if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
+			_ = h.systemdSupervisor.Stop(ctx, svc.Name)
+		} else if newPID > 0 && h.supervisor != nil {
+			_ = h.supervisor.Stop(ctx, newPID, 3*time.Second)
+		}
+
+		_, _ = h.db.ExecContext(ctx,
+			"UPDATE services SET status = ?, pid = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			model.ServiceStatusStopped, svc.ID,
+		)
+		svc.Status = model.ServiceStatusStopped
+		svc.PID = 0
+
+		tailInfo := readConsoleLogTail(logFile, 5)
+		if tailInfo != "" {
+			return startCmd, fmt.Errorf("服务启动后健康检查失败或未就绪 (%v)。日志输出:\n%s", probeErr, tailInfo)
+		}
+		return startCmd, fmt.Errorf("服务启动后健康检查失败或未就绪: %w", probeErr)
 	}
 
 	_, _ = h.db.ExecContext(ctx,
@@ -509,15 +592,44 @@ func (h *ServiceHandler) startServiceInstance(ctx context.Context, svc *model.Se
 
 	svc.Status = model.ServiceStatusRunning
 	svc.PID = newPID
-	return nil
+	return startCmd, nil
 }
 
-func (h *ServiceHandler) stopServiceInstance(ctx context.Context, svc *model.Service) error {
+func (h *ServiceHandler) stopServiceInstance(ctx context.Context, svc *model.Service) (string, error) {
+	tpl, _ := h.getTemplate(ctx, svc.TemplateID)
+	var stopCmd string
+	if tpl != nil {
+		rendered, _ := h.engine.RenderStopCommand(tpl, svc)
+		stopCmd = rendered
+	}
+
+	oldPID := svc.PID
+	if strings.TrimSpace(stopCmd) == "" {
+		if svc.SupervisionMode == model.SupervisionModeSystemd {
+			stopCmd = fmt.Sprintf("systemctl stop %s", svc.Name)
+		} else if oldPID > 0 {
+			stopCmd = fmt.Sprintf("kill -15 %d (SIGTERM)", oldPID)
+		} else {
+			stopCmd = "stop"
+		}
+	}
+
 	if svc.SupervisionMode == model.SupervisionModeSystemd && h.systemdSupervisor != nil {
-		_ = h.systemdSupervisor.Stop(ctx, svc.Name)
+		if err := h.systemdSupervisor.Stop(ctx, svc.Name); err != nil {
+			return stopCmd, fmt.Errorf("stop systemd service failed: %w", err)
+		}
 	} else if svc.PID > 0 && h.supervisor != nil && h.supervisor.IsRunning(svc.PID) {
-		if err := h.supervisor.Stop(ctx, svc.PID, 10*time.Second); err != nil {
-			return fmt.Errorf("stop service failed: %w", err)
+		if tpl != nil && strings.TrimSpace(tpl.StopCmd) != "" {
+			execCmd := exec.CommandContext(ctx, "/bin/sh", "-c", stopCmd)
+			if svc.InstallDir != "" {
+				execCmd.Dir = svc.InstallDir
+			}
+			_ = execCmd.Run()
+			_ = h.supervisor.Stop(ctx, svc.PID, 5*time.Second)
+		} else {
+			if err := h.supervisor.Stop(ctx, svc.PID, 10*time.Second); err != nil {
+				return stopCmd, fmt.Errorf("stop service failed: %w", err)
+			}
 		}
 	}
 
@@ -528,7 +640,7 @@ func (h *ServiceHandler) stopServiceInstance(ctx context.Context, svc *model.Ser
 
 	svc.Status = model.ServiceStatusStopped
 	svc.PID = 0
-	return nil
+	return stopCmd, nil
 }
 
 // Start launches a stopped service instance.
@@ -550,7 +662,14 @@ func (h *ServiceHandler) Start(c *gin.Context) {
 		return
 	}
 
-	if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+	startCmd, err := h.startServiceInstance(c.Request.Context(), svc)
+	if err != nil {
+		details := fmt.Sprintf("启动服务 %s 失败: %v", svc.Name, err)
+		if startCmd != "" {
+			details += fmt.Sprintf(" | 尝试执行命令: %s", startCmd)
+		}
+		middleware.SetAudit(c, "START", "service", strconv.FormatInt(id, 10), details)
+		middleware.SetAuditStatus(c, model.DeployStatusFailed)
 		if strings.Contains(err.Error(), "already running") {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -559,7 +678,8 @@ func (h *ServiceHandler) Start(c *gin.Context) {
 		return
 	}
 
-	middleware.SetAudit(c, "START", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Started service %s (PID %d)", svc.Name, svc.PID))
+	middleware.SetAudit(c, "START", "service", strconv.FormatInt(id, 10), fmt.Sprintf("启动服务 %s 成功 (PID %d) | 执行命令: %s", svc.Name, svc.PID, startCmd))
+	middleware.SetAuditStatus(c, model.DeployStatusSuccess)
 	c.JSON(http.StatusOK, svc)
 }
 
@@ -582,12 +702,17 @@ func (h *ServiceHandler) Stop(c *gin.Context) {
 		return
 	}
 
-	if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+	oldPID := svc.PID
+	stopCmd, err := h.stopServiceInstance(c.Request.Context(), svc)
+	if err != nil {
+		middleware.SetAudit(c, "STOP", "service", strconv.FormatInt(id, 10), fmt.Sprintf("停止服务 %s 失败: %v | 执行命令: %s", svc.Name, err, stopCmd))
+		middleware.SetAuditStatus(c, model.DeployStatusFailed)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	middleware.SetAudit(c, "STOP", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Stopped service %s", svc.Name))
+	middleware.SetAudit(c, "STOP", "service", strconv.FormatInt(id, 10), fmt.Sprintf("停止服务 %s 成功 (原 PID %d) | 执行命令: %s", svc.Name, oldPID, stopCmd))
+	middleware.SetAuditStatus(c, model.DeployStatusSuccess)
 	c.JSON(http.StatusOK, svc)
 }
 
@@ -611,18 +736,25 @@ func (h *ServiceHandler) Restart(c *gin.Context) {
 	}
 
 	// 1. Stop if running
-	if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+	stopCmd, err := h.stopServiceInstance(c.Request.Context(), svc)
+	if err != nil {
+		middleware.SetAudit(c, "RESTART", "service", strconv.FormatInt(id, 10), fmt.Sprintf("重启服务 %s 失败 (停止旧进程阶段失败): %v | 停止命令: %s", svc.Name, err, stopCmd))
+		middleware.SetAuditStatus(c, model.DeployStatusFailed)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "stop before restart failed: " + err.Error()})
 		return
 	}
 
 	// 2. Start new instance
-	if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+	startCmd, err := h.startServiceInstance(c.Request.Context(), svc)
+	if err != nil {
+		middleware.SetAudit(c, "RESTART", "service", strconv.FormatInt(id, 10), fmt.Sprintf("重启服务 %s 失败 (启动新进程阶段失败): %v | 停止命令: %s | 尝试启动命令: %s", svc.Name, err, stopCmd, startCmd))
+		middleware.SetAuditStatus(c, model.DeployStatusFailed)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "start on restart failed: " + err.Error()})
 		return
 	}
 
-	middleware.SetAudit(c, "RESTART", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Restarted service %s (PID %d)", svc.Name, svc.PID))
+	middleware.SetAudit(c, "RESTART", "service", strconv.FormatInt(id, 10), fmt.Sprintf("重启服务 %s 成功 (新 PID %d) | 停止命令: %s | 启动命令: %s", svc.Name, svc.PID, stopCmd, startCmd))
+	middleware.SetAuditStatus(c, model.DeployStatusSuccess)
 	c.JSON(http.StatusOK, svc)
 }
 
@@ -1173,11 +1305,11 @@ func (h *ServiceHandler) SyncTemplate(c *gin.Context) {
 	// If restart_now is requested and service is running, restart instance
 	h.syncServiceRuntimeStatus(c.Request.Context(), svc)
 	if req.RestartNow && svc.Status == model.ServiceStatusRunning {
-		if err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
+		if _, err := h.stopServiceInstance(c.Request.Context(), svc); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "synced config, but stop service failed: " + err.Error()})
 			return
 		}
-		if err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
+		if _, err := h.startServiceInstance(c.Request.Context(), svc); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "synced config, stopped, but restart failed: " + err.Error()})
 			return
 		}

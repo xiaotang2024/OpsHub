@@ -3,6 +3,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import { ServiceFleet } from './ServiceFleet';
 import { api } from '../../api';
+import { toast } from 'sonner';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 vi.mock('../../api', () => ({
   api: {
@@ -159,6 +167,66 @@ describe('ServiceFleet Component', () => {
     await waitFor(() => {
       expect(api.restartService).toHaveBeenCalledWith(101);
     });
+  });
+
+  it('shows failure anime overlay and error toast without success toast when startService fails', async () => {
+    (api.startService as any).mockRejectedValueOnce(new Error('服务启动后健康检查失败或未就绪 (health check timed out)'));
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('payment-gateway')).toBeInTheDocument();
+    });
+
+    const startBtn = screen.getByRole('button', { name: /启动服务 payment-gateway/i });
+    fireEvent.click(startBtn);
+
+    // Initial overlay is starting
+    expect(screen.getByTestId('anime-start-overlay')).toBeInTheDocument();
+
+    // After failure, error toast is called, and overlay switches to error state
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('启动服务失败: 服务启动后健康检查失败或未就绪'));
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+
+    // Error message is displayed in the overlay after MIN_ANIME_MS
+    await waitFor(
+      () => {
+        expect(screen.getByText(/health check timed out/i)).toBeInTheDocument();
+      },
+      { timeout: 2500 }
+    );
+  });
+
+  it('shows failure anime overlay when startService returns non-RUNNING status', async () => {
+    (api.startService as any).mockResolvedValueOnce({
+      ...mockServices[1],
+      status: 'STOPPED',
+      pid: 0,
+    });
+
+    render(
+      <BrowserRouter>
+        <ServiceFleet />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('payment-gateway')).toBeInTheDocument();
+    });
+
+    const startBtn = screen.getByRole('button', { name: /启动服务 payment-gateway/i });
+    fireEvent.click(startBtn);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('未能在预定时间内就绪'));
+    });
+    expect(toast.success).not.toHaveBeenCalled();
   });
 
   it('opens details drawer on click and dismisses when backdrop is clicked', async () => {

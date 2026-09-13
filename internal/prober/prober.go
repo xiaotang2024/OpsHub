@@ -2,6 +2,7 @@ package prober
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,27 @@ import (
 	"syscall"
 	"time"
 )
+
+// ParseHealthCheckConfig parses JSON raw configuration string into HealthCheckConfig.
+func ParseHealthCheckConfig(raw string, pid, port int) HealthCheckConfig {
+	var cfg HealthCheckConfig
+	if strings.TrimSpace(raw) != "" {
+		_ = json.Unmarshal([]byte(raw), &cfg)
+	}
+
+	if strings.TrimSpace(cfg.Type) == "" {
+		cfg.Type = "process"
+	}
+
+	if cfg.Type == "process" {
+		cfg.PID = pid
+	}
+	if cfg.Port == 0 && port > 0 {
+		cfg.Port = port
+	}
+
+	return cfg
+}
 
 // HealthCheckConfig specifies the parameters for performing a health check.
 type HealthCheckConfig struct {

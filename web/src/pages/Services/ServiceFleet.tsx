@@ -214,8 +214,10 @@ export const ServiceFleet: React.FC = () => {
 
     try {
       const updated = await api.startService(sid);
+      if (updated.status !== 'RUNNING') {
+        throw new Error('服务启动后未能在预定时间内就绪或探针健康检查未通过');
+      }
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
-      toast.success(`服务 ${service.name} 启动指令已下发`);
 
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
@@ -226,12 +228,13 @@ export const ServiceFleet: React.FC = () => {
           action: 'start',
           status: 'success',
         });
+        toast.success(`服务 ${service.name} 启动成功，运行就绪`);
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 850);
+        }, 1200);
       }, remaining);
     } catch (err: any) {
-      toast.error(`启动服务失败: ${err.message}`);
+      toast.error(`启动服务失败: ${err.message || '未知异常'}`);
       await loadData(true);
 
       const elapsed = Date.now() - startTime;
@@ -246,7 +249,7 @@ export const ServiceFleet: React.FC = () => {
         });
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 1500);
+        }, 3500);
       }, remaining);
     } finally {
       setInFlightActions((prev) => {
@@ -279,8 +282,10 @@ export const ServiceFleet: React.FC = () => {
 
     try {
       const updated = await api.stopService(sid);
+      if (updated.status !== 'STOPPED') {
+        throw new Error('服务未能成功停止');
+      }
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
-      toast.success(`服务 ${service.name} 停止指令已下发`);
 
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
@@ -291,12 +296,13 @@ export const ServiceFleet: React.FC = () => {
           action: 'stop',
           status: 'success',
         });
+        toast.success(`服务 ${service.name} 已成功停止`);
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 850);
+        }, 1200);
       }, remaining);
     } catch (err: any) {
-      toast.error(`停止服务失败: ${err.message}`);
+      toast.error(`停止服务失败: ${err.message || '未知异常'}`);
       await loadData(true);
 
       const elapsed = Date.now() - startTime;
@@ -311,7 +317,7 @@ export const ServiceFleet: React.FC = () => {
         });
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 1500);
+        }, 3500);
       }, remaining);
     } finally {
       setInFlightActions((prev) => {
@@ -344,8 +350,10 @@ export const ServiceFleet: React.FC = () => {
 
     try {
       const updated = await api.restartService(sid);
+      if (updated.status !== 'RUNNING') {
+        throw new Error('服务重启后未能在预定时间内就绪或探针健康检查未通过');
+      }
       setServices((prev) => prev.map((s) => (s.id === sid ? updated : s)));
-      toast.success(`服务 ${service.name} 重启指令已下发`);
 
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, MIN_ANIME_MS - elapsed);
@@ -356,12 +364,13 @@ export const ServiceFleet: React.FC = () => {
           action: 'restart',
           status: 'success',
         });
+        toast.success(`服务 ${service.name} 重启成功，运行就绪`);
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 850);
+        }, 1200);
       }, remaining);
     } catch (err: any) {
-      toast.error(`重启服务失败: ${err.message}`);
+      toast.error(`重启服务失败: ${err.message || '未知异常'}`);
       await loadData(true);
 
       const elapsed = Date.now() - startTime;
@@ -376,7 +385,7 @@ export const ServiceFleet: React.FC = () => {
         });
         setTimeout(() => {
           setActionAnimeState((curr) => (curr?.serviceId === sid ? null : curr));
-        }, 1500);
+        }, 3500);
       }, remaining);
     } finally {
       setInFlightActions((prev) => {

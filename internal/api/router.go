@@ -149,6 +149,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 		options.Supervisor,
 		options.SystemdSupervisor,
 		options.Engine,
+		options.Prober,
 	)
 	artifactHandler := handler.NewArtifactHandler(options.ArtifactService, db)
 

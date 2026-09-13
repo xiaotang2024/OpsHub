@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -457,23 +456,7 @@ func (p *DeployPipeline) stopService(ctx context.Context, svc *model.Service) er
 }
 
 func (p *DeployPipeline) parseHealthCheckConfig(raw string, pid, port int) prober.HealthCheckConfig {
-	var cfg prober.HealthCheckConfig
-	if strings.TrimSpace(raw) != "" {
-		_ = json.Unmarshal([]byte(raw), &cfg)
-	}
-
-	if strings.TrimSpace(cfg.Type) == "" {
-		cfg.Type = "process"
-	}
-
-	if cfg.Type == "process" {
-		cfg.PID = pid
-	}
-	if cfg.Port == 0 && port > 0 {
-		cfg.Port = port
-	}
-
-	return cfg
+	return prober.ParseHealthCheckConfig(raw, pid, port)
 }
 
 func (p *DeployPipeline) getService(ctx context.Context, id int64) (*model.Service, error) {
