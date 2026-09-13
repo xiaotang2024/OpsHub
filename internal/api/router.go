@@ -239,6 +239,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.POST("/services/:id/restart", middleware.RequirePermission(db, model.PermServiceControl), serviceHandler.Restart)
 			protected.GET("/services/:id/configs", serviceHandler.GetConfigs)
 			protected.POST("/services/:id/configs", middleware.RequirePermission(db, model.PermServiceConfig), serviceHandler.SaveConfig)
+			protected.POST("/services/:id/configs/rollback", middleware.RequirePermission(db, model.PermServiceConfig), serviceHandler.RollbackConfig)
 			protected.DELETE("/services/:id/configs", middleware.RequireAdmin(), serviceHandler.DeleteConfig)
 			protected.GET("/services/:id/releases", serviceHandler.Releases)
 			protected.GET("/services/:id/deploy-precheck", serviceHandler.DeployPrecheck)

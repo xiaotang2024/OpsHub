@@ -202,7 +202,8 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   className = '',
   readOnly = false,
 }) => {
-  const { isAdmin } = usePermission();
+  const { isAdmin, hasPermission } = usePermission();
+  const canConfig = hasPermission('service:config');
   // Custom user-added config names
   const [customNames, setCustomNames] = useState<string[]>([]);
   const [isCustomName, setIsCustomName] = useState<boolean>(false);
@@ -228,12 +229,14 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [isNewFile, setIsNewFile] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
-  // Historical backups & deletion state
+  // Historical backups & deletion/rollback state
   const [backups, setBackups] = useState<ConfigBackupInfo[]>(propsBackups || []);
   const [showBackupsDropdown, setShowBackupsDropdown] = useState(false);
   const [isDeletingConfig, setIsDeletingConfig] = useState(false);
   const [isDeletingBackup, setIsDeletingBackup] = useState<string | null>(null);
   const [backupToDelete, setBackupToDelete] = useState<string | null>(null);
+  const [backupToRollback, setBackupToRollback] = useState<string | null>(null);
+  const [isRollingBackBackup, setIsRollingBackBackup] = useState<string | null>(null);
   const [isDeleteCurrentConfigModalOpen, setIsDeleteCurrentConfigModalOpen] = useState(false);
 
   const loadBackups = useCallback(async () => {
@@ -269,6 +272,41 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
       toast.error(err.message || '删除备份文件失败');
     } finally {
       setIsDeletingBackup(null);
+    }
+  };
+
+  const handleConfirmRollbackBackup = async () => {
+    if (!backupToRollback) return;
+    const bakFile = backupToRollback;
+    setIsRollingBackBackup(bakFile);
+    try {
+      const res = await api.rollbackConfig(serviceId, selectedFile, bakFile);
+      toast.success(`配置已成功回滚至快照 ${bakFile}`);
+      setBackupToRollback(null);
+      setShowBackupsDropdown(false);
+      const newContent = res.content ?? '';
+      setOriginalContent(newContent);
+      setModifiedContent(newContent);
+      onSaveSuccess?.(selectedFile);
+      await loadBackups();
+    } catch (err: any) {
+      toast.error(err.message || '回滚配置失败');
+    } finally {
+      setIsRollingBackBackup(null);
+    }
+  };
+
+  const handleLoadBackupToEditor = async (bakFile: string) => {
+    try {
+      const res = await api.getServiceConfigs(serviceId, bakFile);
+      if (typeof res.content === 'string') {
+        setModifiedContent(res.content);
+        setViewMode('diff');
+        setShowBackupsDropdown(false);
+        toast.info(`已将快照 ${bakFile} 载入对比视图，可审阅差异后保存生效`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || '读取快照内容失败');
     }
   };
 
@@ -811,31 +849,56 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                 ) : (
                   <div className="space-y-1.5 divide-y divide-ops-border/40">
                     {backups.map((bak) => (
-                      <div key={bak.file} className="pt-1.5 flex items-center justify-between gap-2 text-xs">
-                        <div className="min-w-0 flex-1">
-                          <div className="font-mono text-white truncate text-[11px]" title={bak.file}>
+                      <div key={bak.file} className="pt-1.5 pb-1 flex items-center justify-between gap-2 text-xs">
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer group"
+                          onClick={() => handleLoadBackupToEditor(bak.file)}
+                          title="点击载入此快照至编辑器进行对比"
+                        >
+                          <div className="font-mono text-white truncate text-[11px] group-hover:text-ops-cyan transition-colors" title={bak.file}>
                             {bak.file}
                           </div>
-                          <div className="text-[10px] text-ops-text-muted font-mono">
-                            {bak.updated_at} | {(bak.size / 1024).toFixed(1)} KB
+                          <div className="text-[10px] text-ops-text-muted font-mono flex items-center gap-1.5">
+                            <span>{bak.updated_at}</span>
+                            <span>·</span>
+                            <span>{(bak.size / 1024).toFixed(1)} KB</span>
+                            <span>·</span>
+                            <span className="text-ops-cyan/80 group-hover:underline">载入对比</span>
                           </div>
                         </div>
-                        {isAdmin && (
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            data-testid={`delete-backup-${bak.file}`}
-                            disabled={isDeletingBackup === bak.file}
-                            onClick={() => setBackupToDelete(bak.file)}
-                            className="p-1 rounded text-ops-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
-                            title="删除该历史备份（仅管理员）"
+                            data-testid={`rollback-backup-${bak.file}`}
+                            disabled={!canConfig || isRollingBackBackup === bak.file}
+                            onClick={() => setBackupToRollback(bak.file)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 active:scale-[0.98] transition-all text-xs font-semibold disabled:opacity-30 disabled:pointer-events-none"
+                            title={canConfig ? "一键将当前配置文件回滚至该备份快照" : "无配置修改权限"}
                           >
-                            {isDeletingBackup === bak.file ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                            {isRollingBackBackup === bak.file ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <RotateCcw className="h-3 w-3" />
                             )}
+                            <span>回滚</span>
                           </button>
-                        )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              data-testid={`delete-backup-${bak.file}`}
+                              disabled={isDeletingBackup === bak.file}
+                              onClick={() => setBackupToDelete(bak.file)}
+                              className="p-1 rounded text-ops-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                              title="删除该历史备份快照（仅管理员）"
+                            >
+                              {isDeletingBackup === bak.file ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1155,6 +1218,24 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
         loading={isDeletingConfig}
         onConfirm={handleConfirmDeleteCurrentConfig}
         onCancel={() => setIsDeleteCurrentConfigModalOpen(false)}
+      />
+
+      {/* Rollback Backup Confirmation Modal */}
+      <ConfirmModal
+        visible={!!backupToRollback}
+        title="回滚配置快照确认"
+        subtitle="版本覆盖 · 当前内容将自动生成新备份"
+        message={
+          <span>
+            确定要将配置文件 <span className="text-white font-bold">{selectedFile}</span> 回滚至备份快照 <span className="text-white font-bold">{backupToRollback}</span> 吗？当前配置内容将被该快照覆盖生效，同时系统会自动生成一份当前内容的备份快照。
+          </span>
+        }
+        confirmText="确认回滚"
+        cancelText="取消"
+        variant="warning"
+        loading={!!isRollingBackBackup}
+        onConfirm={handleConfirmRollbackBackup}
+        onCancel={() => setBackupToRollback(null)}
       />
     </div>
   );

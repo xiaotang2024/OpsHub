@@ -124,6 +124,12 @@ type ConfigFileRequest struct {
 	Content string `json:"content" binding:"required"`
 }
 
+// RollbackConfigRequest represents payload for rolling back a configuration file from a backup snapshot.
+type RollbackConfigRequest struct {
+	TargetFile string `json:"target_file" binding:"required"`
+	BackupFile string `json:"backup_file" binding:"required"`
+}
+
 // List returns all services and synchronizes their active execution status.
 // GET /api/services
 func (h *ServiceHandler) List(c *gin.Context) {
@@ -960,6 +966,99 @@ func (h *ServiceHandler) DeleteConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "config file deleted successfully",
 		"file":    cleaned,
+	})
+}
+
+// RollbackConfig restores a target configuration file from a specified backup snapshot.
+// POST /api/services/:id/configs/rollback
+func (h *ServiceHandler) RollbackConfig(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid service id"})
+		return
+	}
+
+	svc, err := h.getService(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if svc.InstallDir == "" || !filepath.IsAbs(svc.InstallDir) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service install_dir is invalid or not an absolute path"})
+		return
+	}
+
+	var req RollbackConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cleanTarget := filepath.Clean(strings.TrimSpace(req.TargetFile))
+	cleanBackup := filepath.Clean(strings.TrimSpace(req.BackupFile))
+	if filepath.IsAbs(cleanTarget) || strings.Contains(cleanTarget, "..") || cleanTarget == "." ||
+		filepath.IsAbs(cleanBackup) || strings.Contains(cleanBackup, "..") || cleanBackup == "." {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file path: directory traversal prohibited"})
+		return
+	}
+
+	// Locate backup file
+	backupPath := filepath.Join(svc.InstallDir, cleanBackup)
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+		altBackup := filepath.Join(svc.InstallDir, "config", cleanBackup)
+		if _, err2 := os.Stat(altBackup); err2 == nil {
+			backupPath = altBackup
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "backup file not found: " + cleanBackup})
+			return
+		}
+	}
+
+	// Read backup content
+	backupData, err := os.ReadFile(backupPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read backup file: " + err.Error()})
+		return
+	}
+
+	// Locate target file destination
+	targetPath := filepath.Join(svc.InstallDir, cleanTarget)
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		altTarget := filepath.Join(svc.InstallDir, "config", cleanTarget)
+		if _, err2 := os.Stat(altTarget); err2 == nil {
+			targetPath = altTarget
+		}
+	}
+
+	_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
+
+	// Backup current file before overwriting (if it exists)
+	var newBackupPath string
+	if _, err := os.Stat(targetPath); err == nil {
+		timestamp := time.Now().Format("20060102150405")
+		newBackupPath = fmt.Sprintf("%s.bak.%s", targetPath, timestamp)
+		_ = copyFileHelper(targetPath, newBackupPath)
+		_ = copyFileHelper(targetPath, targetPath+".bak")
+	}
+
+	// Overwrite target with backup content
+	if err := os.WriteFile(targetPath, backupData, 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to write config file: " + err.Error()})
+		return
+	}
+
+	middleware.SetAudit(c, "CONFIG_ROLLBACK", "service", strconv.FormatInt(id, 10), fmt.Sprintf("Rolled back config %s from %s for service %s", cleanTarget, cleanBackup, svc.Name))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "config rolled back successfully",
+		"file":    cleanTarget,
+		"backup":  newBackupPath,
+		"content": string(backupData),
 	})
 }
 

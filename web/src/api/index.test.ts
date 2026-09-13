@@ -153,4 +153,23 @@ describe('User Management API Client', () => {
       })
     );
   });
+
+  it('rollbackConfig sends POST to /api/services/:id/configs/rollback', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ message: 'config rolled back successfully', file: 'app.yml', content: 'hello' }),
+    } as Response);
+
+    const res = await api.rollbackConfig(1, 'app.yml', 'app.yml.bak');
+    expect(res.message).toBe('config rolled back successfully');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/services/1/configs/rollback',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ target_file: 'app.yml', backup_file: 'app.yml.bak' }),
+      })
+    );
+  });
 });
+

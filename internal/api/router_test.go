@@ -446,6 +446,14 @@ func TestRouter_ServiceLifecycleAndConfigs(t *testing.T) {
 	assert.Contains(t, wListConfigs.Body.String(), "application.yml")
 	assert.Contains(t, wListConfigs.Body.String(), "backups")
 
+	// Rollback config file from backup
+	configRollback := `{"target_file": "application.yml", "backup_file": "application.yml.bak"}`
+	wRollback := doRequest(f.router, "POST", fmt.Sprintf("/api/services/%d/configs/rollback", svc.ID), f.token, bytes.NewBufferString(configRollback))
+	assert.Equal(t, http.StatusOK, wRollback.Code)
+	dataRolledBack, err := os.ReadFile(filepath.Join(svcDir, "application.yml"))
+	assert.NoError(t, err)
+	assert.Contains(t, string(dataRolledBack), "port: 8082")
+
 	// Delete backup file as admin
 	wDelBackup := doRequest(f.router, "DELETE", fmt.Sprintf("/api/services/%d/configs?file=application.yml.bak", svc.ID), f.token, nil)
 	assert.Equal(t, http.StatusOK, wDelBackup.Code)

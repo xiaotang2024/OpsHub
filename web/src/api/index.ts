@@ -204,6 +204,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ file, content }),
     }),
+  rollbackConfig: (serviceId: number, targetFile: string, backupFile: string) =>
+    request<{ message: string; file: string; backup?: string; content?: string }>(
+      `/services/${serviceId}/configs/rollback`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ target_file: targetFile, backup_file: backupFile }),
+      }
+    ),
   deleteConfig: (serviceId: number, file: string) =>
     request<{ message: string; file: string }>(
       `/services/${serviceId}/configs?file=${encodeURIComponent(file)}`,

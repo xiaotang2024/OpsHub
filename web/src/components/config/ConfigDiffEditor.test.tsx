@@ -18,6 +18,7 @@ vi.mock('../../api', () => ({
     getServiceConfigs: vi.fn(),
     saveServiceConfig: vi.fn(),
     deleteConfig: vi.fn(),
+    rollbackConfig: vi.fn(),
   },
 }));
 
@@ -439,4 +440,43 @@ describe('ConfigDiffEditor', () => {
     expect(screen.getByTestId('config-backups-dropdown')).toBeInTheDocument();
     expect(screen.queryByTestId('delete-backup-application.yml.bak.20260913')).not.toBeInTheDocument();
   });
+
+  it('allows user with service:config permission to rollback config from historical backup', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'operator', permissions: ['service:config'] }));
+    (api.rollbackConfig as any).mockResolvedValue({
+      message: 'config rolled back successfully',
+      file: 'application.yml',
+      content: 'server:\n  port: 8080\n',
+    });
+
+    render(
+      <ConfigDiffEditor
+        serviceId={10}
+        files={['application.yml']}
+        backups={[{ file: 'application.yml.bak.20260913', size: 2048, updated_at: '2026-09-13 19:00:00' }]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('config-backups-button')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('config-backups-button'));
+
+    expect(screen.getByTestId('config-backups-dropdown')).toBeInTheDocument();
+    const rollbackBtn = screen.getByTestId('rollback-backup-application.yml.bak.20260913');
+    expect(rollbackBtn).toBeInTheDocument();
+
+    fireEvent.click(rollbackBtn);
+
+    expect(screen.getByTestId('confirm-modal')).toBeInTheDocument();
+    expect(screen.getByText('回滚配置快照确认')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('confirm-modal-btn'));
+
+    await waitFor(() => {
+      expect(api.rollbackConfig).toHaveBeenCalledWith(10, 'application.yml', 'application.yml.bak.20260913');
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('已成功回滚'));
+    });
+  });
 });
+
