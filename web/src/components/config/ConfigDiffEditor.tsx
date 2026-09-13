@@ -559,10 +559,10 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border border-ops-border bg-ops-card shadow-2xl overflow-hidden flex flex-col font-mono text-xs ${className}`}
+      className={`rounded-2xl border border-ops-border bg-ops-card shadow-2xl overflow-visible flex flex-col font-mono text-xs relative ${className}`}
     >
       {/* Warning Notice Banner (Directive: "修改后需重启服务以使配置生效") */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-950/40 border-b border-amber-500/30 text-amber-300">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-950/40 border-b border-amber-500/30 text-amber-300 rounded-t-2xl">
         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
         <span className="font-semibold tracking-wide">
           提示：修改后需重启服务以使配置生效
@@ -824,87 +824,93 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             </button>
 
             {showBackupsDropdown && (
-              <div
-                data-testid="config-backups-dropdown"
-                className="absolute left-0 top-full mt-2 w-96 max-h-80 overflow-y-auto rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 p-3 space-y-2"
-              >
-                <div className="flex items-center justify-between border-b border-ops-border/60 pb-2">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <History className="h-3.5 w-3.5 text-purple-400" />
-                    <span>历史快照备份文件</span>
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowBackupsDropdown(false)}
+                />
+                <div
+                  data-testid="config-backups-dropdown"
+                  className="absolute right-0 top-full mt-2 w-[520px] max-w-[calc(100vw-2.5rem)] max-h-80 overflow-y-auto rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between border-b border-ops-border/60 pb-2">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <History className="h-3.5 w-3.5 text-purple-400" />
+                      <span>历史快照备份文件</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowBackupsDropdown(false)}
+                      className="text-ops-text-muted hover:text-white text-xs p-0.5 rounded"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowBackupsDropdown(false)}
-                    className="text-ops-text-muted hover:text-white text-xs p-0.5 rounded"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
 
-                {backups.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-ops-text-muted font-mono">
-                    暂无历史备份快照（修改并保存配置后将自动生成）
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 divide-y divide-ops-border/40">
-                    {backups.map((bak) => (
-                      <div key={bak.file} className="pt-1.5 pb-1 flex items-center justify-between gap-2 text-xs">
-                        <div
-                          className="min-w-0 flex-1 cursor-pointer group"
-                          onClick={() => handleLoadBackupToEditor(bak.file)}
-                          title="点击载入此快照至编辑器进行对比"
-                        >
-                          <div className="font-mono text-white truncate text-[11px] group-hover:text-ops-cyan transition-colors" title={bak.file}>
-                            {bak.file}
-                          </div>
-                          <div className="text-[10px] text-ops-text-muted font-mono flex items-center gap-1.5">
-                            <span>{bak.updated_at}</span>
-                            <span>·</span>
-                            <span>{(bak.size / 1024).toFixed(1)} KB</span>
-                            <span>·</span>
-                            <span className="text-ops-cyan/80 group-hover:underline">载入对比</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            data-testid={`rollback-backup-${bak.file}`}
-                            disabled={!canConfig || isRollingBackBackup === bak.file}
-                            onClick={() => setBackupToRollback(bak.file)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 active:scale-[0.98] transition-all text-xs font-semibold disabled:opacity-30 disabled:pointer-events-none"
-                            title={canConfig ? "一键将当前配置文件回滚至该备份快照" : "无配置修改权限"}
+                  {backups.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-ops-text-muted font-mono">
+                      暂无历史备份快照（修改并保存配置后将自动生成）
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 divide-y divide-ops-border/40">
+                      {backups.map((bak) => (
+                        <div key={bak.file} className="pt-2 pb-1.5 flex items-center justify-between gap-3 text-xs">
+                          <div
+                            className="min-w-0 flex-1 cursor-pointer group"
+                            onClick={() => handleLoadBackupToEditor(bak.file)}
+                            title="点击载入此快照至编辑器进行对比"
                           >
-                            {isRollingBackBackup === bak.file ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RotateCcw className="h-3 w-3" />
-                            )}
-                            <span>回滚</span>
-                          </button>
-                          {isAdmin && (
+                            <div className="font-mono text-white truncate text-[11px] group-hover:text-ops-cyan transition-colors" title={bak.file}>
+                              {bak.file}
+                            </div>
+                            <div className="text-[10px] text-ops-text-muted font-mono flex items-center gap-1.5">
+                              <span>{bak.updated_at}</span>
+                              <span>·</span>
+                              <span>{(bak.size / 1024).toFixed(1)} KB</span>
+                              <span>·</span>
+                              <span className="text-ops-cyan/80 group-hover:underline">载入对比</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              data-testid={`delete-backup-${bak.file}`}
-                              disabled={isDeletingBackup === bak.file}
-                              onClick={() => setBackupToDelete(bak.file)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all text-xs font-semibold shrink-0"
-                              title="删除该历史备份快照（仅管理员）"
+                              data-testid={`rollback-backup-${bak.file}`}
+                              disabled={!canConfig || isRollingBackBackup === bak.file}
+                              onClick={() => setBackupToRollback(bak.file)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 active:scale-[0.98] transition-all text-xs font-semibold disabled:opacity-30 disabled:pointer-events-none shrink-0"
+                              title={canConfig ? "一键将当前配置文件回滚至该备份快照" : "无配置修改权限"}
                             >
-                              {isDeletingBackup === bak.file ? (
-                                <Loader2 className="h-3 w-3 animate-spin text-red-400" />
+                              {isRollingBackBackup === bak.file ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <Trash2 className="h-3 w-3" />
+                                <RotateCcw className="h-3 w-3" />
                               )}
-                              <span>删除</span>
+                              <span>回滚</span>
                             </button>
-                          )}
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                data-testid={`delete-backup-${bak.file}`}
+                                disabled={isDeletingBackup === bak.file}
+                                onClick={() => setBackupToDelete(bak.file)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all text-xs font-semibold shrink-0"
+                                title="删除该历史备份快照（仅管理员）"
+                              >
+                                {isDeletingBackup === bak.file ? (
+                                  <Loader2 className="h-3 w-3 animate-spin text-red-400" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                                <span>删除</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
