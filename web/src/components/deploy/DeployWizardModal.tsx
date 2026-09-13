@@ -22,6 +22,7 @@ import { api } from '../../api';
 import { toast } from 'sonner';
 import { usePermission } from '../../hooks/usePermission';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { PipelineAnimeProgressBar } from './PipelineAnimeProgressBar';
 
 export interface DeployWizardModalProps {
   visible: boolean;
@@ -463,6 +464,19 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Animated Anime Pipeline Progress Bar (Shows when running, finished, or error) */}
+          {(pipelineRunning || pipelineFinished || pipelineError) && (
+            <PipelineAnimeProgressBar
+              activeStep={activeStep}
+              totalSteps={7}
+              running={pipelineRunning}
+              finished={pipelineFinished}
+              error={pipelineError}
+              elapsedSeconds={elapsedSeconds}
+              serviceName={serviceName}
+            />
+          )}
+
           {/* 7-Step Animated Stepper Directives */}
           <div className="rounded-xl border border-ops-border bg-ops-card p-4 space-y-3 shadow-inner">
             <div className="flex items-center justify-between">

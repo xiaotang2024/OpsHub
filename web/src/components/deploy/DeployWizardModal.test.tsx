@@ -144,6 +144,7 @@ describe('DeployWizardModal', () => {
     fireEvent.click(deployBtn);
 
     await waitFor(() => {
+      expect(screen.getByTestId('pipeline-anime-progress-bar')).toBeInTheDocument();
       expect(api.deployService).toHaveBeenCalledWith(10, 2);
       expect(screen.getByText(/部署成功/i)).toBeInTheDocument();
     });
