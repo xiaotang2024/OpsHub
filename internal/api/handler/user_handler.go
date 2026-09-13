@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -105,7 +104,7 @@ func (h *UserHandler) UpdatePermissions(c *gin.Context) {
 	middleware.SetAudit(c, "UPDATE_PERMISSIONS", "user", strconv.FormatInt(id, 10), fmt.Sprintf("Admin updated permissions for user %d", id))
 
 	if err := h.userService.UpdatePermissions(c.Request.Context(), id, req.Permissions); err != nil {
-		if errors.Is(err, sqlErrNotFound(err)) {
+		if isNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
@@ -135,7 +134,7 @@ func (h *UserHandler) UpdateStatus(c *gin.Context) {
 	middleware.SetAudit(c, "UPDATE_STATUS", "user", strconv.FormatInt(id, 10), fmt.Sprintf("Admin updated user %d status to %s", id, req.Status))
 
 	if err := h.userService.UpdateStatus(c.Request.Context(), id, req.Status, currentAdmin); err != nil {
-		if errors.Is(err, sqlErrNotFound(err)) {
+		if isNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
@@ -164,7 +163,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	middleware.SetAudit(c, "RESET_PASSWORD", "user", strconv.FormatInt(id, 10), fmt.Sprintf("Admin reset password for user %d", id))
 
 	if err := h.userService.ResetPassword(c.Request.Context(), id, req.NewPassword); err != nil {
-		if errors.Is(err, sqlErrNotFound(err)) {
+		if isNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
@@ -188,7 +187,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	middleware.SetAudit(c, "DELETE_USER", "user", strconv.FormatInt(id, 10), fmt.Sprintf("Admin deleted user %d", id))
 
 	if err := h.userService.DeleteUser(c.Request.Context(), id, currentAdmin); err != nil {
-		if errors.Is(err, sqlErrNotFound(err)) {
+		if isNotFoundError(err) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
@@ -199,9 +198,6 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted successfully"})
 }
 
-func sqlErrNotFound(err error) error {
-	if err != nil && strings.Contains(err.Error(), "user not found") {
-		return err
-	}
-	return nil
+func isNotFoundError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "user not found")
 }

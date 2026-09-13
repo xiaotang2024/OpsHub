@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
-import { PermissionGate } from '../common/PermissionGate';
 
 export interface ConfigDiffEditorProps {
   serviceId: number;
