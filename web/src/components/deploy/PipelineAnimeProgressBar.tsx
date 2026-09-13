@@ -87,17 +87,17 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
   return (
     <motion.div
       data-testid="pipeline-anime-progress-bar"
-      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+      initial={{ opacity: 0, y: -6, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="relative overflow-hidden rounded-2xl border-2 border-ops-border/80 bg-gradient-to-b from-[#0e1628]/95 via-[#090f1d]/95 to-[#060a14]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-md space-y-4 select-none"
+      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="relative overflow-hidden rounded-xl border border-ops-border/80 bg-gradient-to-b from-[#0e1628]/95 via-[#090f1d]/95 to-[#060a14]/95 p-3 sm:p-3.5 shadow-lg backdrop-blur-md space-y-2.5 select-none"
     >
       {/* Anime Background Glow & Floating Sparkles */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Ambient colored lighting */}
         <div
-          className={`absolute -top-12 left-1/4 h-32 w-64 rounded-full blur-3xl opacity-30 transition-colors duration-500 ${
+          className={`absolute -top-8 left-1/4 h-20 w-48 rounded-full blur-2xl opacity-25 transition-colors duration-500 ${
             isFailed
               ? 'bg-rose-500'
               : finished
@@ -110,30 +110,30 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         {running && (
           <>
             <motion.div
-              animate={{ y: [-4, 4, -4], opacity: [0.3, 0.9, 0.3], rotate: [0, 20, 0] }}
+              animate={{ y: [-3, 3, -3], opacity: [0.3, 0.9, 0.3], rotate: [0, 20, 0] }}
               transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-              className="absolute top-2 left-6 text-pink-400 text-xs"
+              className="absolute top-1.5 left-4 text-pink-400 text-[10px]"
             >
               ✦
             </motion.div>
             <motion.div
-              animate={{ y: [4, -4, 4], opacity: [0.4, 1, 0.4] }}
+              animate={{ y: [3, -3, 3], opacity: [0.4, 1, 0.4] }}
               transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut', delay: 0.3 }}
-              className="absolute top-3 right-8 text-amber-300 text-xs"
+              className="absolute top-1.5 right-6 text-amber-300 text-[10px]"
             >
-              <Sparkles className="h-4 w-4 fill-amber-300/40 text-amber-300" />
+              <Sparkles className="h-3.5 w-3.5 fill-amber-300/40 text-amber-300" />
             </motion.div>
             <motion.div
               animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.3, 0.8, 0.3] }}
               transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut', delay: 0.5 }}
-              className="absolute bottom-2 left-12 text-cyan-400 text-xs"
+              className="absolute bottom-1 left-8 text-cyan-400 text-[10px]"
             >
               ★
             </motion.div>
             <motion.div
-              animate={{ y: [-3, 3, -3], opacity: [0.3, 0.9, 0.3] }}
+              animate={{ y: [-2, 2, -2], opacity: [0.3, 0.9, 0.3] }}
               transition={{ repeat: Infinity, duration: 1.3, ease: 'easeInOut', delay: 0.2 }}
-              className="absolute bottom-2 right-16 text-emerald-400 text-xs font-mono"
+              className="absolute bottom-1 right-12 text-emerald-400 text-[10px] font-mono"
             >
               ⚡
             </motion.div>
@@ -143,27 +143,27 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         {finished && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.3, 1], opacity: [0, 1, 0.8] }}
+            animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 0.8] }}
             transition={{ duration: 0.5 }}
-            className="absolute top-2 right-6 text-pink-400"
+            className="absolute top-1.5 right-5 text-pink-400"
           >
-            <Heart className="h-5 w-5 fill-pink-500/60 text-pink-400 animate-pulse" />
+            <Heart className="h-4 w-4 fill-pink-500/60 text-pink-400 animate-pulse" />
           </motion.div>
         )}
       </div>
 
       {/* Top Bar: Mascot Dialogue Speech Bubble + Percent Badge */}
-      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         {/* Cute Speech Bubble from Ops-Chan */}
         <div
           data-testid="anime-speech-bubble"
-          className="flex items-center gap-2.5 rounded-xl border border-ops-border/80 bg-slate-900/90 px-3.5 py-2 shadow-lg backdrop-blur-sm max-w-full"
+          className="flex items-center gap-2 rounded-lg border border-ops-border/80 bg-slate-900/90 px-2.5 py-1.5 shadow-md backdrop-blur-sm max-w-full"
         >
-          <span className="text-xl shrink-0" role="img" aria-label="emoji">
+          <span className="text-base shrink-0" role="img" aria-label="emoji">
             {currentDialogue.emoji}
           </span>
           <div className="space-y-0.5 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <span
                 className={`text-xs font-extrabold tracking-wide ${
                   isFailed
@@ -175,22 +175,22 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
               >
                 {currentDialogue.title}
               </span>
-              <span className="hidden sm:inline-block rounded-full bg-ops-border/60 px-1.5 py-0.2 text-[10px] font-mono text-ops-text-muted">
+              <span className="hidden sm:inline-block rounded-full bg-ops-border/60 px-1.5 py-0.2 text-[9px] font-mono text-ops-text-muted">
                 Step {activeStep}/{totalSteps}
               </span>
             </div>
-            <p className="text-xs text-slate-300 truncate font-sans">
+            <p className="text-[11px] text-slate-300 truncate font-sans leading-tight">
               {currentDialogue.quote}
             </p>
           </div>
         </div>
 
         {/* Right Info: Cute Percent Pill & Elapsed Seconds */}
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+        <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
           {/* Animated Mascot Badge */}
           <div
             data-testid="anime-percent-badge"
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-black shadow-lg transition-colors ${
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-black shadow-md transition-colors ${
               isFailed
                 ? 'border border-rose-500/50 bg-rose-950/60 text-rose-300'
                 : finished
@@ -199,17 +199,17 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
             }`}
           >
             {finished ? (
-              <PartyPopper className="h-3.5 w-3.5 text-amber-300 animate-bounce" />
+              <PartyPopper className="h-3 w-3 text-amber-300 animate-bounce" />
             ) : isFailed ? (
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+              <AlertTriangle className="h-3 w-3 text-rose-400" />
             ) : (
-              <Zap className="h-3.5 w-3.5 fill-cyan-400 text-cyan-400 animate-pulse" />
+              <Zap className="h-3 w-3 fill-cyan-400 text-cyan-400 animate-pulse" />
             )}
             <span>{percent}%</span>
           </div>
 
           {/* Clock Timer */}
-          <div className="inline-flex items-center gap-1 rounded-full border border-ops-border bg-slate-900/80 px-2.5 py-1 text-xs font-mono text-ops-text-muted">
+          <div className="inline-flex items-center gap-1 rounded-full border border-ops-border bg-slate-900/80 px-2 py-0.5 text-xs font-mono text-ops-text-muted">
             <Clock className="h-3 w-3 text-ops-text-muted" />
             <span>{elapsedSeconds}s</span>
           </div>
@@ -217,12 +217,12 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
       </div>
 
       {/* Progress Track Area with Running Chibi Mascot */}
-      <div className="relative pt-7 pb-2">
+      <div className="relative pt-5 pb-1">
         {/* Running Anime Cat Mascot Avatar (Slides along the progress bar!) */}
         <div
           className="absolute top-0 z-20 pointer-events-none transition-all duration-500 ease-out"
           style={{
-            left: `clamp(18px, ${percent}%, calc(100% - 24px))`,
+            left: `clamp(14px, ${percent}%, calc(100% - 16px))`,
             transform: 'translateX(-50%)',
           }}
         >
@@ -230,10 +230,10 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
             data-testid="anime-mascot-runner"
             animate={
               isFailed
-                ? { rotate: [-5, 5, -5] }
+                ? { rotate: [-4, 4, -4] }
                 : finished
-                ? { y: [0, -10, 0], rotate: [-2, 2, -2] }
-                : { y: [0, -5, 0], rotate: [-4, 4, -4] }
+                ? { y: [0, -6, 0], rotate: [-2, 2, -2] }
+                : { y: [0, -3, 0], rotate: [-3, 3, -3] }
             }
             transition={{
               repeat: Infinity,
@@ -244,12 +244,12 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
           >
             {/* Cute Cat Mascot SVG */}
             <svg
-              width="36"
-              height="36"
+              width="28"
+              height="28"
               viewBox="0 0 100 100"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="drop-shadow-[0_4px_8px_rgba(6,182,212,0.4)]"
+              className="drop-shadow-[0_2px_6px_rgba(6,182,212,0.4)]"
             >
               {/* Rocket Thruster Flame (behind cat) */}
               {running && (
@@ -343,9 +343,9 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
             {/* Trailing speed lines / smoke dust puff */}
             {running && (
               <motion.div
-                animate={{ x: [-2, -8, -2], opacity: [0.2, 0.8, 0.2] }}
+                animate={{ x: [-1, -5, -1], opacity: [0.2, 0.8, 0.2] }}
                 transition={{ repeat: Infinity, duration: 0.35 }}
-                className="absolute -bottom-1 -left-2 text-[10px] text-cyan-300 font-bold"
+                className="absolute -bottom-0.5 -left-1.5 text-[8px] text-cyan-300 font-bold"
               >
                 💨
               </motion.div>
@@ -356,7 +356,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         {/* Anime Track Container */}
         <div
           data-testid="anime-progress-track"
-          className="relative h-5 sm:h-6 w-full rounded-full bg-slate-950/90 border-2 border-dashed border-ops-border/80 p-1 shadow-inner overflow-hidden"
+          className="relative h-3.5 sm:h-4 w-full rounded-full bg-slate-950/90 border border-dashed border-ops-border/80 p-0.5 shadow-inner overflow-hidden"
         >
           {/* Animated Diagonal Candy Stripes Pattern */}
           <div
@@ -386,13 +386,13 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
 
             {/* Leading Sparkle Head */}
             {running && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-3.5 w-3.5 rounded-full bg-white shadow-[0_0_10px_#FFF] animate-ping opacity-80" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_8px_#FFF] animate-ping opacity-80" />
             )}
           </motion.div>
         </div>
 
         {/* 7-Step Landmark Stars / Checkpoint Flags */}
-        <div className="mt-1.5 flex justify-between px-1">
+        <div className="mt-1 flex justify-between px-1">
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((stepNum) => {
             const isPassed = stepNum <= activeStep;
             const isCurrent = stepNum === activeStep && !finished;
@@ -400,9 +400,9 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
             return (
               <div key={stepNum} className="flex flex-col items-center gap-0.5">
                 <span
-                  className={`text-[10px] font-mono transition-colors ${
+                  className={`text-[9px] font-mono transition-colors ${
                     isCurrent
-                      ? 'text-ops-cyan font-bold scale-125'
+                      ? 'text-ops-cyan font-bold scale-110'
                       : isPassed
                       ? 'text-amber-300'
                       : 'text-slate-600'
@@ -411,7 +411,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
                   {isPassed ? '★' : '✦'}
                 </span>
                 <span
-                  className={`text-[9px] font-mono ${
+                  className={`text-[8px] font-mono ${
                     isCurrent
                       ? 'text-ops-cyan font-bold'
                       : isPassed
@@ -429,8 +429,8 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
 
       {/* Error Notice Box if Failed */}
       {isFailed && (
-        <div className="rounded-xl border border-rose-500/50 bg-rose-950/30 p-3 text-xs font-mono text-rose-300 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+        <div className="rounded-lg border border-rose-500/50 bg-rose-950/30 p-2 text-xs font-mono text-rose-300 flex items-start gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400 mt-0.5" />
           <div className="space-y-0.5 min-w-0 flex-1">
             <span className="font-bold">部署遇到阻滞：</span>
             <span className="break-all">{error}</span>
