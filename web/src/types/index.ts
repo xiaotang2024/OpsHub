@@ -137,6 +137,8 @@ export interface UserProfile {
   id?: number;
   username: string;
   role: 'admin' | 'operator' | string;
+  permissions?: string[];
+  status?: 'active' | 'disabled' | string;
   nickname?: string;
   email?: string;
   avatar?: string;
@@ -144,6 +146,50 @@ export interface UserProfile {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface CreateUserPayload {
+  username: string;
+  password: string;
+  nickname?: string;
+  email?: string;
+  role?: 'admin' | 'operator' | string;
+  permissions?: string[];
+}
+
+export interface UpdatePermissionsPayload {
+  permissions: string[];
+}
+
+export interface UpdateUserStatusPayload {
+  status: 'active' | 'disabled' | string;
+}
+
+export interface ResetUserPasswordPayload {
+  new_password: string;
+}
+
+export const PERMISSIONS = {
+  SERVICE_VIEW: 'service:view',
+  SERVICE_CONTROL: 'service:control',
+  SERVICE_DEPLOY: 'service:deploy',
+  SERVICE_ROLLBACK: 'service:rollback',
+  SERVICE_CONFIG: 'service:config',
+  SERVICE_MANAGE: 'service:manage',
+  TEMPLATE_MANAGE: 'template:manage',
+  JDK_MANAGE: 'jdk:manage',
+  AUDIT_VIEW: 'audit:view',
+} as const;
+
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS] | string;
+
+export const DEFAULT_OPERATOR_PERMISSIONS: string[] = [
+  PERMISSIONS.SERVICE_VIEW,
+  PERMISSIONS.SERVICE_CONTROL,
+  PERMISSIONS.SERVICE_DEPLOY,
+  PERMISSIONS.SERVICE_ROLLBACK,
+  PERMISSIONS.SERVICE_CONFIG,
+  PERMISSIONS.AUDIT_VIEW,
+];
 
 export interface RegisterPayload {
   username: string;

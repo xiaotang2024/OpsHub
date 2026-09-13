@@ -13,6 +13,10 @@ import {
   DeployPrecheckResult,
   TemplateSyncDiff,
   SyncTemplateRequest,
+  CreateUserPayload,
+  UpdatePermissionsPayload,
+  UpdateUserStatusPayload,
+  ResetUserPasswordPayload,
 } from '../types';
 
 const API_BASE = '/api';
@@ -308,6 +312,33 @@ export const api = {
     request<{ message: string }>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    }),
+
+  // Users & RBAC API
+  getUsers: () => request<UserProfile[]>('/users'),
+  createUser: (data: CreateUserPayload) =>
+    request<UserProfile>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateUserPermissions: (id: number, data: string[] | UpdatePermissionsPayload) =>
+    request<{ message: string }>(`/users/${id}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify(Array.isArray(data) ? { permissions: data } : data),
+    }),
+  updateUserStatus: (id: number, data: string | UpdateUserStatusPayload) =>
+    request<{ message: string }>(`/users/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(typeof data === 'string' ? { status: data } : data),
+    }),
+  resetUserPassword: (id: number, data: string | ResetUserPasswordPayload) =>
+    request<{ message: string }>(`/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify(typeof data === 'string' ? { new_password: data } : data),
+    }),
+  deleteUser: (id: number) =>
+    request<{ message: string }>(`/users/${id}`, {
+      method: 'DELETE',
     }),
 };
 
