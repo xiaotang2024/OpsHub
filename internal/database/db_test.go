@@ -111,14 +111,15 @@ func TestInitDB_MigrateOldUsersTable(t *testing.T) {
 
 	// 3. Verify that new columns exist and can be queried
 	var (
-		nickname, email, avatar, secQ, secA sql.NullString
-		updatedAt                           sql.NullTime
+		nickname, email, avatar, secQ, secA, permissions, status sql.NullString
+		updatedAt                                               sql.NullTime
 	)
 	err = newDb.QueryRow(
-		"SELECT nickname, email, avatar, security_question, security_answer_hash, updated_at FROM users WHERE username = 'legacy_admin'",
-	).Scan(&nickname, &email, &avatar, &secQ, &secA, &updatedAt)
+		"SELECT nickname, email, avatar, security_question, security_answer_hash, permissions, status, updated_at FROM users WHERE username = 'legacy_admin'",
+	).Scan(&nickname, &email, &avatar, &secQ, &secA, &permissions, &status, &updatedAt)
 	require.NoError(t, err)
 	assert.True(t, updatedAt.Valid, "updated_at should be backfilled from created_at")
+	assert.Equal(t, "active", status.String, "status should default or backfill to active")
 }
 
 func TestInitDB_MigrateOldServicesTable(t *testing.T) {
@@ -233,6 +234,32 @@ func TestIsUniqueViolation(t *testing.T) {
 		Message: "Table 'test' doesn't exist",
 	}
 	assert.False(t, database.IsUniqueViolation(mysqlOtherErr))
+}
+
+func TestInitDB_Users_PermissionsAndStatusMigration(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_perm.db")
+	db, err := database.InitDB(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// 验证 permissions 与 status 字段已创建
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM users WHERE status = 'active'").Scan(&count)
+	require.NoError(t, err)
+
+	// 插入带 permissions 与 status 的测试数据
+	_, err = db.Exec(
+		"INSERT INTO users (username, password_hash, role, permissions, status) VALUES (?, ?, ?, ?, ?)",
+		"test_op", "hash", "operator", `["service:view","service:control"]`, "active",
+	)
+	require.NoError(t, err)
+
+	var permissions, status string
+	err = db.QueryRow("SELECT permissions, status FROM users WHERE username = 'test_op'").Scan(&permissions, &status)
+	require.NoError(t, err)
+	assert.Equal(t, `["service:view","service:control"]`, permissions)
+	assert.Equal(t, "active", status)
 }
 
 

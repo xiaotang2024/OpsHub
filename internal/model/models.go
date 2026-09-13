@@ -47,7 +47,29 @@ const (
 const (
 	RoleAdmin    = "admin"
 	RoleOperator = "operator"
+
+	UserStatusActive   = "active"
+	UserStatusDisabled = "disabled"
+
+	PermServiceView     = "service:view"
+	PermServiceControl  = "service:control"
+	PermServiceDeploy   = "service:deploy"
+	PermServiceRollback = "service:rollback"
+	PermServiceConfig   = "service:config"
+	PermServiceManage   = "service:manage"
+	PermTemplateManage  = "template:manage"
+	PermJDKManage       = "jdk:manage"
+	PermAuditView       = "audit:view"
 )
+
+var DefaultOperatorPermissions = []string{
+	PermServiceView,
+	PermServiceControl,
+	PermServiceDeploy,
+	PermServiceRollback,
+	PermServiceConfig,
+	PermAuditView,
+}
 
 // User represents an authenticated operator or administrator.
 type User struct {
@@ -55,6 +77,8 @@ type User struct {
 	Username           string    `json:"username" db:"username"`
 	PasswordHash       string    `json:"-" db:"password_hash"`
 	Role               string    `json:"role" db:"role"`
+	Permissions        []string  `json:"permissions" db:"permissions"`
+	Status             string    `json:"status" db:"status"`
 	Nickname           string    `json:"nickname" db:"nickname"`
 	Email              string    `json:"email" db:"email"`
 	Avatar             string    `json:"avatar" db:"avatar"`

@@ -147,6 +147,8 @@ func TestModelJSONSerialization(t *testing.T) {
 		Username:     "admin",
 		PasswordHash: "secret-hash",
 		Role:         model.RoleAdmin,
+		Permissions:  []string{model.PermServiceView, model.PermServiceControl},
+		Status:       model.UserStatusActive,
 		CreatedAt:    now,
 	}
 	userBytes, err := json.Marshal(user)
@@ -155,5 +157,18 @@ func TestModelJSONSerialization(t *testing.T) {
 	var userUnmarshaled model.User
 	require.NoError(t, json.Unmarshal(userBytes, &userUnmarshaled))
 	assert.Equal(t, user.Username, userUnmarshaled.Username)
+	assert.Equal(t, user.Status, userUnmarshaled.Status)
+	assert.Equal(t, user.Permissions, userUnmarshaled.Permissions)
 	assert.Empty(t, userUnmarshaled.PasswordHash)
+
+	// Verify DefaultOperatorPermissions contains expected permissions
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermServiceView)
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermServiceControl)
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermServiceDeploy)
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermServiceRollback)
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermServiceConfig)
+	assert.Contains(t, model.DefaultOperatorPermissions, model.PermAuditView)
+	assert.NotContains(t, model.DefaultOperatorPermissions, model.PermServiceManage)
+	assert.NotContains(t, model.DefaultOperatorPermissions, model.PermTemplateManage)
+	assert.NotContains(t, model.DefaultOperatorPermissions, model.PermJDKManage)
 }

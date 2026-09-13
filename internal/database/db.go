@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS users (
     avatar TEXT DEFAULT '',
     security_question TEXT DEFAULT '',
     security_answer_hash TEXT DEFAULT '',
+    permissions TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -215,6 +217,8 @@ var mysqlSchemaDDL = []string{
     avatar LONGTEXT,
     security_question VARCHAR(512) DEFAULT '',
     security_answer_hash VARCHAR(255) DEFAULT '',
+    permissions TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -389,6 +393,8 @@ func migrateSQLiteUsersTable(db *sql.DB) error {
 		{"security_question", "TEXT DEFAULT ''"},
 		{"security_answer_hash", "TEXT DEFAULT ''"},
 		{"updated_at", "DATETIME"},
+		{"permissions", "TEXT DEFAULT ''"},
+		{"status", "TEXT NOT NULL DEFAULT 'active'"},
 	}
 
 	for _, m := range migrations {
@@ -403,6 +409,16 @@ func migrateSQLiteUsersTable(db *sql.DB) error {
 	// Backfill updated_at for existing records where updated_at is NULL
 	if _, err := db.Exec("UPDATE users SET updated_at = created_at WHERE updated_at IS NULL"); err != nil {
 		return fmt.Errorf("backfill updated_at failed: %w", err)
+	}
+
+	// Backfill status for existing records where status is NULL or empty
+	if _, err := db.Exec("UPDATE users SET status = 'active' WHERE status IS NULL OR status = ''"); err != nil {
+		return fmt.Errorf("backfill status failed: %w", err)
+	}
+
+	// Backfill permissions for existing records where permissions is NULL
+	if _, err := db.Exec("UPDATE users SET permissions = '' WHERE permissions IS NULL"); err != nil {
+		return fmt.Errorf("backfill permissions failed: %w", err)
 	}
 
 	return nil
@@ -479,6 +495,8 @@ func migrateMySQLUsersTable(db *sql.DB) error {
 		{"security_question", "VARCHAR(512) DEFAULT ''"},
 		{"security_answer_hash", "VARCHAR(255) DEFAULT ''"},
 		{"updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"},
+		{"permissions", "TEXT"},
+		{"status", "VARCHAR(50) NOT NULL DEFAULT 'active'"},
 	}
 
 	for _, m := range migrations {
@@ -493,6 +511,16 @@ func migrateMySQLUsersTable(db *sql.DB) error {
 	// Backfill updated_at for existing records where updated_at is NULL
 	if _, err := db.Exec("UPDATE users SET updated_at = created_at WHERE updated_at IS NULL"); err != nil {
 		return fmt.Errorf("backfill updated_at failed: %w", err)
+	}
+
+	// Backfill status for existing records where status is NULL or empty
+	if _, err := db.Exec("UPDATE users SET status = 'active' WHERE status IS NULL OR status = ''"); err != nil {
+		return fmt.Errorf("backfill status failed: %w", err)
+	}
+
+	// Backfill permissions for existing records where permissions is NULL
+	if _, err := db.Exec("UPDATE users SET permissions = '' WHERE permissions IS NULL"); err != nil {
+		return fmt.Errorf("backfill permissions failed: %w", err)
 	}
 
 	return nil
