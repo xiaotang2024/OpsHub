@@ -89,4 +89,49 @@ describe('ProcessTelemetryCard', () => {
     // > 85%: crimson/high
     expect(screen.getByTestId('cpu-gauge')).toHaveAttribute('data-level', 'high');
   });
+
+  it('ticks uptime dynamically in real time when status is RUNNING', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ProcessTelemetryCard
+          pid={18293}
+          cpuPercent={15}
+          memoryRssMb={256}
+          uptime="02:15"
+          status="RUNNING"
+        />
+      );
+
+      expect(screen.getByText(/02:15/i)).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(/02:16/i)).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText(/02:18/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('renders stopped state when service is not running', () => {
+    render(
+      <ProcessTelemetryCard
+        pid={0}
+        cpuPercent={0}
+        memoryRssMb={0}
+        uptime="stopped"
+        status="STOPPED"
+      />
+    );
+
+    expect(screen.getByText('未运行')).toBeInTheDocument();
+    expect(screen.getByText('STOPPED')).toBeInTheDocument();
+  });
 });
+

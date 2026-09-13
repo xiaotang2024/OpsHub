@@ -169,6 +169,23 @@ export const ServiceDetail: React.FC = () => {
     };
   }, [loadServiceData]);
 
+  // Real-time periodic polling for live metrics when service is running
+  useEffect(() => {
+    if (!serviceId || service?.status !== 'RUNNING') return;
+
+    const interval = setInterval(() => {
+      api.getServiceMetrics(serviceId)
+        .then((m) => {
+          if (m) setMetrics(m);
+        })
+        .catch(() => {
+          // ignore background polling error
+        });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [serviceId, service?.status]);
+
   // Current active artifact
   const currentArtifact = useMemo(() => {
     if (!service || !service.current_artifact_id) return null;

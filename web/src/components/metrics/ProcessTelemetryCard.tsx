@@ -8,6 +8,7 @@ import {
   Check,
   Activity,
 } from 'lucide-react';
+import { useLiveUptime } from '../../utils/uptime';
 
 export interface ProcessTelemetryCardProps {
   pid: number;
@@ -66,6 +67,7 @@ export const ProcessTelemetryCard: React.FC<ProcessTelemetryCardProps> = ({
   };
 
   const isRunning = status.toUpperCase() === 'RUNNING';
+  const liveUptime = useLiveUptime(uptime, isRunning);
 
   return (
     <div
@@ -124,9 +126,29 @@ export const ProcessTelemetryCard: React.FC<ProcessTelemetryCardProps> = ({
           </div>
 
           {/* Uptime Ticker */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-ops-border bg-ops-bg px-2.5 py-1 text-xs font-mono text-ops-cyan">
-            <Clock className="h-3.5 w-3.5 text-ops-cyan/70" />
-            <span className="text-white font-bold">运行 {uptime}</span>
+          <div
+            data-testid="uptime-ticker"
+            className="flex items-center gap-1.5 rounded-lg border border-ops-border bg-ops-bg px-2.5 py-1 text-xs font-mono text-ops-cyan shadow-sm"
+          >
+            {isRunning ? (
+              <>
+                <span className="relative flex h-2 w-2 mr-0.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ops-cyan opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-ops-cyan"></span>
+                </span>
+                <Clock className="h-3.5 w-3.5 text-ops-cyan/70" />
+                <span className="text-white font-bold tabular-nums">运行 {liveUptime}</span>
+              </>
+            ) : (
+              <>
+                <Clock className="h-3.5 w-3.5 text-ops-text-muted" />
+                <span className="text-ops-text-muted font-bold tabular-nums">
+                  {liveUptime && !['stopped', 'unknown', '离线'].includes(liveUptime.toLowerCase())
+                    ? `运行 ${liveUptime}`
+                    : '未运行'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
