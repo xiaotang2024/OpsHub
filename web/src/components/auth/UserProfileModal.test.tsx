@@ -133,15 +133,21 @@ describe('UserProfileModal Component', () => {
       expect(screen.getByText('汤姆主管')).toBeInTheDocument();
     });
 
-    // Click to expand preset avatar picker
-    const togglePickerBtn = screen.getByRole('button', { name: /挑选预设形象/ });
-    fireEvent.click(togglePickerBtn);
+    // Click to open avatar modal
+    const editAvatarBtn = screen.getByLabelText('点击修改头像');
+    fireEvent.click(editAvatarBtn);
 
-    // Pick 喵小智
-    const opsChanPreset = screen.getByText('喵小智');
-    fireEvent.click(opsChanPreset);
+    // Pick 喵小智 inside modal
+    await waitFor(() => {
+      expect(screen.getByText('喵小智')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('喵小智'));
 
-    // Click save
+    // Confirm selection in avatar modal
+    const confirmBtn = screen.getByRole('button', { name: /确认选择/ });
+    fireEvent.click(confirmBtn);
+
+    // Click save in profile form
     const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
     fireEvent.click(saveBtn);
 
@@ -160,6 +166,13 @@ describe('UserProfileModal Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('汤姆主管')).toBeInTheDocument();
+    });
+
+    // Open avatar modal
+    fireEvent.click(screen.getByLabelText('点击修改头像'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('上传头像文件')).toBeInTheDocument();
     });
 
     const fileInput = screen.getByLabelText('上传头像文件') as HTMLInputElement;
@@ -200,6 +213,13 @@ describe('UserProfileModal Component', () => {
     const originalFileReader = window.FileReader;
     (window as any).FileReader = MockFileReader;
 
+    // Open avatar modal
+    fireEvent.click(screen.getByLabelText('点击修改头像'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('上传头像文件')).toBeInTheDocument();
+    });
+
     const fileInput = screen.getByLabelText('上传头像文件') as HTMLInputElement;
     const validFile = new File(['valid'], 'avatar.png', { type: 'image/png' });
 
@@ -208,6 +228,9 @@ describe('UserProfileModal Component', () => {
     await waitFor(() => {
       expect(screen.getByText('自定义上传图片 (Data URL)')).toBeInTheDocument();
     });
+
+    // Confirm avatar selection
+    fireEvent.click(screen.getByRole('button', { name: /确认选择/ }));
 
     const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
     fireEvent.click(saveBtn);
@@ -237,6 +260,13 @@ describe('UserProfileModal Component', () => {
     render(<UserProfileModal isOpen={true} onClose={vi.fn()} onLogout={vi.fn()} />);
 
     await waitFor(() => {
+      expect(screen.getByText('汤姆主管')).toBeInTheDocument();
+    });
+
+    // Open avatar modal
+    fireEvent.click(screen.getByLabelText('点击修改头像'));
+
+    await waitFor(() => {
       expect(screen.getByText('重置默认')).toBeInTheDocument();
     });
 
@@ -246,6 +276,9 @@ describe('UserProfileModal Component', () => {
     await waitFor(() => {
       expect(screen.getByText('系统默认首字母头像')).toBeInTheDocument();
     });
+
+    // Confirm avatar reset
+    fireEvent.click(screen.getByRole('button', { name: /确认选择/ }));
 
     const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
     fireEvent.click(saveBtn);
