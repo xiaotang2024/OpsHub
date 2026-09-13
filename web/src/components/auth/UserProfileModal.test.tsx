@@ -120,4 +120,142 @@ describe('UserProfileModal Component', () => {
     expect(onLogout).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('allows picking a preset avatar and saves with avatar field', async () => {
+    (api.updateProfile as any).mockResolvedValueOnce({
+      ...mockProfile,
+      avatar: 'preset:ops-chan',
+    });
+
+    render(<UserProfileModal isOpen={true} onClose={vi.fn()} onLogout={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('汤姆主管')).toBeInTheDocument();
+    });
+
+    // Click to expand preset avatar picker
+    const togglePickerBtn = screen.getByRole('button', { name: /挑选预设形象/ });
+    fireEvent.click(togglePickerBtn);
+
+    // Pick 喵小智
+    const opsChanPreset = screen.getByText('喵小智');
+    fireEvent.click(opsChanPreset);
+
+    // Click save
+    const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(api.updateProfile).toHaveBeenCalledWith({
+        nickname: '汤姆主管',
+        email: 'tom@opshub.dev',
+        avatar: 'preset:ops-chan',
+      });
+      expect(screen.getByText('个人资料更新成功！')).toBeInTheDocument();
+    });
+  });
+
+  it('rejects avatar file larger than 2MB', async () => {
+    render(<UserProfileModal isOpen={true} onClose={vi.fn()} onLogout={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('汤姆主管')).toBeInTheDocument();
+    });
+
+    const fileInput = screen.getByLabelText('上传头像文件') as HTMLInputElement;
+    const oversizedFile = new File(['a'.repeat(3 * 1024 * 1024)], 'large.png', { type: 'image/png' });
+    Object.defineProperty(oversizedFile, 'size', { value: 3 * 1024 * 1024 });
+
+    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('上传的头像图片不能超过 2MB')).toBeInTheDocument();
+    });
+  });
+
+  it('supports uploading local image file as DataURL and saving', async () => {
+    (api.updateProfile as any).mockResolvedValueOnce({
+      ...mockProfile,
+      avatar: 'data:image/png;base64,fake-data',
+    });
+
+    render(<UserProfileModal isOpen={true} onClose={vi.fn()} onLogout={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('汤姆主管')).toBeInTheDocument();
+    });
+
+    // Mock FileReader
+    const fakeDataUrl = 'data:image/png;base64,dGVzdC1hd2Vzb21l';
+    class MockFileReader {
+      onload: any = null;
+      readAsDataURL() {
+        setTimeout(() => {
+          if (this.onload) {
+            this.onload({ target: { result: fakeDataUrl } });
+          }
+        }, 10);
+      }
+    }
+    const originalFileReader = window.FileReader;
+    (window as any).FileReader = MockFileReader;
+
+    const fileInput = screen.getByLabelText('上传头像文件') as HTMLInputElement;
+    const validFile = new File(['valid'], 'avatar.png', { type: 'image/png' });
+
+    fireEvent.change(fileInput, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('自定义上传图片 (Data URL)')).toBeInTheDocument();
+    });
+
+    const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(api.updateProfile).toHaveBeenCalledWith({
+        nickname: '汤姆主管',
+        email: 'tom@opshub.dev',
+        avatar: fakeDataUrl,
+      });
+    });
+
+    (window as any).FileReader = originalFileReader;
+  });
+
+  it('allows resetting avatar back to default', async () => {
+    (api.getProfile as any).mockResolvedValueOnce({
+      ...mockProfile,
+      avatar: 'preset:ops-chan',
+    });
+
+    (api.updateProfile as any).mockResolvedValueOnce({
+      ...mockProfile,
+      avatar: '',
+    });
+
+    render(<UserProfileModal isOpen={true} onClose={vi.fn()} onLogout={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('重置默认')).toBeInTheDocument();
+    });
+
+    const resetBtn = screen.getByText('重置默认');
+    fireEvent.click(resetBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('系统默认首字母头像')).toBeInTheDocument();
+    });
+
+    const saveBtn = screen.getByRole('button', { name: /保存资料设置/ });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(api.updateProfile).toHaveBeenCalledWith({
+        nickname: '汤姆主管',
+        email: 'tom@opshub.dev',
+        avatar: '',
+      });
+    });
+  });
 });

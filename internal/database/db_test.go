@@ -109,12 +109,12 @@ func TestInitDB_MigrateOldUsersTable(t *testing.T) {
 
 	// 3. Verify that new columns exist and can be queried
 	var (
-		nickname, email, secQ, secA sql.NullString
-		updatedAt                   sql.NullTime
+		nickname, email, avatar, secQ, secA sql.NullString
+		updatedAt                           sql.NullTime
 	)
 	err = newDb.QueryRow(
-		"SELECT nickname, email, security_question, security_answer_hash, updated_at FROM users WHERE username = 'legacy_admin'",
-	).Scan(&nickname, &email, &secQ, &secA, &updatedAt)
+		"SELECT nickname, email, avatar, security_question, security_answer_hash, updated_at FROM users WHERE username = 'legacy_admin'",
+	).Scan(&nickname, &email, &avatar, &secQ, &secA, &updatedAt)
 	require.NoError(t, err)
 	assert.True(t, updatedAt.Valid, "updated_at should be backfilled from created_at")
 }

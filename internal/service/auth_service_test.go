@@ -245,13 +245,15 @@ func TestAuthService_RegisterAndProfile(t *testing.T) {
 	assert.Equal(t, "op1@company.com", profile.Email)
 
 	// 6. UpdateProfile
-	err = authSvc.UpdateProfile("operator1", "张主管", "zhang@corp.com")
+	avatarStr := "preset:ops-chan"
+	err = authSvc.UpdateProfile("operator1", "张主管", "zhang@corp.com", &avatarStr)
 	require.NoError(t, err)
 
 	updatedProfile, err := authSvc.GetProfile("operator1")
 	require.NoError(t, err)
 	assert.Equal(t, "张主管", updatedProfile.Nickname)
 	assert.Equal(t, "zhang@corp.com", updatedProfile.Email)
+	assert.Equal(t, "preset:ops-chan", updatedProfile.Avatar)
 }
 
 func TestAuthService_SecurityQuestionAndReset(t *testing.T) {

@@ -375,9 +375,9 @@ func (s *AuthService) GetProfile(username string) (*model.User, error) {
 
 	var u model.User
 	err := s.db.QueryRow(
-		"SELECT id, username, role, nickname, email, security_question, created_at, updated_at FROM users WHERE username = ?",
+		"SELECT id, username, role, nickname, email, avatar, security_question, created_at, updated_at FROM users WHERE username = ?",
 		username,
-	).Scan(&u.ID, &u.Username, &u.Role, &u.Nickname, &u.Email, &u.SecurityQuestion, &u.CreatedAt, &u.UpdatedAt)
+	).Scan(&u.ID, &u.Username, &u.Role, &u.Nickname, &u.Email, &u.Avatar, &u.SecurityQuestion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("user not found")
@@ -388,8 +388,8 @@ func (s *AuthService) GetProfile(username string) (*model.User, error) {
 	return &u, nil
 }
 
-// UpdateProfile updates the nickname and email for a given user.
-func (s *AuthService) UpdateProfile(username, nickname, email string) error {
+// UpdateProfile updates the nickname, email, and optionally avatar for a given user.
+func (s *AuthService) UpdateProfile(username, nickname, email string, avatar *string) error {
 	username = strings.TrimSpace(username)
 	nickname = strings.TrimSpace(nickname)
 	email = strings.TrimSpace(email)
@@ -401,12 +401,25 @@ func (s *AuthService) UpdateProfile(username, nickname, email string) error {
 		nickname = username
 	}
 
-	res, err := s.db.Exec(
-		"UPDATE users SET nickname = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
-		nickname,
-		email,
-		username,
-	)
+	var res sql.Result
+	var err error
+
+	if avatar != nil {
+		res, err = s.db.Exec(
+			"UPDATE users SET nickname = ?, email = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+			nickname,
+			email,
+			strings.TrimSpace(*avatar),
+			username,
+		)
+	} else {
+		res, err = s.db.Exec(
+			"UPDATE users SET nickname = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?",
+			nickname,
+			email,
+			username,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update user profile failed: %w", err)
 	}

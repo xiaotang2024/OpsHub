@@ -139,6 +139,7 @@ export interface UserProfile {
   role: 'admin' | 'operator' | string;
   nickname?: string;
   email?: string;
+  avatar?: string;
   security_question?: string;
   created_at?: string;
   updated_at?: string;
@@ -162,6 +163,7 @@ export interface ResetPasswordPayload {
 export interface UpdateProfilePayload {
   nickname: string;
   email: string;
+  avatar?: string;
 }
 
 export interface DeployPrecheckResult {

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { LoginModal } from '../auth/LoginModal';
 import { UserProfileModal } from '../auth/UserProfileModal';
+import { UserAvatar } from '../auth/UserAvatar';
 import { ThemePicker } from '../theme/ThemePicker';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -111,11 +112,21 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       setIsLoginOpen(false);
     };
 
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail?.user) {
+        setUserProfile(e.detail.user);
+      } else {
+        api.getMe().then((p) => setUserProfile(p)).catch(() => {});
+      }
+    };
+
     window.addEventListener('opshub:unauthorized', handleUnauthorized);
     window.addEventListener('opshub:authenticated', handleAuthenticated);
+    window.addEventListener('opshub:profile_updated', handleProfileUpdated);
     return () => {
       window.removeEventListener('opshub:unauthorized', handleUnauthorized);
       window.removeEventListener('opshub:authenticated', handleAuthenticated);
+      window.removeEventListener('opshub:profile_updated', handleProfileUpdated);
     };
   }, []);
 
@@ -260,9 +271,15 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
             className="flex items-center justify-between rounded-lg border border-ops-border bg-ops-surface p-2.5 hover:border-ops-cyan/50 hover:bg-ops-surface/80 transition-all cursor-pointer group"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-cyan-900 to-slate-800 text-ops-cyan border border-ops-cyan/30 group-hover:shadow-cyan-glow transition-all">
-                <User className="h-4 w-4" />
-              </div>
+              <UserAvatar
+                avatar={userProfile?.avatar}
+                nickname={userProfile?.nickname}
+                username={currentUser || undefined}
+                size="sm"
+                role={userProfile?.role}
+                showBadge
+                className="group-hover:shadow-cyan-glow transition-all"
+              />
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold text-white truncate">
                   {userProfile?.nickname || (userProfile?.role === 'admin' ? '超级管理员' : userProfile ? '运维操作员' : '运维管理员')}

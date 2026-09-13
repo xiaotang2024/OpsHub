@@ -53,8 +53,9 @@ type ResetPasswordRequest struct {
 
 // UpdateProfileRequest defines parameters for updating current user profile.
 type UpdateProfileRequest struct {
-	Nickname string `json:"nickname"`
-	Email    string `json:"email"`
+	Nickname string  `json:"nickname"`
+	Email    string  `json:"email"`
+	Avatar   *string `json:"avatar"`
 }
 
 // Login validates user credentials and returns a JWT access token.
@@ -226,7 +227,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 
 	middleware.SetAudit(c, "UPDATE_PROFILE", "user", username, "User updated profile")
 
-	if err := h.authService.UpdateProfile(username, req.Nickname, req.Email); err != nil {
+	if err := h.authService.UpdateProfile(username, req.Nickname, req.Email, req.Avatar); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

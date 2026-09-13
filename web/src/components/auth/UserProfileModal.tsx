@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User,
@@ -15,10 +15,15 @@ import {
   Loader2,
   Save,
   HelpCircle,
+  Camera,
+  Upload,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../../api';
 import { toast } from 'sonner';
-import { UserProfile } from '../../types';
+import { UserProfile, UpdateProfilePayload } from '../../types';
+import { UserAvatar, PRESET_AVATARS } from './UserAvatar';
 
 export interface UserProfileModalProps {
   isOpen: boolean;
@@ -40,6 +45,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   // Edit profile form
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Change password form
   const [oldPassword, setOldPassword] = useState('');
@@ -60,6 +68,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setProfile(data);
       setNickname(data.nickname || '');
       setEmail(data.email || '');
+      setAvatar(data.avatar || '');
     } catch (err: any) {
       setError(err.message || '加载个人信息失败');
     } finally {
@@ -73,11 +82,38 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setError(null);
       setSuccessMsg(null);
       setActiveTab('profile');
+      setShowAvatarPicker(false);
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
     }
   }, [isOpen]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('上传的头像图片不能超过 2MB');
+      toast.error('上传的头像图片不能超过 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setAvatar(dataUrl);
+        toast.success('本地头像载入成功，点击保存即可生效！');
+      }
+    };
+    reader.onerror = () => {
+      setError('读取图片文件失败');
+      toast.error('读取图片文件失败');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   if (!isOpen) return null;
 
@@ -87,10 +123,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     try {
       setSavingProfile(true);
       setError(null);
-      const updated = await api.updateProfile({ nickname, email });
+      const payload: UpdateProfilePayload = {
+        nickname,
+        email,
+        ...(avatar !== (profile?.avatar || '') ? { avatar } : (profile?.avatar ? { avatar: profile.avatar } : {})),
+      };
+      const updated = await api.updateProfile(payload);
       setProfile(updated);
       setSuccessMsg('个人资料更新成功！');
       toast.success('个人资料更新成功！');
+      window.dispatchEvent(new CustomEvent('opshub:profile_updated', { detail: { user: updated } }));
+      window.dispatchEvent(new CustomEvent('opshub:authenticated', { detail: { username: updated.username, user: updated } }));
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
       setError(err.message || '更新个人资料失败');
@@ -170,10 +213,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* User Header Profile Card */}
           <div className="flex items-center gap-4 mb-5 shrink-0">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-900/80 via-slate-900 to-slate-800 border border-ops-cyan/40 text-ops-cyan shadow-cyan-glow">
-              <User className="h-7 w-7" />
-              <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-ops-bg border border-ops-border">
-                <Shield className="h-3 w-3 text-ops-cyan" />
+            <div
+              onClick={() => setShowAvatarPicker((prev) => !prev)}
+              className="relative group cursor-pointer"
+              title="点击更换个性头像"
+              aria-label="点击更换头像"
+            >
+              <UserAvatar
+                avatar={avatar || profile?.avatar}
+                nickname={nickname || profile?.nickname}
+                username={profile?.username}
+                size="lg"
+                showBadge
+                role={profile?.role}
+                className="shadow-cyan-glow group-hover:scale-105 transition-transform"
+              />
+              <div className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity backdrop-blur-xs">
+                <Camera className="h-4 w-4 text-ops-cyan" />
+                <span className="text-[9px] font-mono font-bold text-cyan-300">更换</span>
               </div>
             </div>
             <div>
@@ -300,6 +357,130 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       className="w-full rounded-lg border border-ops-border bg-ops-bg/60 px-3 py-2 text-xs text-ops-text-muted font-mono cursor-not-allowed"
                     />
                   </div>
+                </div>
+
+                {/* Avatar Settings Section */}
+                <div className="rounded-xl border border-ops-border bg-ops-bg/40 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-mono font-medium text-ops-text-muted flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-ops-cyan" />
+                      <span>个性头像设置</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAvatarPicker((prev) => !prev)}
+                        className="text-[11px] font-mono px-2 py-1 rounded bg-ops-surface border border-ops-border text-ops-cyan hover:border-ops-cyan/50 transition-colors flex items-center gap-1"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        {showAvatarPicker ? '收起预设形象' : '挑选预设形象'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-[11px] font-mono px-2 py-1 rounded bg-ops-surface border border-ops-border text-ops-text-sub hover:text-white hover:border-ops-border-hover transition-colors flex items-center gap-1"
+                      >
+                        <Upload className="h-3 w-3" />
+                        上传本地图片
+                      </button>
+                      {avatar && (
+                        <button
+                          type="button"
+                          onClick={() => setAvatar('')}
+                          className="text-[11px] font-mono px-2 py-1 rounded bg-ops-surface border border-ops-border text-ops-text-muted hover:text-amber-400 transition-colors flex items-center gap-1"
+                          title="恢复系统默认首字母头像"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          重置默认
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    aria-label="上传头像文件"
+                  />
+
+                  {/* Current Avatar Quick Preview Banner */}
+                  <div className="flex items-center gap-3 p-2.5 rounded-lg bg-ops-bg/80 border border-ops-border/60">
+                    <UserAvatar
+                      avatar={avatar}
+                      nickname={nickname || profile?.nickname}
+                      username={profile?.username}
+                      size="md"
+                      role={profile?.role}
+                      showBadge
+                    />
+                    <div className="flex-1 min-w-0 text-xs font-mono">
+                      <div className="text-white font-semibold flex items-center gap-1.5">
+                        <span>当前头像状态:</span>
+                        <span className="text-ops-cyan text-[11px]">
+                          {avatar
+                            ? avatar.startsWith('data:')
+                              ? '自定义上传图片 (Data URL)'
+                              : PRESET_AVATARS.find((p) => p.id === avatar)?.title || '预设形象'
+                            : '系统默认首字母头像'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-ops-text-muted mt-0.5 truncate">
+                        {avatar
+                          ? avatar.startsWith('data:')
+                            ? '已载入本地图片，点击下方“保存资料设置”生效'
+                            : PRESET_AVATARS.find((p) => p.id === avatar)?.description || '已选择官方预设运维角色形象'
+                          : '未设置独立形象，将根据昵称/用户名首字母生成极简标识'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Preset Avatar Selection Grid */}
+                  {showAvatarPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-2 pt-1 border-t border-ops-border/50"
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-mono text-ops-text-muted">
+                        <span>选择 OpsHub 赛博运维预设形象:</span>
+                        <span className="text-[10px] text-ops-text-muted/70">共 {PRESET_AVATARS.length} 款形象</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {PRESET_AVATARS.map((p) => {
+                          const isSelected = avatar === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => setAvatar(p.id)}
+                              className={`flex items-center gap-2 p-2 rounded-lg border text-left transition-all relative ${
+                                isSelected
+                                  ? 'border-ops-cyan bg-cyan-950/40 shadow-cyan-glow/20'
+                                  : 'border-ops-border bg-ops-surface/60 hover:border-ops-border-hover hover:bg-ops-surface'
+                              }`}
+                            >
+                              <div className="relative shrink-0">
+                                <UserAvatar avatar={p.id} size="sm" />
+                                {isSelected && (
+                                  <div className="absolute -top-1 -right-1 bg-ops-cyan text-slate-950 rounded-full p-0.5 shadow-sm">
+                                    <Check className="h-2.5 w-2.5 stroke-[3]" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-semibold text-white truncate">{p.title}</div>
+                                <div className="text-[10px] font-mono text-ops-text-muted truncate">{p.description}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div>

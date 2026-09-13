@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'operator',
     nickname TEXT DEFAULT '',
     email TEXT DEFAULT '',
+    avatar TEXT DEFAULT '',
     security_question TEXT DEFAULT '',
     security_answer_hash TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -208,6 +209,7 @@ func migrateUsersTable(db *sql.DB) error {
 	}{
 		{"nickname", "TEXT DEFAULT ''"},
 		{"email", "TEXT DEFAULT ''"},
+		{"avatar", "TEXT DEFAULT ''"},
 		{"security_question", "TEXT DEFAULT ''"},
 		{"security_answer_hash", "TEXT DEFAULT ''"},
 		{"updated_at", "DATETIME"},

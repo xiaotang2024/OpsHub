@@ -57,6 +57,7 @@ type User struct {
 	Role               string    `json:"role" db:"role"`
 	Nickname           string    `json:"nickname" db:"nickname"`
 	Email              string    `json:"email" db:"email"`
+	Avatar             string    `json:"avatar" db:"avatar"`
 	SecurityQuestion   string    `json:"security_question,omitempty" db:"security_question"`
 	SecurityAnswerHash string    `json:"-" db:"security_answer_hash"`
 	CreatedAt          time.Time `json:"created_at" db:"created_at"`
