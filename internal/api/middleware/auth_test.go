@@ -189,7 +189,8 @@ func TestRequirePermission_Middleware(t *testing.T) {
 		VALUES 
 			('admin_user', 'hash', 'admin', '[]', 'active'),
 			('op_custom', 'hash', 'operator', '["service:view","service:control"]', 'active'),
-			('op_default', 'hash', 'operator', '[]', 'active'),
+			('op_default', 'hash', 'operator', '', 'active'),
+			('op_empty', 'hash', 'operator', '[]', 'active'),
 			('op_disabled', 'hash', 'operator', '["service:control"]', 'disabled')
 	`)
 	require.NoError(t, err)
@@ -244,7 +245,7 @@ func TestRequirePermission_Middleware(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, wOpDenied.Code)
 	assert.Contains(t, wOpDenied.Body.String(), "无权限执行此操作，缺少权限: template:manage")
 
-	// 5. Operator with empty permissions falls back to DefaultOperatorPermissions
+	// 5. Operator with unset permissions falls back to DefaultOperatorPermissions
 	// service:control is in default permissions
 	reqOpDef1 := httptest.NewRequest("POST", "/service/start", nil)
 	reqOpDef1.Header.Set("X-Role", "operator")
@@ -261,6 +262,15 @@ func TestRequirePermission_Middleware(t *testing.T) {
 	r.ServeHTTP(wOpDef2, reqOpDef2)
 	assert.Equal(t, http.StatusForbidden, wOpDef2.Code)
 	assert.Contains(t, wOpDef2.Body.String(), "无权限执行此操作，缺少权限: template:manage")
+
+	// 5.1 Operator with explicitly empty permissions '[]' must NOT fallback to default permissions (zero permissions)
+	reqOpEmpty := httptest.NewRequest("POST", "/service/start", nil)
+	reqOpEmpty.Header.Set("X-Role", "operator")
+	reqOpEmpty.Header.Set("X-User", "op_empty")
+	wOpEmpty := httptest.NewRecorder()
+	r.ServeHTTP(wOpEmpty, reqOpEmpty)
+	assert.Equal(t, http.StatusForbidden, wOpEmpty.Code)
+	assert.Contains(t, wOpEmpty.Body.String(), "无权限执行此操作，缺少权限: service:control")
 
 	// 6. Disabled operator -> 403
 	reqDisabled := httptest.NewRequest("POST", "/service/start", nil)

@@ -43,6 +43,17 @@ func TestUserService_CRUDAndGuardrails(t *testing.T) {
 	err = userSvc.UpdatePermissions(ctx, user.ID, newPerms)
 	require.NoError(t, err)
 
+	// 2.1 验证显式清空权限：传入空切片 []string{}，应保持为空切片而非回退为默认权限
+	err = userSvc.UpdatePermissions(ctx, user.ID, []string{})
+	require.NoError(t, err)
+	clearedUser, err := userSvc.GetUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, clearedUser.Permissions)
+
+	// 恢复部分权限继续后续测试
+	err = userSvc.UpdatePermissions(ctx, user.ID, newPerms)
+	require.NoError(t, err)
+
 	users, err := userSvc.ListUsers(ctx)
 	require.NoError(t, err)
 	assert.Len(t, users, 2)

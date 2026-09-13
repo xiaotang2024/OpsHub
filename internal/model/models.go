@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"strings"
+	"time"
+)
 
 // Template types
 const (
@@ -176,3 +180,24 @@ type AuditLog struct {
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
+
+// ParseUserPermissions parses the stored JSON permissions for a user.
+// For operators: if rawJSON is empty, whitespace, or "null" (unset), it assigns DefaultOperatorPermissions.
+// If rawJSON is a valid JSON array (including an explicitly empty array "[]"), it respects the parsed slice.
+func ParseUserPermissions(rawJSON string, role string) []string {
+	if role != RoleOperator {
+		return nil
+	}
+	trimmed := strings.TrimSpace(rawJSON)
+	if trimmed == "" || trimmed == "null" {
+		return append([]string(nil), DefaultOperatorPermissions...)
+	}
+	var perms []string
+	if err := json.Unmarshal([]byte(trimmed), &perms); err != nil {
+		return append([]string(nil), DefaultOperatorPermissions...)
+	}
+	if perms == nil {
+		return []string{}
+	}
+	return perms
+}

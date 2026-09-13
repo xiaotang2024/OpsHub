@@ -116,21 +116,19 @@ func (s *AuthService) Login(username, password string) (string, error) {
 	if status == "" {
 		status = model.UserStatusActive
 	}
-	if status == model.UserStatusDisabled {
-		return "", errors.New("account is disabled")
+	if status != model.UserStatusActive {
+		return "", fmt.Errorf("account is disabled")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
-	var perms []string
-	if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
-		_ = json.Unmarshal([]byte(permStr.String), &perms)
+	var rawPerms string
+	if permStr.Valid {
+		rawPerms = permStr.String
 	}
-	if len(perms) == 0 && userRole == model.RoleOperator {
-		perms = model.DefaultOperatorPermissions
-	}
+	perms := model.ParseUserPermissions(rawPerms, userRole)
 	if perms == nil {
 		perms = []string{}
 	}
@@ -435,12 +433,11 @@ func (s *AuthService) GetProfile(username string) (*model.User, error) {
 		u.Status = model.UserStatusActive
 	}
 
-	if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
-		_ = json.Unmarshal([]byte(permStr.String), &u.Permissions)
+	var rawPerms string
+	if permStr.Valid {
+		rawPerms = permStr.String
 	}
-	if len(u.Permissions) == 0 && u.Role == model.RoleOperator {
-		u.Permissions = model.DefaultOperatorPermissions
-	}
+	u.Permissions = model.ParseUserPermissions(rawPerms, u.Role)
 	if u.Permissions == nil {
 		u.Permissions = []string{}
 	}

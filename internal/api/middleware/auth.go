@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -130,13 +129,11 @@ func RequirePermission(db *sql.DB, requiredPerm string) gin.HandlerFunc {
 			return
 		}
 
-		var perms []string
-		if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
-			_ = json.Unmarshal([]byte(permStr.String), &perms)
+		var rawPerms string
+		if permStr.Valid {
+			rawPerms = permStr.String
 		}
-		if len(perms) == 0 {
-			perms = model.DefaultOperatorPermissions
-		}
+		perms := model.ParseUserPermissions(rawPerms, role)
 
 		has := false
 		for _, p := range perms {

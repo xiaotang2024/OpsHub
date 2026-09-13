@@ -61,12 +61,11 @@ func (s *UserService) ListUsers(ctx context.Context) ([]*model.User, error) {
 			u.Status = model.UserStatusActive
 		}
 
-		if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
-			_ = json.Unmarshal([]byte(permStr.String), &u.Permissions)
+		var rawPerms string
+		if permStr.Valid {
+			rawPerms = permStr.String
 		}
-		if len(u.Permissions) == 0 && u.Role == model.RoleOperator {
-			u.Permissions = model.DefaultOperatorPermissions
-		}
+		u.Permissions = model.ParseUserPermissions(rawPerms, u.Role)
 		if u.Permissions == nil {
 			u.Permissions = []string{}
 		}
@@ -103,12 +102,11 @@ func (s *UserService) GetUserByID(ctx context.Context, userID int64) (*model.Use
 		u.Status = model.UserStatusActive
 	}
 
-	if permStr.Valid && strings.TrimSpace(permStr.String) != "" {
-		_ = json.Unmarshal([]byte(permStr.String), &u.Permissions)
+	var rawPerms string
+	if permStr.Valid {
+		rawPerms = permStr.String
 	}
-	if len(u.Permissions) == 0 && u.Role == model.RoleOperator {
-		u.Permissions = model.DefaultOperatorPermissions
-	}
+	u.Permissions = model.ParseUserPermissions(rawPerms, u.Role)
 	if u.Permissions == nil {
 		u.Permissions = []string{}
 	}
@@ -140,7 +138,7 @@ func (s *UserService) CreateUser(ctx context.Context, req CreateUserRequest) (*m
 		req.Nickname = req.Username
 	}
 
-	if req.Role == model.RoleOperator && len(req.Permissions) == 0 {
+	if req.Role == model.RoleOperator && req.Permissions == nil {
 		req.Permissions = model.DefaultOperatorPermissions
 	}
 	if req.Permissions == nil {

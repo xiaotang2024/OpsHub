@@ -172,3 +172,27 @@ func TestModelJSONSerialization(t *testing.T) {
 	assert.NotContains(t, model.DefaultOperatorPermissions, model.PermTemplateManage)
 	assert.NotContains(t, model.DefaultOperatorPermissions, model.PermJDKManage)
 }
+
+func TestParseUserPermissions(t *testing.T) {
+	// Admin gets nil
+	assert.Nil(t, model.ParseUserPermissions(`["service:view"]`, model.RoleAdmin))
+
+	// Operator unset/empty -> DefaultOperatorPermissions
+	permsEmpty := model.ParseUserPermissions("", model.RoleOperator)
+	assert.ElementsMatch(t, model.DefaultOperatorPermissions, permsEmpty)
+
+	permsNull := model.ParseUserPermissions("null", model.RoleOperator)
+	assert.ElementsMatch(t, model.DefaultOperatorPermissions, permsNull)
+
+	permsInvalid := model.ParseUserPermissions("not-valid-json", model.RoleOperator)
+	assert.ElementsMatch(t, model.DefaultOperatorPermissions, permsInvalid)
+
+	// Operator explicitly empty array "[]" -> empty slice, NOT default permissions!
+	permsExplicitZero := model.ParseUserPermissions("[]", model.RoleOperator)
+	assert.NotNil(t, permsExplicitZero)
+	assert.Empty(t, permsExplicitZero)
+
+	// Operator specific permissions
+	permsCustom := model.ParseUserPermissions(`["service:view","service:rollback"]`, model.RoleOperator)
+	assert.ElementsMatch(t, []string{"service:view", "service:rollback"}, permsCustom)
+}
