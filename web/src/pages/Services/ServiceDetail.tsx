@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -1230,115 +1231,121 @@ export const ServiceDetail: React.FC = () => {
       )}
 
       {/* Deploy Permission Precheck Alert Modal */}
-      {permCheckError && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-md">
-          <div className="relative w-full max-w-lg rounded-2xl border border-rose-500/30 bg-ops-surface shadow-2xl p-6 space-y-5">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-400 shadow-rose-950/50">
-                  <ShieldAlert className="h-5 w-5" />
+      {permCheckError && (() => {
+        const alertContent = (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-md !m-0">
+            <div className="relative w-full max-w-lg rounded-2xl border border-rose-500/30 bg-ops-surface shadow-2xl p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-400 shadow-rose-950/50">
+                    <ShieldAlert className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white tracking-wide">
+                      发版部署权限检测未通过
+                    </h3>
+                    <p className="text-xs text-ops-text-muted font-mono mt-0.5">
+                      {permCheckError.type === 'directory_permission'
+                        ? '宿主机安装目录缺少写入或创建权限'
+                        : permCheckError.type === 'user_role_permission'
+                        ? '当前用户角色权限不足'
+                        : '账号未认证或发版权限受限'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white tracking-wide">
-                    发版部署权限检测未通过
-                  </h3>
-                  <p className="text-xs text-ops-text-muted font-mono mt-0.5">
-                    {permCheckError.type === 'directory_permission'
-                      ? '宿主机安装目录缺少写入或创建权限'
-                      : permCheckError.type === 'user_role_permission'
-                      ? '当前用户角色权限不足'
-                      : '账号未认证或发版权限受限'}
+                <button
+                  type="button"
+                  onClick={() => setPermCheckError(null)}
+                  className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-white transition-colors"
+                  aria-label="关闭"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Error detail */}
+              <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-950/30 space-y-1.5 font-mono text-xs">
+                <div className="text-rose-400 font-semibold flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>检测结果：</span>
+                </div>
+                <div className="text-rose-200/90 break-words leading-relaxed pl-5">
+                  {permCheckError.error || '未满足发版部署前置权限要求'}
+                </div>
+                {permCheckError.install_dir && (
+                  <div className="text-[11px] text-rose-300/70 pt-1 border-t border-rose-500/20 pl-5">
+                    目标安装目录：<span className="text-rose-200 font-semibold">{permCheckError.install_dir}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Suggestion / Fix Command */}
+              {permCheckError.suggestion && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white flex items-center gap-1.5">
+                      <Terminal className="h-3.5 w-3.5 text-ops-cyan" />
+                      <span>建议修复方案（在服务器终端执行）：</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyFixCmd(permCheckError.suggestion!)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ops-border bg-ops-bg text-[11px] font-mono text-ops-cyan hover:border-ops-cyan/50 hover:bg-cyan-950/30 transition-colors"
+                    >
+                      {copiedFixCmd ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-400" />
+                          <span className="text-emerald-400">已复制</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>复制命令</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="relative rounded-xl border border-ops-border bg-black/80 p-3 font-mono text-xs text-emerald-400 break-all select-all shadow-inner">
+                    {permCheckError.suggestion}
+                  </div>
+                  <p className="text-[11px] text-ops-text-muted font-mono leading-relaxed">
+                    💡 执行修复命令后，点击下方【重新检测】按钮，通过后将自动打开部署向导。
                   </p>
                 </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPermCheckError(null)}
-                className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-white transition-colors"
-                aria-label="关闭"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Error detail */}
-            <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-950/30 space-y-1.5 font-mono text-xs">
-              <div className="text-rose-400 font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span>检测结果：</span>
-              </div>
-              <div className="text-rose-200/90 break-words leading-relaxed pl-5">
-                {permCheckError.error || '未满足发版部署前置权限要求'}
-              </div>
-              {permCheckError.install_dir && (
-                <div className="text-[11px] text-rose-300/70 pt-1 border-t border-rose-500/20 pl-5">
-                  目标安装目录：<span className="text-rose-200 font-semibold">{permCheckError.install_dir}</span>
-                </div>
               )}
-            </div>
 
-            {/* Suggestion / Fix Command */}
-            {permCheckError.suggestion && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-white flex items-center gap-1.5">
-                    <Terminal className="h-3.5 w-3.5 text-ops-cyan" />
-                    <span>建议修复方案（在服务器终端执行）：</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyFixCmd(permCheckError.suggestion!)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-ops-border bg-ops-bg text-[11px] font-mono text-ops-cyan hover:border-ops-cyan/50 hover:bg-cyan-950/30 transition-colors"
-                  >
-                    {copiedFixCmd ? (
-                      <>
-                        <Check className="h-3 w-3 text-emerald-400" />
-                        <span className="text-emerald-400">已复制</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        <span>复制命令</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="relative rounded-xl border border-ops-border bg-black/80 p-3 font-mono text-xs text-emerald-400 break-all select-all shadow-inner">
-                  {permCheckError.suggestion}
-                </div>
-                <p className="text-[11px] text-ops-text-muted font-mono leading-relaxed">
-                  💡 执行修复命令后，点击下方【重新检测】按钮，通过后将自动打开部署向导。
-                </p>
+              {/* Footer Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-ops-border">
+                <button
+                  type="button"
+                  onClick={() => setPermCheckError(null)}
+                  className="px-4 py-2 rounded-lg border border-ops-border bg-ops-card text-xs font-semibold text-ops-text-sub hover:text-white hover:bg-ops-card-hover transition-colors"
+                >
+                  关闭
+                </button>
+                <button
+                  type="button"
+                  disabled={isCheckingDeployPerm}
+                  onClick={handleOpenDeployModal}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 transition-colors disabled:opacity-50"
+                >
+                  {isCheckingDeployPerm ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  <span>{isCheckingDeployPerm ? '检测中...' : '重新检测'}</span>
+                </button>
               </div>
-            )}
-
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-ops-border">
-              <button
-                type="button"
-                onClick={() => setPermCheckError(null)}
-                className="px-4 py-2 rounded-lg border border-ops-border bg-ops-card text-xs font-semibold text-ops-text-sub hover:text-white hover:bg-ops-card-hover transition-colors"
-              >
-                关闭
-              </button>
-              <button
-                type="button"
-                disabled={isCheckingDeployPerm}
-                onClick={handleOpenDeployModal}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ops-cyan text-slate-950 text-xs font-bold shadow-cyan-glow hover:bg-cyan-400 transition-colors disabled:opacity-50"
-              >
-                {isCheckingDeployPerm ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                <span>{isCheckingDeployPerm ? '检测中...' : '重新检测'}</span>
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+        if (typeof document !== 'undefined') {
+          return createPortal(alertContent, document.body);
+        }
+        return alertContent;
+      })()}
 
       {/* Template Sync Modal */}
       {syncModalOpen && service && (

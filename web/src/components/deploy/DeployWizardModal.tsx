@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   UploadCloud,
@@ -423,8 +424,8 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
   };
 
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 overflow-y-auto !m-0">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -432,7 +433,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         className="relative w-full max-w-4xl rounded-2xl border border-ops-border bg-ops-surface shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/80 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-ops-border bg-slate-900/90 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950/80 border border-ops-cyan/30 text-ops-cyan shadow-cyan-glow">
               <Layers className="h-5 w-5" />
@@ -861,7 +862,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-ops-border bg-ops-bg/80 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-ops-border bg-slate-900/90 px-6 py-4">
           <div className="text-xs font-mono text-ops-text-muted">
             {pipelineRunning
               ? '流水线运行中，请勿刷新或关闭窗口...'
@@ -927,6 +928,11 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
       />
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };
 
 export default DeployWizardModal;

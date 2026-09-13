@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import {
   RotateCcw,
@@ -83,8 +84,8 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-md p-4 overflow-y-auto !m-0">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -92,7 +93,7 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
         className="relative w-full max-w-2xl rounded-2xl border border-amber-500/30 bg-ops-surface shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/80 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-ops-border bg-slate-900/90 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-950/80 border border-amber-500/30 text-amber-400 shadow-amber-glow">
               <RotateCcw className="h-5 w-5" />
@@ -277,7 +278,7 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-ops-border bg-ops-bg/80 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-ops-border bg-slate-900/90 px-6 py-4">
           <div className="text-xs font-mono text-ops-text-muted">
             目标制品 ID: #{targetArtifact.id}
           </div>
@@ -315,6 +316,11 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
       </motion.div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 };
 
 export default RollbackModal;
