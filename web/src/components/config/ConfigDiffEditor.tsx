@@ -14,6 +14,8 @@ import {
   Columns,
   AlignLeft,
   Plus,
+  HelpCircle,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
@@ -214,6 +216,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
   const [confirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isNewFile, setIsNewFile] = useState(false);
+  const [showHelpTooltip, setShowHelpTooltip] = useState(false);
 
   const gutterRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -474,6 +477,74 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           <div className="flex items-center gap-1.5 text-ops-cyan font-bold text-xs sm:text-sm">
             <FileCode2 className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">配置文件:</span>
+          </div>
+
+          {/* Config Effect & Priority Tooltip Trigger */}
+          <div className="relative group inline-block">
+            <button
+              type="button"
+              onClick={() => setShowHelpTooltip((prev) => !prev)}
+              className="inline-flex items-center gap-1 text-[11px] text-ops-cyan hover:text-cyan-300 font-mono bg-ops-cyan/10 hover:bg-ops-cyan/20 border border-ops-cyan/30 px-2 py-0.5 rounded-md transition-colors"
+              title="点击或悬浮查看配置生效机理与端口优先级说明"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>配置生效与优先级说明</span>
+            </button>
+
+            {/* Hover Tooltip Card */}
+            <div
+              className={`absolute left-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+                showHelpTooltip
+                  ? 'opacity-100 visible pointer-events-auto'
+                  : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b border-ops-border/60 pb-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-ops-cyan" />
+                  <h4 className="text-xs font-bold text-white tracking-wide">
+                    配置文件生效机制与优先级说明
+                  </h4>
+                </div>
+                {showHelpTooltip && (
+                  <button
+                    type="button"
+                    onClick={() => setShowHelpTooltip(false)}
+                    className="text-ops-text-muted hover:text-white text-xs p-0.5 rounded"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed font-sans">
+                <div className="p-2.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-emerald-200">
+                  <div className="font-bold text-emerald-400 mb-0.5">✅ 配置文件生效范围</div>
+                  <div className="text-emerald-300/90 text-[11px]">
+                    在此修改并保存的文件将实时写入宿主机服务安装根目录。<strong>应用重启后将自动加载该文件</strong>，常规业务配置（如数据库数据源、Redis 缓存、业务开关、日志级别等）均可正常生效。
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-950/30 text-amber-200">
+                  <div className="font-bold text-amber-400 mb-0.5">⚠️ 监听端口 (server.port) 覆盖机制</div>
+                  <div className="text-amber-300/90 text-[11px]">
+                    对于标准 Java 模板服务，平台在启动命令中默认会传入命令行参数 <code className="px-1 py-0.5 rounded bg-black/40 text-amber-300 font-mono">--server.port=&#123;PORT&#125;</code>。根据 Spring Boot 官方规范，<strong>命令行参数优先级高于配置文件</strong>，因此直接在 YAML 中修改 <code className="px-1 py-0.5 rounded bg-black/40 text-amber-300 font-mono">server.port</code> 会被命令行参数强制覆盖。
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg border border-ops-cyan/30 bg-cyan-950/30 text-cyan-200">
+                  <div className="font-bold text-ops-cyan mb-0.5">🛠️ 如何正确修改服务端口？</div>
+                  <div className="text-cyan-300/90 text-[11px] space-y-1">
+                    <div>
+                      • <strong>方式一（推荐平台管理）</strong>：进入左侧「<span className="font-semibold text-white">服务矩阵</span>」列表，点击该服务卡片的「编辑」抽屉，修改「服务监听端口」后重启。
+                    </div>
+                    <div>
+                      • <strong>方式二（完全由配置文件掌控）</strong>：在「部署模板」中将启动命令重载为自定义命令（去除 <code className="px-1 py-0.5 rounded bg-black/40 font-mono text-cyan-300">--server.port</code> 参数），即可完全通过本文件掌控端口。
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Part 1: Select Name */}

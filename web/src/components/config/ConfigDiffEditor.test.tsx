@@ -341,4 +341,19 @@ describe('ConfigDiffEditor', () => {
     expect(saveBtn).toBeDisabled();
     expect(screen.getByTitle('无配置修改权限，请联系管理员授予')).toBeInTheDocument();
   });
+
+  it('renders config effect and port priority hover tooltip with guidance', async () => {
+    render(<ConfigDiffEditor serviceId={10} files={['application.yml']} />);
+
+    await waitFor(() => {
+      // Trigger button should be present
+      expect(screen.getByText(/配置生效与优先级说明/i)).toBeInTheDocument();
+
+      // Tooltip content items should be present in document
+      expect(screen.getByText(/配置文件生效范围/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/监听端口/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/server\.port/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/服务矩阵/i)).toBeInTheDocument();
+    });
+  });
 });
