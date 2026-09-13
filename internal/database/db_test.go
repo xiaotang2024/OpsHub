@@ -163,4 +163,46 @@ func TestInitDB_MigrateOldServicesTable(t *testing.T) {
 }
 
 
+func TestInitDBWithDriver_SQLite(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "driver_test.db")
+
+	db, err := database.InitDBWithDriver("sqlite", dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	tables := []string{"jdk_assets", "templates", "services", "artifacts", "deploy_records", "audit_logs", "users"}
+	for _, table := range tables {
+		var name string
+		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&name)
+		require.NoError(t, err, "table %s should exist", table)
+		assert.Equal(t, table, name)
+	}
+}
+
+func TestInitDBWithDriver_EmptyDriverDefaultsSQLite(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "empty_driver.db")
+
+	db, err := database.InitDBWithDriver("", dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	var name string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").Scan(&name)
+	require.NoError(t, err)
+	assert.Equal(t, "users", name)
+}
+
+func TestInitDBWithDriver_UnsupportedDriver(t *testing.T) {
+	_, err := database.InitDBWithDriver("postgres", "host=localhost")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported database driver")
+}
+
+func TestInitDBWithDriver_MySQLEmptyDSN(t *testing.T) {
+	_, err := database.InitDBWithDriver("mysql", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mysql DSN must not be empty")
+}
 

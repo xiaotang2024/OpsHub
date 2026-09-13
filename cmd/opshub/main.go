@@ -40,12 +40,14 @@ func main() {
 		log.Fatalf("[OpsHub] Failed to create logs directory %s: %v", cfg.LogsDir(), err)
 	}
 
-	// 3. Initialize SQLite database
-	db, err := database.InitDB(cfg.DBPath())
+	// 3. Initialize database (sqlite or mysql, based on config)
+	dbCfg := cfg.ResolvedDatabaseConfig()
+	db, err := database.InitDBWithDriver(dbCfg.Driver, dbCfg.DSN)
 	if err != nil {
-		log.Fatalf("[OpsHub] Failed to initialize database at %s: %v", cfg.DBPath(), err)
+		log.Fatalf("[OpsHub] Failed to initialize database (driver=%s): %v", dbCfg.Driver, err)
 	}
 	defer db.Close()
+	log.Printf("[OpsHub] Database initialized successfully (driver=%s)", dbCfg.Driver)
 
 	// 4. Initialize admin account if first run
 	authSvc := service.NewAuthService(db, cfg.Server.JWTSecret)

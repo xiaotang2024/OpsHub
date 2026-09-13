@@ -73,3 +73,62 @@ func TestAppConfig_HelperMethods(t *testing.T) {
 	assert.Equal(t, "/opt/opshub/data/packages", cfg.PackagesDir())
 	assert.Equal(t, "/opt/opshub/data/logs", cfg.LogsDir())
 }
+
+func TestDatabaseConfig_DefaultsSQLite(t *testing.T) {
+	cfg := config.DefaultConfig()
+	assert.Equal(t, "sqlite", cfg.Database.Driver)
+	assert.Empty(t, cfg.Database.DSN)
+
+	resolved := cfg.ResolvedDatabaseConfig()
+	assert.Equal(t, "sqlite", resolved.Driver)
+	assert.Equal(t, cfg.DBPath(), resolved.DSN, "SQLite DSN should default to DBPath()")
+}
+
+func TestDatabaseConfig_MySQLFromFile(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "opshub.yaml")
+	yamlContent := []byte(`
+server:
+  port: 8080
+database:
+  driver: mysql
+  dsn: "root:password@tcp(127.0.0.1:3306)/opshub?charset=utf8mb4&parseTime=True"
+data_dir: "` + tempDir + `"
+`)
+	err := os.WriteFile(cfgPath, yamlContent, 0644)
+	require.NoError(t, err)
+
+	cfg, err := config.LoadConfig(cfgPath)
+	require.NoError(t, err)
+	assert.Equal(t, "mysql", cfg.Database.Driver)
+	assert.Equal(t, "root:password@tcp(127.0.0.1:3306)/opshub?charset=utf8mb4&parseTime=True", cfg.Database.DSN)
+
+	resolved := cfg.ResolvedDatabaseConfig()
+	assert.Equal(t, "mysql", resolved.Driver)
+	assert.Equal(t, cfg.Database.DSN, resolved.DSN, "MySQL DSN should be used as-is")
+}
+
+func TestDatabaseConfig_EmptyDriverDefaultsSQLite(t *testing.T) {
+	cfg := &config.AppConfig{
+		DataDir: "/opt/opshub/data",
+		Database: config.DatabaseConfig{
+			Driver: "",
+		},
+	}
+	resolved := cfg.ResolvedDatabaseConfig()
+	assert.Equal(t, "sqlite", resolved.Driver)
+	assert.Equal(t, "/opt/opshub/data/opshub.db", resolved.DSN)
+}
+
+func TestDatabaseConfig_SQLiteWithCustomDSN(t *testing.T) {
+	cfg := &config.AppConfig{
+		DataDir: "/opt/opshub/data",
+		Database: config.DatabaseConfig{
+			Driver: "sqlite",
+			DSN:    "/custom/path/my.db",
+		},
+	}
+	resolved := cfg.ResolvedDatabaseConfig()
+	assert.Equal(t, "sqlite", resolved.Driver)
+	assert.Equal(t, "/custom/path/my.db", resolved.DSN, "custom SQLite DSN should be preserved")
+}

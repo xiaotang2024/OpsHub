@@ -1,0 +1,43 @@
+# ==========================================================================
+# OpsHub 配置文件 (opshub.yaml)
+# ==========================================================================
+# 将此文件放在任意路径，启动时通过 -config 参数指定：
+#   ./opshub -config /etc/opshub/opshub.yaml
+#
+# 如不指定 -config，将使用以下默认值。
+# ==========================================================================
+
+# HTTP 服务器配置
+server:
+  port: 8080
+  jwt_secret: "opshub-default-jwt-secret-replace-me"   # 生产环境请务必替换
+
+# 数据存储根目录（SQLite 数据库文件、部署包、日志等）
+data_dir: "~/.opshub/data"
+
+# --------------------------------------------------------------------------
+# 数据库配置
+# --------------------------------------------------------------------------
+# driver: 数据库驱动，可选 "sqlite"（默认）或 "mysql"
+# dsn:    数据库连接字符串
+#
+# ── SQLite（默认，零配置）──────────────────────────────────
+#   driver 留空或设为 "sqlite" 即可，dsn 留空时自动使用 data_dir 下的 opshub.db
+#
+# ── MySQL ──────────────────────────────────────────────────
+#   切换为 MySQL 时，请确保：
+#     1. MySQL 版本 >= 8.0
+#     2. 已提前创建好目标数据库（如 opshub）
+#     3. 用户具有 CREATE TABLE / ALTER TABLE / SELECT / INSERT / UPDATE / DELETE 权限
+#
+#   DSN 格式遵循 go-sql-driver/mysql 规范：
+#     user:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True
+#
+# --------------------------------------------------------------------------
+database:
+  driver: "sqlite"
+  # dsn: ""
+  #
+  # MySQL 示例（取消注释并填写实际连接信息）：
+  # driver: "mysql"
+  # dsn: "opshub:your_password@tcp(127.0.0.1:3306)/opshub?charset=utf8mb4&parseTime=True"
