@@ -14,6 +14,7 @@ import (
 	"opshub/internal/api/middleware"
 	"opshub/internal/api/websocket"
 	"opshub/internal/config"
+	"opshub/internal/model"
 	"opshub/internal/prober"
 	"opshub/internal/service"
 	"opshub/internal/supervisor"
@@ -24,6 +25,7 @@ import (
 // RouterOptions allows injecting custom services or supervisors (e.g. for testing).
 type RouterOptions struct {
 	AuthService       *service.AuthService
+	UserService       *service.UserService
 	JDKService        *service.JDKService
 	ArtifactService   *service.ArtifactService
 	DeployPipeline    *service.DeployPipeline
@@ -43,6 +45,13 @@ type Option func(*RouterOptions)
 func WithAuthService(svc *service.AuthService) Option {
 	return func(o *RouterOptions) {
 		o.AuthService = svc
+	}
+}
+
+// WithUserService sets a custom UserService.
+func WithUserService(svc *service.UserService) Option {
+	return func(o *RouterOptions) {
+		o.UserService = svc
 	}
 }
 
@@ -99,6 +108,9 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 		}
 		options.AuthService = service.NewAuthService(db, jwtSecret)
 	}
+	if options.UserService == nil {
+		options.UserService = service.NewUserService(db)
+	}
 	if options.JDKService == nil {
 		options.JDKService = service.NewJDKService(db)
 	}
@@ -127,6 +139,7 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(options.AuthService)
+	userHandler := handler.NewUserHandler(options.UserService)
 	systemHandler := handler.NewSystemHandler(db, cfg)
 	jdkHandler := handler.NewJDKHandler(options.JDKService)
 	templateHandler := handler.NewTemplateHandler(db, options.Engine)
@@ -183,6 +196,18 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.GET("/auth/profile", authHandler.GetProfile)
 			protected.PUT("/auth/profile", authHandler.UpdateProfile)
 
+			// Users (Admin only)
+			users := protected.Group("/users")
+			users.Use(middleware.RequireAdmin())
+			{
+				users.GET("", userHandler.List)
+				users.POST("", userHandler.Create)
+				users.PUT("/:id/permissions", userHandler.UpdatePermissions)
+				users.PUT("/:id/status", userHandler.UpdateStatus)
+				users.POST("/:id/reset-password", userHandler.ResetPassword)
+				users.DELETE("/:id", userHandler.Delete)
+			}
+
 			// System & Audit
 			protected.GET("/system/metrics", systemHandler.Metrics)
 			protected.GET("/audit-logs", systemHandler.AuditLogs)
@@ -190,17 +215,17 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 
 			// JDKs
 			protected.GET("/jdks", jdkHandler.List)
-			protected.POST("/jdks", jdkHandler.Create)
+			protected.POST("/jdks", middleware.RequirePermission(db, model.PermJDKManage), jdkHandler.Create)
 			protected.GET("/jdks/scan", jdkHandler.Scan)
 			protected.GET("/jdks/:id", jdkHandler.GetByID)
-			protected.DELETE("/jdks/:id", jdkHandler.Delete)
+			protected.DELETE("/jdks/:id", middleware.RequirePermission(db, model.PermJDKManage), jdkHandler.Delete)
 
 			// Templates
 			protected.GET("/templates", templateHandler.List)
-			protected.POST("/templates", templateHandler.Create)
+			protected.POST("/templates", middleware.RequirePermission(db, model.PermTemplateManage), templateHandler.Create)
 			protected.GET("/templates/:id", templateHandler.GetByID)
-			protected.PUT("/templates/:id", templateHandler.Update)
-			protected.DELETE("/templates/:id", templateHandler.Delete)
+			protected.PUT("/templates/:id", middleware.RequirePermission(db, model.PermTemplateManage), templateHandler.Update)
+			protected.DELETE("/templates/:id", middleware.RequirePermission(db, model.PermTemplateManage), templateHandler.Delete)
 
 			// Services
 			protected.GET("/services", serviceHandler.List)
@@ -208,24 +233,24 @@ func SetupRouter(cfg *config.AppConfig, db *sql.DB, opts ...Option) *gin.Engine 
 			protected.GET("/services/:id", serviceHandler.GetByID)
 			protected.PUT("/services/:id", serviceHandler.Update)
 			protected.DELETE("/services/:id", serviceHandler.Delete)
-			protected.POST("/services/:id/start", serviceHandler.Start)
-			protected.POST("/services/:id/stop", serviceHandler.Stop)
-			protected.POST("/services/:id/restart", serviceHandler.Restart)
+			protected.POST("/services/:id/start", middleware.RequirePermission(db, model.PermServiceControl), serviceHandler.Start)
+			protected.POST("/services/:id/stop", middleware.RequirePermission(db, model.PermServiceControl), serviceHandler.Stop)
+			protected.POST("/services/:id/restart", middleware.RequirePermission(db, model.PermServiceControl), serviceHandler.Restart)
 			protected.GET("/services/:id/configs", serviceHandler.GetConfigs)
-			protected.POST("/services/:id/configs", serviceHandler.SaveConfig)
+			protected.POST("/services/:id/configs", middleware.RequirePermission(db, model.PermServiceConfig), serviceHandler.SaveConfig)
 			protected.GET("/services/:id/releases", serviceHandler.Releases)
 			protected.GET("/services/:id/deploy-precheck", serviceHandler.DeployPrecheck)
-			protected.POST("/services/:id/deploy", serviceHandler.Deploy)
-			protected.POST("/services/:id/rollback", serviceHandler.Rollback)
+			protected.POST("/services/:id/deploy", middleware.RequirePermission(db, model.PermServiceDeploy), serviceHandler.Deploy)
+			protected.POST("/services/:id/rollback", middleware.RequirePermission(db, model.PermServiceRollback), serviceHandler.Rollback)
 			protected.GET("/services/:id/metrics", serviceHandler.Metrics)
 			protected.GET("/services/:id/template-sync", serviceHandler.GetTemplateSyncDiff)
-			protected.POST("/services/:id/template-sync", serviceHandler.SyncTemplate)
+			protected.POST("/services/:id/template-sync", middleware.RequirePermission(db, model.PermServiceConfig), serviceHandler.SyncTemplate)
 
 			// Artifacts
-			protected.POST("/services/:id/artifacts", artifactHandler.Upload)
+			protected.POST("/services/:id/artifacts", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Upload)
 			protected.GET("/services/:id/artifacts", artifactHandler.ListByService)
-			protected.DELETE("/services/:id/artifacts/:artifactId", artifactHandler.Delete)
-			protected.DELETE("/artifacts/:id", artifactHandler.Delete)
+			protected.DELETE("/services/:id/artifacts/:artifactId", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Delete)
+			protected.DELETE("/artifacts/:id", middleware.RequirePermission(db, model.PermServiceDeploy), artifactHandler.Delete)
 
 			// WebSocket Real-time Log Streaming
 			protected.GET("/services/:id/logs/ws", func(c *gin.Context) {

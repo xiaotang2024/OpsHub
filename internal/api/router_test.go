@@ -892,5 +892,182 @@ func TestRouter_ServiceTemplateSync_EmptyHealthCheckInherited(t *testing.T) {
 	assert.Equal(t, "", svcSynced.HealthCheckConfig, "Health check should remain empty to continue inheriting template")
 }
 
+func TestRouter_UserManagementEndpoints(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// 1. Admin lists users
+	wList := doRequest(f.router, "GET", "/api/users", f.token, nil)
+	assert.Equal(t, http.StatusOK, wList.Code)
+	var users []*model.User
+	require.NoError(t, json.Unmarshal(wList.Body.Bytes(), &users))
+	assert.Len(t, users, 1)
+
+	// 2. Admin creates operator
+	createBody := `{
+		"username": "router_op",
+		"password": "Password123",
+		"nickname": "Router Operator",
+		"email": "router_op@opshub.dev",
+		"role": "operator"
+	}`
+	wCreate := doRequest(f.router, "POST", "/api/users", f.token, bytes.NewBufferString(createBody))
+	assert.Equal(t, http.StatusCreated, wCreate.Code)
+	var created model.User
+	require.NoError(t, json.Unmarshal(wCreate.Body.Bytes(), &created))
+	assert.Equal(t, "router_op", created.Username)
+
+	// 3. Operator token cannot access /api/users -> 403
+	opToken, err := f.authSvc.Login("router_op", "Password123")
+	require.NoError(t, err)
+
+	wOpList := doRequest(f.router, "GET", "/api/users", opToken, nil)
+	assert.Equal(t, http.StatusForbidden, wOpList.Code)
+	assert.Contains(t, wOpList.Body.String(), "仅管理员拥有此操作权限")
+
+	wOpCreate := doRequest(f.router, "POST", "/api/users", opToken, bytes.NewBufferString(createBody))
+	assert.Equal(t, http.StatusForbidden, wOpCreate.Code)
+	assert.Contains(t, wOpCreate.Body.String(), "仅管理员拥有此操作权限")
+
+	// 4. Admin updates permissions
+	permBody := `{"permissions": ["service:view", "service:control"]}`
+	wPerm := doRequest(f.router, "PUT", fmt.Sprintf("/api/users/%d/permissions", created.ID), f.token, bytes.NewBufferString(permBody))
+	assert.Equal(t, http.StatusOK, wPerm.Code)
+
+	// 5. Admin updates status
+	statusBody := `{"status": "disabled"}`
+	wStatus := doRequest(f.router, "PUT", fmt.Sprintf("/api/users/%d/status", created.ID), f.token, bytes.NewBufferString(statusBody))
+	assert.Equal(t, http.StatusOK, wStatus.Code)
+
+	// 6. Admin resets password
+	resetBody := `{"new_password": "NewSecretPass789"}`
+	wReset := doRequest(f.router, "POST", fmt.Sprintf("/api/users/%d/reset-password", created.ID), f.token, bytes.NewBufferString(resetBody))
+	assert.Equal(t, http.StatusOK, wReset.Code)
+
+	// 7. Admin deletes user
+	wDel := doRequest(f.router, "DELETE", fmt.Sprintf("/api/users/%d", created.ID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDel.Code)
+}
+
+func TestRouter_ProtectedRoutes_RoleAndPermissions(t *testing.T) {
+	f := setupTestRouter(t)
+
+	// Create a test template & service
+	svcDir := filepath.Join(f.tmpDir, "prot-svc")
+	require.NoError(t, os.MkdirAll(svcDir, 0755))
+	_, err := f.db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode) 
+		VALUES (500, 'tpl-prot', 'java_jar', '`+svcDir+`', 'native')`)
+	require.NoError(t, err)
+	_, err = f.db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (500, 'svc-prot', 500, '`+svcDir+`', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	// 1. Create operator with default permissions
+	userSvc := service.NewUserService(f.db)
+	opDef, err := userSvc.CreateUser(httptest.NewRequest("GET", "/", nil).Context(), service.CreateUserRequest{
+		Username: "op_default_perms",
+		Password: "Password123!",
+		Role:     model.RoleOperator,
+	})
+	require.NoError(t, err)
+
+	tokenDef, err := f.authSvc.Login(opDef.Username, "Password123!")
+	require.NoError(t, err)
+
+	// Operator with default permissions:
+	// - PermServiceControl is allowed (does not return 403)
+	wStart := doRequest(f.router, "POST", "/api/services/500/start", tokenDef, nil)
+	assert.NotEqual(t, http.StatusForbidden, wStart.Code)
+
+	wStop := doRequest(f.router, "POST", "/api/services/500/stop", tokenDef, nil)
+	assert.NotEqual(t, http.StatusForbidden, wStop.Code)
+
+	wRestart := doRequest(f.router, "POST", "/api/services/500/restart", tokenDef, nil)
+	assert.NotEqual(t, http.StatusForbidden, wRestart.Code)
+
+	// - PermServiceConfig is allowed
+	wCfg := doRequest(f.router, "POST", "/api/services/500/configs", tokenDef, bytes.NewBufferString(`{"file":"app.yml","content":"a: b"}`))
+	assert.NotEqual(t, http.StatusForbidden, wCfg.Code)
+
+	// - PermTemplateManage is DENIED -> 403
+	wTplPost := doRequest(f.router, "POST", "/api/templates", tokenDef, bytes.NewBufferString(`{"name":"foo"}`))
+	assert.Equal(t, http.StatusForbidden, wTplPost.Code)
+	assert.Contains(t, wTplPost.Body.String(), "template:manage")
+
+	wTplPut := doRequest(f.router, "PUT", "/api/templates/500", tokenDef, bytes.NewBufferString(`{"name":"foo"}`))
+	assert.Equal(t, http.StatusForbidden, wTplPut.Code)
+	assert.Contains(t, wTplPut.Body.String(), "template:manage")
+
+	wTplDel := doRequest(f.router, "DELETE", "/api/templates/500", tokenDef, nil)
+	assert.Equal(t, http.StatusForbidden, wTplDel.Code)
+	assert.Contains(t, wTplDel.Body.String(), "template:manage")
+
+	// - PermJDKManage is DENIED -> 403
+	wJdkPost := doRequest(f.router, "POST", "/api/jdks", tokenDef, bytes.NewBufferString(`{"name":"jdk"}`))
+	assert.Equal(t, http.StatusForbidden, wJdkPost.Code)
+	assert.Contains(t, wJdkPost.Body.String(), "jdk:manage")
+
+	wJdkDel := doRequest(f.router, "DELETE", "/api/jdks/500", tokenDef, nil)
+	assert.Equal(t, http.StatusForbidden, wJdkDel.Code)
+	assert.Contains(t, wJdkDel.Body.String(), "jdk:manage")
+
+	// 2. Create operator with only read-only permission (service:view)
+	opReadOnly, err := userSvc.CreateUser(httptest.NewRequest("GET", "/", nil).Context(), service.CreateUserRequest{
+		Username:    "op_readonly",
+		Password:    "Password123!",
+		Role:        model.RoleOperator,
+		Permissions: []string{model.PermServiceView},
+	})
+	require.NoError(t, err)
+
+	tokenRO, err := f.authSvc.Login(opReadOnly.Username, "Password123!")
+	require.NoError(t, err)
+
+	// Control endpoints blocked
+	wROStart := doRequest(f.router, "POST", "/api/services/500/start", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wROStart.Code)
+	assert.Contains(t, wROStart.Body.String(), "service:control")
+
+	wROStop := doRequest(f.router, "POST", "/api/services/500/stop", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wROStop.Code)
+	assert.Contains(t, wROStop.Body.String(), "service:control")
+
+	wRORestart := doRequest(f.router, "POST", "/api/services/500/restart", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wRORestart.Code)
+	assert.Contains(t, wRORestart.Body.String(), "service:control")
+
+	// Deploy endpoints blocked
+	wRODeploy := doRequest(f.router, "POST", "/api/services/500/deploy", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wRODeploy.Code)
+	assert.Contains(t, wRODeploy.Body.String(), "service:deploy")
+
+	wROUpload := doRequest(f.router, "POST", "/api/services/500/artifacts", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wROUpload.Code)
+	assert.Contains(t, wROUpload.Body.String(), "service:deploy")
+
+	// Rollback endpoint blocked
+	wRORollback := doRequest(f.router, "POST", "/api/services/500/rollback", tokenRO, nil)
+	assert.Equal(t, http.StatusForbidden, wRORollback.Code)
+	assert.Contains(t, wRORollback.Body.String(), "service:rollback")
+
+	// Config endpoint blocked
+	wROConfig := doRequest(f.router, "POST", "/api/services/500/configs", tokenRO, bytes.NewBufferString(`{"file":"app.yml","content":"a: b"}`))
+	assert.Equal(t, http.StatusForbidden, wROConfig.Code)
+	assert.Contains(t, wROConfig.Body.String(), "service:config")
+
+	// Template sync endpoint blocked
+	wROSync := doRequest(f.router, "POST", "/api/services/500/template-sync", tokenRO, bytes.NewBufferString(`{"sync_jvm":true}`))
+	assert.Equal(t, http.StatusForbidden, wROSync.Code)
+	assert.Contains(t, wROSync.Body.String(), "service:config")
+
+	// 3. Disable user in DB -> immediate 403
+	err = userSvc.UpdateStatus(httptest.NewRequest("GET", "/", nil).Context(), opDef.ID, model.UserStatusDisabled, "admin")
+	require.NoError(t, err)
+
+	wDisabledReq := doRequest(f.router, "POST", "/api/services/500/start", tokenDef, nil)
+	assert.Equal(t, http.StatusForbidden, wDisabledReq.Code)
+	assert.Contains(t, wDisabledReq.Body.String(), "账号已被禁用或不存在")
+}
+
+
 
 
