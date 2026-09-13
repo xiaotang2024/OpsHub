@@ -234,14 +234,23 @@ func (p *DeployPipeline) executePipeline(
 	logStep(3, "Service instance is stopped")
 
 	// ==========================================
-	// Step 4: Copy/unpack target artifact from packages repo into install_dir/app.jar
+	// Step 4: Copy/unpack target artifact from packages repo into install_dir
 	// ==========================================
-	logStep(4, "Copying artifact %s (%s) to %s...", art.Filename, art.StoragePath, targetFile)
-	if err := copyFile(art.StoragePath, targetFile); err != nil {
-		logStep(4, "Failed to copy artifact: %v", err)
-		return finalize(fmt.Errorf("copy artifact failed: %w", err))
+	if isArchiveFile(art.Filename, art.StoragePath) || tpl.Type == model.TemplateTypeGenericArchive {
+		logStep(4, "Unpacking archive artifact %s (%s) into %s...", art.Filename, art.StoragePath, installDir)
+		if err := unpackArtifact(art.StoragePath, installDir); err != nil {
+			logStep(4, "Failed to unpack artifact: %v", err)
+			return finalize(fmt.Errorf("unpack artifact failed: %w", err))
+		}
+		logStep(4, "Archive unpacked successfully into %s", installDir)
+	} else {
+		logStep(4, "Copying artifact %s (%s) to %s...", art.Filename, art.StoragePath, targetFile)
+		if err := copyFile(art.StoragePath, targetFile); err != nil {
+			logStep(4, "Failed to copy artifact: %v", err)
+			return finalize(fmt.Errorf("copy artifact failed: %w", err))
+		}
+		logStep(4, "Artifact copied successfully to %s", targetFile)
 	}
-	logStep(4, "Artifact copied successfully to %s", targetFile)
 
 	// ==========================================
 	// Step 5: Start service via Supervisor with dynamically rendered command

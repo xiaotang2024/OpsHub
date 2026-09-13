@@ -1,8 +1,11 @@
 package service_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -445,4 +448,87 @@ func TestDeployPipeline_AuditAndDeployRecords(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "DEPLOY", auditAction)
 	assert.Equal(t, "SUCCESS", auditStatus)
+}
+
+func TestDeployPipeline_GenericArchive_UnpackAndStartScript(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := database.InitDB(filepath.Join(tmpDir, "test.db"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	installDir := filepath.Join(tmpDir, "apps", "timer-v2")
+	require.NoError(t, os.MkdirAll(installDir, 0755))
+
+	pkgDir := filepath.Join(tmpDir, "packages", "timer-v2")
+	require.NoError(t, os.MkdirAll(pkgDir, 0755))
+
+	// Create test zip with single top-level folder
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+
+	files := []struct {
+		name string
+		body string
+		mode os.FileMode
+	}{
+		{"timer-server-v2/bin/start.sh", "#!/bin/sh\nsleep 30", 0755},
+		{"timer-server-v2/bin/shutdown.sh", "#!/bin/sh\nexit 0", 0755},
+		{"timer-server-v2/application.yaml", "server:\n  port: 8092", 0644},
+		{"timer-server-v2/timer-1.0.0.jar", "dummy-jar", 0644},
+	}
+
+	for _, f := range files {
+		h := &zip.FileHeader{
+			Name:   f.name,
+			Method: zip.Deflate,
+		}
+		h.SetMode(f.mode)
+		w, err := zw.CreateHeader(h)
+		require.NoError(t, err)
+		_, err = w.Write([]byte(f.body))
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+
+	zipFile := filepath.Join(pkgDir, "timer-server-v2.zip")
+	require.NoError(t, os.WriteFile(zipFile, buf.Bytes(), 0644))
+
+	// Template with generic_archive and EMPTY start_cmd (default startup)
+	_, err = db.Exec(`INSERT INTO templates (id, name, type, install_dir_pattern, supervision_mode, health_check_config, start_cmd) 
+		VALUES (2, 't-archive', 'generic_archive', '` + installDir + `', 'native', '{"type":"process"}', '')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO services (id, name, template_id, install_dir, supervision_mode, status) 
+		VALUES (2, 'timer-v2', 2, '` + installDir + `', 'native', 'STOPPED')`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(fmt.Sprintf(`INSERT INTO artifacts (id, service_id, filename, file_size, sha256, storage_path, version_tag) 
+		VALUES (2, 2, 'timer-server-v2.zip', %d, 'fake-sha', '%s', 'v2.0')`, len(buf.Bytes()), zipFile))
+	require.NoError(t, err)
+
+	sup := supervisor.NewNativeSupervisor()
+	pipeline := service.NewDeployPipeline(
+		db,
+		sup,
+		prober.NewProber(),
+		template.NewEngine(),
+	)
+
+	rec, err := pipeline.Deploy(context.Background(), 2, 2, "admin")
+	require.NoError(t, err)
+	assert.Equal(t, "SUCCESS", rec.Status)
+	assert.Contains(t, rec.OutputLog, "Unpacking archive artifact")
+
+	// Verify all files were unpacked directly into installDir
+	assert.FileExists(t, filepath.Join(installDir, "bin", "start.sh"))
+	assert.FileExists(t, filepath.Join(installDir, "bin", "shutdown.sh"))
+	assert.FileExists(t, filepath.Join(installDir, "application.yaml"))
+	assert.FileExists(t, filepath.Join(installDir, "timer-1.0.0.jar"))
+
+	// Stop running process
+	var pid int
+	_ = db.QueryRow("SELECT pid FROM services WHERE id = 2").Scan(&pid)
+	if pid > 0 {
+		_ = sup.Stop(context.Background(), pid, 0)
+	}
 }

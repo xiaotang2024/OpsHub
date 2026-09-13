@@ -3,6 +3,7 @@ package template
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -186,7 +187,19 @@ func (e *Engine) RenderStartCommand(tpl *model.Template, svc *model.Service, jdk
 	// Reserved system variables always take precedence
 	vars["SERVICE_NAME"] = svc.Name
 	vars["INSTALL_DIR"] = installDir
-	vars["PACKAGE_FILE"] = pkgPath
+
+	effectivePkg := pkgPath
+	if _, err := os.Stat(effectivePkg); err != nil {
+		if entries, err := os.ReadDir(installDir); err == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".jar") {
+					effectivePkg = filepath.Join(installDir, entry.Name())
+					break
+				}
+			}
+		}
+	}
+	vars["PACKAGE_FILE"] = effectivePkg
 	vars["JAVA_BIN"] = javaBin
 	vars["PORT"] = portStr
 
@@ -202,6 +215,18 @@ func (e *Engine) RenderStartCommand(tpl *model.Template, svc *model.Service, jdk
 	// Default commands based on template type
 	switch tpl.Type {
 	case model.TemplateTypeGenericArchive:
+		candidates := []string{
+			filepath.Join(installDir, "bin", "startup.sh"),
+			filepath.Join(installDir, "bin", "start.sh"),
+			filepath.Join(installDir, "bin", "run.sh"),
+			filepath.Join(installDir, "startup.sh"),
+			filepath.Join(installDir, "start.sh"),
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				return c, nil
+			}
+		}
 		return filepath.Join(installDir, "bin", "startup.sh"), nil
 	case model.TemplateTypeJavaJar, model.TemplateTypeJavaWar, "":
 		var parts []string
@@ -246,6 +271,17 @@ func (e *Engine) RenderStopCommand(tpl *model.Template, svc *model.Service) (str
 	}
 
 	if tpl.Type == model.TemplateTypeGenericArchive {
+		candidates := []string{
+			filepath.Join(installDir, "bin", "shutdown.sh"),
+			filepath.Join(installDir, "bin", "stop.sh"),
+			filepath.Join(installDir, "shutdown.sh"),
+			filepath.Join(installDir, "stop.sh"),
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				return c, nil
+			}
+		}
 		return filepath.Join(installDir, "bin", "shutdown.sh"), nil
 	}
 
