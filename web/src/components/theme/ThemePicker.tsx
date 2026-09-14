@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Palette, Check } from 'lucide-react';
 
-export type ThemeId = 'default' | 'celadon-blue' | 'purple-tea';
+export type ThemeId = 'purple-tea' | 'tactical-dark' | 'tactical-light';
 
 export interface ThemeOption {
   id: ThemeId;
@@ -18,28 +18,6 @@ export interface ThemeOption {
 
 export const THEME_OPTIONS: ThemeOption[] = [
   {
-    id: 'default',
-    name: '极客暗夜',
-    nameEn: 'Cyber Slate',
-    desc: '经典暗夜青蓝 · 极客纯黑',
-    colors: {
-      primary: '#06B6D4',
-      secondary: '#10B981',
-      accent: '#1E293B',
-    },
-  },
-  {
-    id: 'celadon-blue',
-    name: '天水雾蓝',
-    nameEn: 'Mist & Celadon',
-    desc: '天水碧 · 雾蓝 · 鲸灰',
-    colors: {
-      primary: '#5fa3b0', // 天水碧
-      secondary: '#2d5678', // 雾蓝
-      accent: '#475061', // 鲸灰
-    },
-  },
-  {
     id: 'purple-tea',
     name: '木紫茶岩',
     nameEn: 'Wood & Terracotta',
@@ -50,17 +28,39 @@ export const THEME_OPTIONS: ThemeOption[] = [
       accent: '#606165', // 熔岩灰
     },
   },
+  {
+    id: 'tactical-dark',
+    name: '战术暗夜',
+    nameEn: 'Tactical Dark',
+    desc: '深邃暗夜 · 战术青蓝 · 遥测黑曜',
+    colors: {
+      primary: '#06b6d4', // 赛博青蓝
+      secondary: '#4edea3', // 遥测翡翠
+      accent: '#1e293b', // 暗夜面板
+    },
+  },
+  {
+    id: 'tactical-light',
+    name: '战术光棱',
+    nameEn: 'Tactical Light',
+    desc: '极昼浅白 · 战术青蓝 · 纯白卡片',
+    colors: {
+      primary: '#00687a', // 战术青蓝
+      secondary: '#006c49', // 状态翡翠
+      accent: '#e2e8f0', // 纤细浅灰
+    },
+  },
 ];
 
 export const ThemePicker: React.FC = () => {
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('opshub_theme') as ThemeId;
-      if (saved && (saved === 'default' || saved === 'celadon-blue' || saved === 'purple-tea')) {
+      if (saved && THEME_OPTIONS.some((t) => t.id === saved)) {
         return saved;
       }
     }
-    return 'default';
+    return 'purple-tea';
   });
 
   const [isOpen, setIsOpen] = useState(false);
@@ -101,7 +101,7 @@ export const ThemePicker: React.FC = () => {
   const activeOption = THEME_OPTIONS.find((t) => t.id === currentTheme) || THEME_OPTIONS[0];
 
   return (
-    <div className="relative inline-block text-left" ref={dropdownRef}>
+    <div className="relative z-50 inline-block text-left" ref={dropdownRef}>
       {/* Trigger Button */}
       <button
         type="button"
@@ -136,7 +136,7 @@ export const ThemePicker: React.FC = () => {
               <span className="text-[11px] font-mono uppercase tracking-wider text-ops-text-muted">
                 界面风格主题 / THEME
               </span>
-              <span className="text-[10px] font-mono text-ops-cyan">3 种配色</span>
+              <span className="text-[10px] font-mono text-ops-cyan">{THEME_OPTIONS.length} 种配色</span>
             </div>
 
             <div className="space-y-1">

@@ -362,7 +362,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top App Header */}
-        <header className="flex h-16 items-center justify-between border-b border-ops-border bg-ops-surface/60 px-4 md:px-6 backdrop-blur-md">
+        <header className="relative z-30 flex h-16 items-center justify-between border-b border-ops-border bg-ops-surface/60 px-4 md:px-6 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button
               type="button"

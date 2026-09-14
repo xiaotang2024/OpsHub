@@ -13,8 +13,10 @@
       (function() {
         try {
           var t = localStorage.getItem('opshub_theme');
-          if (t) {
+          if (t === 'tactical-dark' || t === 'tactical-light' || t === 'purple-tea') {
             document.documentElement.setAttribute('data-theme', t);
+          } else {
+            document.documentElement.setAttribute('data-theme', 'purple-tea');
           }
         } catch (e) {}
       })();

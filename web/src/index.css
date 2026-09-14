@@ -4,39 +4,6 @@
 
 @layer base {
   :root,
-  [data-theme="default"] {
-    color-scheme: dark;
-    --ops-bg: #0B0F17;
-    --ops-surface: #131B2A;
-    --ops-card: #131B2A;
-    --ops-card-hover: #1A2438;
-    --ops-border: #1E293B;
-    --ops-border-hover: #334155;
-    --ops-primary: #06B6D4;
-    --ops-primary-dim: rgba(6, 182, 212, 0.15);
-    --ops-primary-glow: rgba(6, 182, 212, 0.35);
-    --ops-text-main: #F8FAFC;
-    --ops-text-sub: #CBD5E1;
-    --ops-text-muted: #94A3B8;
-  }
-
-  [data-theme="celadon-blue"] {
-    color-scheme: dark;
-    /* 天水雾蓝：天水碧 #5fa3b0 + 雾蓝 #2d5678 + 鲸灰 #475061 */
-    --ops-bg: #14222f;              /* 显著深雾蓝底色 */
-    --ops-surface: #1c3347;         /* 饱满雾蓝卡片表面 */
-    --ops-card: #1c3347;
-    --ops-card-hover: #25425c;      /* 雾蓝卡片悬浮高亮 */
-    --ops-border: #475061;          /* 鲸灰边框 */
-    --ops-border-hover: #5fa3b0;    /* 天水碧悬浮高亮 */
-    --ops-primary: #5fa3b0;         /* 天水碧高亮 */
-    --ops-primary-dim: rgba(95, 163, 176, 0.22);
-    --ops-primary-glow: rgba(95, 163, 176, 0.50);
-    --ops-text-main: #F8FCFE;
-    --ops-text-sub: #D0E2EC;
-    --ops-text-muted: #96B1C2;
-  }
-
   [data-theme="purple-tea"] {
     color-scheme: dark;
     /* 木紫茶岩：木紫 #4b4e72 + 茶色 #aa5140 + 熔岩灰 #606165 */
@@ -54,9 +21,43 @@
     --ops-text-muted: #B2A7B0;
   }
 
+  [data-theme="tactical-dark"] {
+    color-scheme: dark;
+    /* 战术暗夜（Tactical Dark / OpsHub Control Plane Dark）：深空暗夜 #131B2A + 战术面板 #1E293B + 悬浮高亮 #334155 + 赛博青蓝 #06B6D4 */
+    --ops-bg: #131B2A;              /* Dark Canvas: #131B2A */
+    --ops-surface: #1E293B;         /* Surface & Cards: #1E293B */
+    --ops-card: #1E293B;            /* Container: #1E293B */
+    --ops-card-hover: #334155;      /* Elevated Hover Surface: #334155 */
+    --ops-border: #334155;          /* Hairline Border: #334155 */
+    --ops-border-hover: #475569;    /* Active Structural Border: #475569 */
+    --ops-primary: #06B6D4;         /* Primary Cyber Cyan: #06B6D4 */
+    --ops-primary-dim: rgba(6, 182, 212, 0.15);
+    --ops-primary-glow: rgba(6, 182, 212, 0.35);
+    --ops-text-main: #F8FAFC;       /* Slate Light: #F8FAFC */
+    --ops-text-sub: #94A3B8;        /* Cool Secondary Slate: #94A3B8 */
+    --ops-text-muted: #64748B;      /* Muted Technical Slate: #64748B */
+  }
+
+  [data-theme="tactical-light"] {
+    color-scheme: light;
+    /* 战术光棱（Tactical Light / OpsHub Control Plane）：极昼浅白 #F8FAFC + 纯白表面 #FFFFFF + 纤细边框 #E2E8F0 + 战术青蓝 #00687A */
+    --ops-bg: #F8FAFC;              /* Light Canvas: #F8FAFC */
+    --ops-surface: #FFFFFF;         /* Surface & Cards: #FFFFFF */
+    --ops-card: #FFFFFF;            /* Container: #FFFFFF */
+    --ops-card-hover: #F1F5F9;      /* Elevated Hover Surface: #F1F5F9 */
+    --ops-border: #E2E8F0;          /* Hairline Border: #E2E8F0 */
+    --ops-border-hover: #CBD5E1;    /* Active Structural Border: #CBD5E1 */
+    --ops-primary: #00687A;         /* Primary Cyber Cyan: #00687A */
+    --ops-primary-dim: rgba(0, 104, 122, 0.12);
+    --ops-primary-glow: rgba(0, 104, 122, 0.28);
+    --ops-text-main: #0F172A;       /* Slate Dark: #0F172A */
+    --ops-text-sub: #475569;        /* Cool Secondary Slate: #475569 */
+    --ops-text-muted: #64748B;      /* Muted Technical Slate: #64748B */
+  }
+
   body {
-    background-color: var(--ops-bg, #0B0F17);
-    color: var(--ops-text-main, #F8FAFC);
+    background-color: var(--ops-bg, #1e1c2b);
+    color: var(--ops-text-main, #FFFDFD);
     margin: 0;
     padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -73,63 +74,34 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--ops-bg, #0B0F17);
+    background: var(--ops-bg, #1e1c2b);
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--ops-border, #1E293B);
+    background: var(--ops-border, #606165);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--ops-border-hover, #334155);
+    background: var(--ops-border-hover, #aa5140);
   }
 }
 
 @layer utilities {
   .glow-cyan {
-    box-shadow: 0 0 14px var(--ops-primary-glow, rgba(6, 182, 212, 0.25));
+    box-shadow: 0 0 14px var(--ops-primary-glow, rgba(170, 81, 64, 0.28));
   }
   .glow-emerald {
     box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
   }
   .glass-panel {
-    background: var(--ops-surface, rgba(19, 27, 42, 0.85));
+    background: var(--ops-surface, rgba(43, 39, 61, 0.85));
     backdrop-filter: blur(12px);
-    border: 1px solid var(--ops-border, #1E293B);
+    border: 1px solid var(--ops-border, #606165);
   }
   .modal-backdrop {
     background-color: rgba(2, 6, 23, 0.45);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
-}
-
-/* =========================================================
-   Theme Overrides: 天水雾蓝 (Mist & Celadon)
-   天水碧 #5fa3b0 + 雾蓝 #2d5678 + 鲸灰 #475061
-========================================================= */
-[data-theme="celadon-blue"] [class*="bg-cyan-950"],
-[data-theme="celadon-blue"] [class*="bg-cyan-900"] {
-  background-color: rgba(95, 163, 176, 0.20) !important;
-}
-
-[data-theme="celadon-blue"] [class*="hover:bg-cyan-400"]:hover {
-  background-color: #76b8c4 !important;
-}
-
-[data-theme="celadon-blue"] [class*="border-ops-cyan"] {
-  border-color: #5fa3b0 !important;
-}
-
-[data-theme="celadon-blue"] [class*="text-ops-cyan"] {
-  color: #5fa3b0 !important;
-}
-
-[data-theme="celadon-blue"] [class*="bg-ops-cyan"] {
-  background-color: #5fa3b0 !important;
-}
-
-[data-theme="celadon-blue"] [class*="shadow-cyan-glow"] {
-  box-shadow: 0 0 18px -2px rgba(95, 163, 176, 0.55) !important;
 }
 
 /* =========================================================
@@ -161,4 +133,157 @@
 
 [data-theme="purple-tea"] [class*="shadow-cyan-glow"] {
   box-shadow: 0 0 18px -2px rgba(170, 81, 64, 0.60) !important;
+}
+
+/* =========================================================
+   Theme Overrides: 战术光棱 (Tactical Light / OpsHub Control Plane)
+   极昼浅白 #F8FAFC + 纯白表面 #FFFFFF + 战术青蓝 #00687A + 纤细边框 #E2E8F0
+========================================================= */
+[data-theme="tactical-light"] [class*="bg-cyan-950"],
+[data-theme="tactical-light"] [class*="bg-cyan-900"] {
+  background-color: rgba(0, 104, 122, 0.12) !important;
+}
+
+[data-theme="tactical-light"] [class*="hover:bg-cyan-400"]:hover {
+  background-color: #0891b2 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="tactical-light"] [class*="border-ops-cyan"] {
+  border-color: #00687a !important;
+}
+
+[data-theme="tactical-light"] [class*="text-ops-cyan"] {
+  color: #00687a !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-ops-cyan"] {
+  background-color: #00687a !important;
+  color: #ffffff !important;
+}
+
+[data-theme="tactical-light"] [class*="shadow-cyan-glow"] {
+  box-shadow: 0 0 15px -3px rgba(0, 104, 122, 0.35) !important;
+}
+
+/* Light mode card surface shadows per DESIGN.md */
+[data-theme="tactical-light"] [class*="bg-ops-card"],
+[data-theme="tactical-light"] [class*="bg-ops-surface"] {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Light mode status badge refinements per DESIGN.md */
+[data-theme="tactical-light"] [class*="bg-emerald-950"] {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+[data-theme="tactical-light"] [class*="text-emerald-400"] {
+  color: #047857 !important;
+}
+[data-theme="tactical-light"] [class*="border-emerald-500"] {
+  border-color: rgba(16, 185, 129, 0.30) !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-amber-950"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+[data-theme="tactical-light"] [class*="text-amber-400"] {
+  color: #b45309 !important;
+}
+[data-theme="tactical-light"] [class*="border-amber-500"] {
+  border-color: rgba(245, 158, 11, 0.30) !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-red-950"] {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+[data-theme="tactical-light"] [class*="text-red-400"] {
+  color: #b91c1c !important;
+}
+[data-theme="tactical-light"] [class*="border-red-500"] {
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Light mode text contrast overrides for headers and body copy outside dark terminal */
+[data-theme="tactical-light"] h1,
+[data-theme="tactical-light"] h2,
+[data-theme="tactical-light"] h3,
+[data-theme="tactical-light"] h4,
+[data-theme="tactical-light"] [class*="text-white"]:not(button[class*="bg-ops-cyan"]):not(button[class*="bg-red-"]):not(button[class*="bg-emerald-"]):not(button[class*="bg-cyan-"]):not([class*="bg-gradient-to-"]):not([data-testid="terminal-container"] *):not(.xterm *) {
+  color: #0f172a !important;
+}
+
+/* Light mode table row hover */
+[data-theme="tactical-light"] tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Light mode scrollbar per DESIGN.md */
+[data-theme="tactical-light"] ::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+[data-theme="tactical-light"] ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+[data-theme="tactical-light"] ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Preserve terminal void per DESIGN.md (#0F172A) */
+[data-theme="tactical-light"] [data-testid="terminal-container"],
+[data-theme="tactical-light"] .xterm,
+[data-theme="tactical-light"] [class*="bg-[#050811]"],
+[data-theme="tactical-light"] [class*="bg-[#080C14]"] {
+  background-color: #0f172a !important;
+  color: #f8fafc;
+}
+
+/* =========================================================
+   Theme Overrides: 战术暗夜 (Tactical Dark / OpsHub Control Plane Dark)
+   深空暗夜 #131B2A + 战术面板 #1E293B + 悬浮高亮 #334155 + 赛博青蓝 #06B6D4
+========================================================= */
+[data-theme="tactical-dark"] [class*="bg-cyan-950"],
+[data-theme="tactical-dark"] [class*="bg-cyan-900"] {
+  background-color: rgba(6, 182, 212, 0.15) !important;
+}
+
+[data-theme="tactical-dark"] [class*="hover:bg-cyan-400"]:hover {
+  background-color: #0891b2 !important;
+  color: #0b0f19 !important;
+}
+
+[data-theme="tactical-dark"] [class*="border-ops-cyan"] {
+  border-color: #06b6d4 !important;
+}
+
+[data-theme="tactical-dark"] [class*="text-ops-cyan"] {
+  color: #06b6d4 !important;
+}
+
+[data-theme="tactical-dark"] [class*="bg-ops-cyan"] {
+  background-color: #06b6d4 !important;
+  color: #0b0f19 !important;
+}
+
+[data-theme="tactical-dark"] [class*="shadow-cyan-glow"] {
+  box-shadow: 0 0 15px -3px rgba(6, 182, 212, 0.35) !important;
+}
+
+/* Tactical Dark scrollbar per DESIGN2.md (#131B2A track, #334155 thumb) */
+[data-theme="tactical-dark"] ::-webkit-scrollbar-track {
+  background: #131b2a;
+}
+[data-theme="tactical-dark"] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+[data-theme="tactical-dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Terminal Void per DESIGN2.md (#0B0F19) */
+[data-theme="tactical-dark"] [data-testid="terminal-container"],
+[data-theme="tactical-dark"] .xterm,
+[data-theme="tactical-dark"] [class*="bg-[#050811]"],
+[data-theme="tactical-dark"] [class*="bg-[#080C14]"] {
+  background-color: #0b0f19 !important;
+  color: #f8fafc;
 }
