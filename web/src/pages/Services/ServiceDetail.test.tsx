@@ -525,5 +525,115 @@ describe('ServiceDetail Component', () => {
     expect(screen.getByRole('button', { name: /一键回滚/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^删除$/i })).not.toBeInTheDocument();
   });
+
+  it('paginates release records in releases tab', async () => {
+    const manyReleases = Array.from({ length: 12 }, (_, i) => ({
+      id: 100 - i,
+      service_id: 10,
+      artifact_id: 101,
+      action: 'DEPLOY',
+      operator: 'admin',
+      client_ip: '127.0.0.1',
+      status: 'SUCCESS',
+      output_log: `Deploy #${100 - i}`,
+      started_at: '2026-09-10T08:05:00Z',
+    }));
+    (api.getReleases as any).mockResolvedValue(manyReleases);
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /版本与发布/i }));
+
+    expect(screen.getByText('发布历史与制品时间线')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 \/ 2/)).toBeInTheDocument();
+      expect(screen.getByText(/显示第 1 - 10 条/)).toBeInTheDocument();
+      expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1);
+    });
+
+    // First page displays #100, but not #89 (which is 12th item)
+    expect(screen.getByText('#100')).toBeInTheDocument();
+    expect(screen.queryByText('#89')).not.toBeInTheDocument();
+
+    // Click next page
+    const nextBtn = screen.getByTitle('下一页');
+    fireEvent.click(nextBtn);
+
+    expect(screen.getByText(/2 \/ 2/)).toBeInTheDocument();
+    expect(screen.getByText('#89')).toBeInTheDocument();
+    expect(screen.queryByText('#100')).not.toBeInTheDocument();
+
+    // Change page size to 20
+    const pageSizeSelect = screen.getByLabelText('发布记录每页条数');
+    fireEvent.change(pageSizeSelect, { target: { value: '20' } });
+
+    expect(screen.getByText(/1 \/ 1/)).toBeInTheDocument();
+    expect(screen.getByText('#100')).toBeInTheDocument();
+    expect(screen.getByText('#89')).toBeInTheDocument();
+  });
+
+  it('paginates audit logs in audit tab and triggers server-side pagination', async () => {
+    (api.getAuditLogs as any).mockResolvedValue({
+      items: Array.from({ length: 10 }, (_, i) => ({
+        id: 100 - i,
+        operator: 'admin',
+        client_ip: '127.0.0.1',
+        action: 'DEPLOY',
+        target_type: 'service',
+        target_id: '10',
+        details: `Log #${100 - i}`,
+        status: 'SUCCESS',
+        created_at: '2026-09-10T08:05:00Z',
+      })),
+      total: 25,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /审计轨迹/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 \/ 3/)).toBeInTheDocument();
+      expect(screen.getByText(/显示第 1 - 10 条/)).toBeInTheDocument();
+      expect(screen.getByText('25')).toBeInTheDocument();
+    });
+
+    // Click next page
+    const nextBtn = screen.getAllByTitle('下一页').pop()!;
+    fireEvent.click(nextBtn);
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_type: 'service',
+          target_id: '10',
+          page: 2,
+          page_size: 10,
+        })
+      );
+    });
+
+    // Change page size to 20
+    const pageSizeSelect = screen.getByLabelText('审计日志每页条数');
+    fireEvent.change(pageSizeSelect, { target: { value: '20' } });
+
+    await waitFor(() => {
+      expect(api.getAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_type: 'service',
+          target_id: '10',
+          page: 1,
+          page_size: 20,
+        })
+      );
+    });
+  });
 });
 

@@ -31,6 +31,8 @@ import {
   ShieldAlert,
   AlertCircle,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   Service,
@@ -108,6 +110,28 @@ export const ServiceDetail: React.FC = () => {
   const [metrics, setMetrics] = useState<ServiceMetrics | null>(null);
   const [configFiles, setConfigFiles] = useState<string[]>([]);
 
+  // Releases Pagination State
+  const [releasePage, setReleasePage] = useState<number>(1);
+  const [releasePageSize, setReleasePageSize] = useState<number>(10);
+
+  // Audit Logs Pagination State
+  const [auditTotal, setAuditTotal] = useState<number>(0);
+  const [auditPage, setAuditPage] = useState<number>(1);
+  const [auditPageSize, setAuditPageSize] = useState<number>(10);
+  const [auditLoading, setAuditLoading] = useState<boolean>(false);
+
+  const releaseTotal = releases.length;
+  const releaseTotalPages = Math.max(1, Math.ceil(releaseTotal / releasePageSize));
+  const currentReleasePage = Math.min(releasePage, releaseTotalPages);
+
+  const paginatedReleases = useMemo(() => {
+    const startIndex = (currentReleasePage - 1) * releasePageSize;
+    return releases.slice(startIndex, startIndex + releasePageSize);
+  }, [releases, currentReleasePage, releasePageSize]);
+
+  const auditTotalPages = Math.max(1, Math.ceil(auditTotal / auditPageSize));
+  const currentAuditPage = Math.min(auditPage, auditTotalPages);
+
   // State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +158,29 @@ export const ServiceDetail: React.FC = () => {
   // Template Sync State
   const [syncDiff, setSyncDiff] = useState<TemplateSyncDiff | null>(null);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
+
+  const loadAuditLogs = useCallback(
+    async (pageToLoad: number = auditPage, sizeToLoad: number = auditPageSize) => {
+      if (!serviceId) return;
+      try {
+        setAuditLoading(true);
+        const res = await api.getAuditLogs({
+          target_type: 'service',
+          target_id: String(serviceId),
+          page: pageToLoad,
+          page_size: sizeToLoad,
+        });
+        setAuditLogs(res.items || []);
+        setAuditTotal(res.total || 0);
+      } catch {
+        setAuditLogs([]);
+        setAuditTotal(0);
+      } finally {
+        setAuditLoading(false);
+      }
+    },
+    [serviceId, auditPage, auditPageSize]
+  );
 
   // Load all service data
   const loadServiceData = useCallback(async (isBackground = false) => {
@@ -180,15 +227,26 @@ export const ServiceDetail: React.FC = () => {
         .catch(() => setConfigFiles([]));
 
       // Load audit logs for this service
-      api.getAuditLogs({ target_type: 'service', target_id: String(serviceId) })
-        .then((res) => setAuditLogs(res.items || []))
-        .catch(() => setAuditLogs([]));
+      api.getAuditLogs({
+        target_type: 'service',
+        target_id: String(serviceId),
+        page: auditPage,
+        page_size: auditPageSize,
+      })
+        .then((res) => {
+          setAuditLogs(res.items || []);
+          setAuditTotal(res.total || 0);
+        })
+        .catch(() => {
+          setAuditLogs([]);
+          setAuditTotal(0);
+        });
     } catch (err: any) {
       setError(err.message || '加载服务详情失败');
     } finally {
       if (!isBackground) setLoading(false);
     }
-  }, [serviceId]);
+  }, [serviceId, auditPage, auditPageSize]);
 
   useEffect(() => {
     loadServiceData();
@@ -486,78 +544,88 @@ export const ServiceDetail: React.FC = () => {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Top Breadcrumb & Return Nav */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate('/services')}
-          className="inline-flex items-center gap-1.5 text-xs font-mono text-ops-text-muted hover:text-ops-cyan transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>返回服务舰队</span>
-        </button>
+  const isFixedViewportTab = activeTab === 'releases' || activeTab === 'audit' || activeTab === 'overview';
 
-        <div className="flex items-center gap-2">
+  return (
+    <div
+      className={
+        isFixedViewportTab
+          ? 'h-[calc(100vh-6rem)] md:h-[calc(100vh-7rem)] min-h-[480px] flex flex-col gap-3.5 overflow-hidden'
+          : 'flex flex-col gap-3.5 min-h-full'
+      }
+    >
+      {/* Fixed Top Zone: Header, Sync Alert, Hero Banner & Tabs Navigation */}
+      <div className="shrink-0 space-y-3">
+        {/* Top Breadcrumb & Return Nav */}
+        <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => loadServiceData(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-ops-border bg-ops-surface text-xs text-ops-text-sub hover:text-white transition-colors"
+            onClick={() => navigate('/services')}
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-ops-text-muted hover:text-ops-cyan transition-colors"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>刷新</span>
+            <ArrowLeft className="h-4 w-4" />
+            <span>返回服务舰队</span>
           </button>
-        </div>
-      </div>
 
-      {/* Template Sync Notification Banner */}
-      {syncDiff?.has_update && !syncDiff.ignored && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-xs text-amber-200 shadow-md">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
-            <div>
-              <span className="font-bold text-amber-300">
-                所属部署模板「{syncDiff.template_name}」有新配置可同步
-              </span>
-              <p className="text-[11px] text-amber-300/70 mt-0.5">
-                检测到模板中的{' '}
-                <span className="font-semibold text-amber-300">
-                  {(() => {
-                    const diffItems = [];
-                    if (syncDiff.jvm_diff.is_different) diffItems.push('JVM 参数');
-                    if (syncDiff.health_check_diff.is_different && !syncDiff.health_check_diff.inherited) {
-                      diffItems.push('健康检查探针');
-                    }
-                    return diffItems.length > 0 ? diffItems.join('及') : 'JVM 参数';
-                  })()}
-                </span>{' '}
-                已更新，您可以选择性同步到当前服务。
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleIgnoreSync}
-              className="px-2.5 py-1.5 rounded-lg text-amber-300/80 hover:text-white hover:bg-amber-900/40 transition-colors"
-            >
-              忽略本次
-            </button>
-            <button
-              type="button"
-              onClick={() => setSyncModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-200 font-semibold hover:bg-amber-500/30 transition-colors shadow-sm"
+              onClick={() => loadServiceData(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-ops-border bg-ops-surface text-xs text-ops-text-sub hover:text-white transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span>查看并同步配置</span>
+              <span>刷新</span>
             </button>
           </div>
         </div>
-      )}
 
-      {/* Service Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-ops-border bg-ops-card p-6 shadow-xl space-y-6">
+        {/* Template Sync Notification Banner */}
+        {syncDiff?.has_update && !syncDiff.ignored && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-950/20 p-4 text-xs text-amber-200 shadow-md">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+              <div>
+                <span className="font-bold text-amber-300">
+                  所属部署模板「{syncDiff.template_name}」有新配置可同步
+                </span>
+                <p className="text-[11px] text-amber-300/70 mt-0.5">
+                  检测到模板中的{' '}
+                  <span className="font-semibold text-amber-300">
+                    {(() => {
+                      const diffItems = [];
+                      if (syncDiff.jvm_diff.is_different) diffItems.push('JVM 参数');
+                      if (syncDiff.health_check_diff.is_different && !syncDiff.health_check_diff.inherited) {
+                        diffItems.push('健康检查探针');
+                      }
+                      return diffItems.length > 0 ? diffItems.join('及') : 'JVM 参数';
+                    })()}
+                  </span>{' '}
+                  已更新，您可以选择性同步到当前服务。
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleIgnoreSync}
+                className="px-2.5 py-1.5 rounded-lg text-amber-300/80 hover:text-white hover:bg-amber-900/40 transition-colors"
+              >
+                忽略本次
+              </button>
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-200 font-semibold hover:bg-amber-500/30 transition-colors shadow-sm"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>查看并同步配置</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Service Hero Banner */}
+        <div className="relative overflow-hidden rounded-2xl border border-ops-border bg-ops-card p-4 sm:p-5 shadow-xl space-y-4">
         <AnimatePresence>
           {actionAnimeState && (
             <ServiceStartAnimeOverlay
@@ -808,12 +876,13 @@ export const ServiceDetail: React.FC = () => {
           <span>审计轨迹</span>
         </button>
       </div>
+    </div>
 
-      {/* Tab Content Panels */}
-      <div>
+    {/* Tab Content Panels */}
+    <div className={isFixedViewportTab ? 'flex-1 min-h-0 flex flex-col' : 'space-y-4'}>
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
-          <div className="space-y-5">
+          <div className="h-full overflow-y-auto pr-1 space-y-5">
             {/* Live Process Telemetry Gauges Card */}
             <ProcessTelemetryCard
               pid={service.pid}
@@ -906,8 +975,8 @@ export const ServiceDetail: React.FC = () => {
 
         {/* Tab 2: Releases (Directive Highlight: Release history timeline & RollbackModal integration) */}
         {activeTab === 'releases' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="h-full flex flex-col space-y-3 min-h-0">
+            <div className="flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-white tracking-tight">发布历史与制品时间线</h3>
                 <p className="text-xs text-ops-text-muted font-mono mt-0.5">
@@ -945,22 +1014,22 @@ export const ServiceDetail: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl border border-ops-border bg-ops-card overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-ops-border bg-ops-card overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full text-left text-xs font-mono">
-                    <thead className="border-b border-ops-border bg-ops-bg/80 text-ops-text-muted">
+                    <thead className="sticky top-0 z-10 border-b border-ops-border bg-ops-bg text-ops-text-muted shadow-sm">
                       <tr>
-                        <th className="px-4 py-3">流水号</th>
-                        <th className="px-4 py-3">类型</th>
-                        <th className="px-4 py-3">对应制品 / 版本</th>
-                        <th className="px-4 py-3">执行操作人</th>
-                        <th className="px-4 py-3">状态</th>
-                        <th className="px-4 py-3">开始时间</th>
-                        <th className="px-4 py-3 text-right">回滚操作</th>
+                        <th className="px-4 py-3 bg-ops-bg">流水号</th>
+                        <th className="px-4 py-3 bg-ops-bg">类型</th>
+                        <th className="px-4 py-3 bg-ops-bg">对应制品 / 版本</th>
+                        <th className="px-4 py-3 bg-ops-bg">执行操作人</th>
+                        <th className="px-4 py-3 bg-ops-bg">状态</th>
+                        <th className="px-4 py-3 bg-ops-bg">开始时间</th>
+                        <th className="px-4 py-3 bg-ops-bg text-right">回滚操作</th>
                       </tr>
                     </thead>
                     <tbody ref={releasesListRef} className="divide-y divide-ops-border text-ops-text-sub">
-                      {releases.map((rec) => {
+                      {paginatedReleases.map((rec) => {
                         const isDeploy = rec.action === 'DEPLOY';
                         const isSuccess = rec.status === 'SUCCESS';
                         const matchedArtifact = artifacts.find((a) => a.id === rec.artifact_id);
@@ -1076,6 +1145,62 @@ export const ServiceDetail: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Releases Pagination Bar */}
+                <div className="shrink-0 border-t border-ops-border bg-ops-card/90 backdrop-blur-sm px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-ops-text-muted">
+                  <div>
+                    显示第 {releaseTotal > 0 ? (currentReleasePage - 1) * releasePageSize + 1 : 0} -{' '}
+                    {Math.min(currentReleasePage * releasePageSize, releaseTotal)} 条，共{' '}
+                    <span className="text-white font-bold">{releaseTotal}</span> 条发布记录
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span>每页</span>
+                      <select
+                        aria-label="发布记录每页条数"
+                        value={releasePageSize}
+                        onChange={(e) => {
+                          setReleasePageSize(Number(e.target.value));
+                          setReleasePage(1);
+                        }}
+                        className="bg-ops-surface border border-ops-border rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                      <span>条</span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={currentReleasePage <= 1}
+                        onClick={() => setReleasePage((p) => Math.max(1, p - 1))}
+                        className="p-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="上一页"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+
+                      <span className="px-2 py-1 text-white font-bold">
+                        {currentReleasePage} / {releaseTotalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentReleasePage >= releaseTotalPages}
+                        onClick={() => setReleasePage((p) => Math.min(releaseTotalPages, p + 1))}
+                        className="p-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="下一页"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1138,8 +1263,8 @@ export const ServiceDetail: React.FC = () => {
 
         {/* Tab 5: Audit (Audit logs table) */}
         {activeTab === 'audit' && (
-          <div className="space-y-4">
-            <div>
+          <div className="h-full flex flex-col space-y-3 min-h-0">
+            <div className="shrink-0">
               <h3 className="text-sm font-bold text-white tracking-tight">服务操作审计日志</h3>
               <p className="text-xs text-ops-text-muted font-mono mt-0.5">
                 记录对该服务实例的所有启动、停止、发布及回滚操作记录
@@ -1151,47 +1276,115 @@ export const ServiceDetail: React.FC = () => {
                 当前服务暂无审计轨迹记录
               </div>
             ) : (
-              <div className="rounded-xl border border-ops-border bg-ops-card overflow-hidden">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="border-b border-ops-border bg-ops-bg text-ops-text-muted">
-                    <tr>
-                      <th className="px-4 py-3">序号</th>
-                      <th className="px-4 py-3">操作动作</th>
-                      <th className="px-4 py-3">执行操作人</th>
-                      <th className="px-4 py-3">来源 IP</th>
-                      <th className="px-4 py-3">状态</th>
-                      <th className="px-4 py-3">时间</th>
-                      <th className="px-4 py-3">详情说明</th>
-                    </tr>
-                  </thead>
-                  <tbody ref={auditListRef} className="divide-y divide-ops-border text-ops-text-sub">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-ops-surface/50">
-                        <td className="px-4 py-3 text-white">#{log.id}</td>
-                        <td className="px-4 py-3 font-semibold text-ops-cyan">{log.action}</td>
-                        <td className="px-4 py-3 text-white">{log.operator}</td>
-                        <td className="px-4 py-3 text-ops-text-muted">{log.client_ip}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              log.status === 'SUCCESS' || log.status === 'RUNNING'
-                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
-                                : 'bg-red-950 text-red-400 border border-red-500/30'
-                            }`}
-                          >
-                            {log.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-ops-text-muted">
-                          {new Date(log.created_at).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-slate-400 truncate max-w-xs" title={log.details}>
-                          {log.details}
-                        </td>
+              <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-ops-border bg-ops-card overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="sticky top-0 z-10 border-b border-ops-border bg-ops-bg text-ops-text-muted shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 bg-ops-bg">序号</th>
+                        <th className="px-4 py-3 bg-ops-bg">操作动作</th>
+                        <th className="px-4 py-3 bg-ops-bg">执行操作人</th>
+                        <th className="px-4 py-3 bg-ops-bg">来源 IP</th>
+                        <th className="px-4 py-3 bg-ops-bg">状态</th>
+                        <th className="px-4 py-3 bg-ops-bg">时间</th>
+                        <th className="px-4 py-3 bg-ops-bg">详情说明</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody ref={auditListRef} className="divide-y divide-ops-border text-ops-text-sub">
+                      {auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-ops-surface/50">
+                          <td className="px-4 py-3 text-white">#{log.id}</td>
+                          <td className="px-4 py-3 font-semibold text-ops-cyan">{log.action}</td>
+                          <td className="px-4 py-3 text-white">{log.operator}</td>
+                          <td className="px-4 py-3 text-ops-text-muted">{log.client_ip}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                log.status === 'SUCCESS' || log.status === 'RUNNING'
+                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-red-950 text-red-400 border border-red-500/30'
+                              }`}
+                            >
+                              {log.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-ops-text-muted">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 truncate max-w-xs" title={log.details}>
+                            {log.details}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Audit Pagination Bar */}
+                <div className="shrink-0 border-t border-ops-border bg-ops-card/90 backdrop-blur-sm px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-ops-text-muted">
+                  <div>
+                    显示第 {auditTotal > 0 ? (currentAuditPage - 1) * auditPageSize + 1 : 0} -{' '}
+                    {Math.min(currentAuditPage * auditPageSize, auditTotal)} 条，共{' '}
+                    <span className="text-white font-bold">{auditTotal}</span> 条记录
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span>每页</span>
+                      <select
+                        aria-label="审计日志每页条数"
+                        value={auditPageSize}
+                        onChange={(e) => {
+                          const newSize = Number(e.target.value);
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                          loadAuditLogs(1, newSize);
+                        }}
+                        className="bg-ops-surface border border-ops-border rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                      </select>
+                      <span>条</span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={currentAuditPage <= 1 || auditLoading}
+                        onClick={() => {
+                          const prevPage = Math.max(1, currentAuditPage - 1);
+                          setAuditPage(prevPage);
+                          loadAuditLogs(prevPage, auditPageSize);
+                        }}
+                        className="p-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="上一页"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+
+                      <span className="px-2 py-1 text-white font-bold">
+                        {currentAuditPage} / {auditTotalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentAuditPage >= auditTotalPages || auditLoading}
+                        onClick={() => {
+                          const nextPage = Math.min(auditTotalPages, currentAuditPage + 1);
+                          setAuditPage(nextPage);
+                          loadAuditLogs(nextPage, auditPageSize);
+                        }}
+                        className="p-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="下一页"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
