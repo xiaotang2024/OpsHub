@@ -9,7 +9,6 @@ import (
 // Template types
 const (
 	TemplateTypeJavaJar        = "java_jar"
-	TemplateTypeJavaWar        = "java_war"
 	TemplateTypeGenericArchive = "generic_archive"
 )
 

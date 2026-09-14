@@ -228,7 +228,7 @@ func (e *Engine) RenderStartCommand(tpl *model.Template, svc *model.Service, jdk
 			}
 		}
 		return filepath.Join(installDir, "bin", "startup.sh"), nil
-	case model.TemplateTypeJavaJar, model.TemplateTypeJavaWar, "":
+	case model.TemplateTypeJavaJar, "":
 		var parts []string
 		parts = append(parts, javaBin)
 		if jvmOpts != "" {

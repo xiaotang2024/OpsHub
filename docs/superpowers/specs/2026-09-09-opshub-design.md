@@ -74,7 +74,7 @@
 | :--- | :--- | :--- |
 | `id` | INTEGER PRIMARY KEY | 自增主键 |
 | `name` | TEXT NOT NULL UNIQUE | 模板名称（如 `Spring Boot 标准模板`、`Nacos 中间件模板`） |
-| `type` | TEXT NOT NULL | 模板类型：`java_jar`, `java_war`, `generic_archive` |
+| `type` | TEXT NOT NULL | 模板类型：`java_jar`, `generic_archive` |
 | `default_jdk_id` | INTEGER | 默认绑定的 JDK ID（外键关联 `jdk_assets.id`） |
 | `install_dir_pattern` | TEXT NOT NULL | 默认安装目录规则（如 `/opt/apps/${SERVICE_NAME}`） |
 | `jvm_options` | TEXT | 默认 JVM 参数配置（JSON 或格式化串，包含堆内存、GC配置等） |

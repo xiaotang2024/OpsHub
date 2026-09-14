@@ -33,11 +33,11 @@ describe('TemplateList Component', () => {
     },
     {
       id: 2,
-      name: 'Legacy-Tomcat-War',
-      type: 'java_war',
+      name: 'Generic-Microservice',
+      type: 'generic_archive',
       default_jdk_id: null,
-      install_dir_pattern: '/opt/tomcat/webapps/${SERVICE_NAME}',
-      jvm_options: '-Xms2g -Xmx4g -XX:+UseParallelGC',
+      install_dir_pattern: '/opt/apps/${SERVICE_NAME}',
+      jvm_options: '-Xms2g -Xmx4g -XX:+UseG1GC',
       env_vars: '',
       supervision_mode: 'systemd',
       start_cmd: '',
@@ -64,7 +64,7 @@ describe('TemplateList Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Standard-SpringBoot')).toBeInTheDocument();
-      expect(screen.getByText('Legacy-Tomcat-War')).toBeInTheDocument();
+      expect(screen.getByText('Generic-Microservice')).toBeInTheDocument();
     });
 
     expect(screen.getAllByRole('button', { name: /编辑/i })).toHaveLength(2);
@@ -83,10 +83,10 @@ describe('TemplateList Component', () => {
     });
 
     const searchInput = screen.getByPlaceholderText(/搜索模板名称/i);
-    fireEvent.change(searchInput, { target: { value: 'Tomcat' } });
+    fireEvent.change(searchInput, { target: { value: 'Microservice' } });
 
     expect(screen.queryByText('Standard-SpringBoot')).not.toBeInTheDocument();
-    expect(screen.getByText('Legacy-Tomcat-War')).toBeInTheDocument();
+    expect(screen.getByText('Generic-Microservice')).toBeInTheDocument();
   });
 
   it('opens TemplateEditorModal when clicking 新建模板', async () => {

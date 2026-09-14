@@ -21,7 +21,7 @@ func TestIsArchiveFile(t *testing.T) {
 	assert.True(t, isArchiveFile("APP.ZIP", "/path/to/APP.ZIP"))
 
 	assert.False(t, isArchiveFile("app.jar", "/path/to/app.jar"))
-	assert.False(t, isArchiveFile("app.war", "/path/to/app.war"))
+	assert.False(t, isArchiveFile("app.bin", "/path/to/app.bin"))
 	assert.False(t, isArchiveFile("app.sh", "/path/to/app.sh"))
 }
 

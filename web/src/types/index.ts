@@ -1,4 +1,4 @@
-export type TemplateType = 'java_jar' | 'java_war' | 'generic_archive' | string;
+export type TemplateType = 'java_jar' | 'generic_archive' | string;
 export type SupervisionMode = 'native' | 'systemd' | string;
 
 export interface Template {

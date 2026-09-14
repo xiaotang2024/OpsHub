@@ -372,7 +372,6 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                     className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-sm text-white focus:border-ops-cyan focus:outline-none focus:ring-1 focus:ring-ops-cyan transition-colors"
                   >
                     <option value="java_jar">Java 可执行 JAR (java_jar)</option>
-                    <option value="java_war">Java 传统 WAR 包 (java_war)</option>
                     <option value="generic_archive">通用压缩包 (generic_archive)</option>
                   </select>
                 </div>

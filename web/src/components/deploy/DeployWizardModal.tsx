@@ -649,7 +649,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                       ref={fileInputRef}
                       type="file"
                       className="hidden"
-                      accept=".jar,.war,.tar.gz,.zip,.tar"
+                      accept=".jar,.tar.gz,.zip,.tar"
                       onChange={(e) => {
                         if (e.target.files && e.target.files.length > 0) {
                           handleFileSelect(e.target.files[0]);
@@ -675,7 +675,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                             点击上传或拖拽二进制包至此处
                           </div>
                           <div className="text-xs font-mono text-ops-text-muted mt-0.5">
-                            支持 .jar, .war, .tar.gz 等标准发布包格式
+                            支持 .jar, .tar.gz 等标准发布包格式
                           </div>
                         </div>
                       )}

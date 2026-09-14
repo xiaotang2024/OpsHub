@@ -301,17 +301,6 @@ export const TemplateList: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setTypeFilter('java_war')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                typeFilter === 'java_war'
-                  ? 'bg-ops-surface text-ops-amber shadow-sm'
-                  : 'text-ops-text-muted hover:text-white'
-              }`}
-            >
-              WAR
-            </button>
-            <button
-              type="button"
               onClick={() => setTypeFilter('generic_archive')}
               className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
                 typeFilter === 'generic_archive'
@@ -437,8 +426,6 @@ export const TemplateList: React.FC = () => {
                         className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase ${
                           tpl.type === 'java_jar'
                             ? 'bg-cyan-950/70 text-ops-cyan border border-ops-cyan/40'
-                            : tpl.type === 'java_war'
-                            ? 'bg-amber-950/70 text-ops-amber border border-ops-amber/40'
                             : 'bg-slate-900 text-slate-300 border border-slate-700'
                         }`}
                       >
