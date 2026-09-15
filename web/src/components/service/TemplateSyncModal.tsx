@@ -21,6 +21,7 @@ export interface TemplateSyncModalProps {
   onClose: () => void;
   service: Service;
   diff: TemplateSyncDiff | null;
+  templateType?: string;
   onSuccess: (updatedService: Service) => void;
   onIgnored?: () => void;
 }
@@ -30,16 +31,21 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
   onClose,
   service,
   diff,
+  templateType,
   onSuccess,
   onIgnored,
 }) => {
+  const isGenericArchive = diff?.template_type === 'generic_archive' || templateType === 'generic_archive';
+
   const isHealthCheckInherited = Boolean(
     diff?.health_check_diff.inherited ||
     !diff?.health_check_diff.current?.trim() ||
     diff?.health_check_diff.current.trim() === '{}'
   );
 
-  const [syncJVM, setSyncJVM] = useState<boolean>(diff?.jvm_diff.is_different ?? false);
+  const [syncJVM, setSyncJVM] = useState<boolean>(
+    isGenericArchive ? false : (diff?.jvm_diff.is_different ?? false)
+  );
   const [syncHealthCheck, setSyncHealthCheck] = useState<boolean>(
     isHealthCheckInherited ? false : (diff?.health_check_diff.is_different ?? false)
   );
@@ -48,7 +54,7 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
   if (!isOpen || !diff) return null;
 
   const isRunning = service.status === 'RUNNING';
-  const hasSelectedAny = syncJVM || (!isHealthCheckInherited && syncHealthCheck);
+  const hasSelectedAny = (!isGenericArchive && syncJVM) || (!isHealthCheckInherited && syncHealthCheck);
 
   const handleSync = async (restartNow: boolean) => {
     if (!hasSelectedAny) {
@@ -59,7 +65,7 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
     try {
       setIsSubmitting(true);
       const res = await api.syncTemplate(service.id, {
-        sync_jvm: syncJVM,
+        sync_jvm: !isGenericArchive && syncJVM,
         sync_health_check: !isHealthCheckInherited && syncHealthCheck,
         restart_now: restartNow,
         ignore_update: false,
@@ -118,7 +124,12 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                   </span>
                 </h3>
                 <p className="text-xs text-ops-text-muted mt-0.5">
-                  {isHealthCheckInherited ? (
+                  {isGenericArchive ? (
+                    <>
+                      依赖模板 <span className="text-ops-cyan font-medium">{diff.template_name}</span>{' '}
+                      检测到健康检测配置变更，请确认同步项：
+                    </>
+                  ) : isHealthCheckInherited ? (
                     <>
                       依赖模板 <span className="text-ops-cyan font-medium">{diff.template_name}</span>{' '}
                       检测到 JVM 参数变更（健康监测已自动沿用模板），请确认同步项：
@@ -145,6 +156,7 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
           {/* Body: Selectable Parameters Diff */}
           <div className="my-5 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {/* 1. JVM Parameter Item */}
+            {!isGenericArchive && (
             <div
               onClick={() => setSyncJVM(!syncJVM)}
               className={`rounded-xl border p-4 transition-all cursor-pointer ${
@@ -215,6 +227,7 @@ export const TemplateSyncModal: React.FC<TemplateSyncModalProps> = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* 2. Health Check Config Item (Only shown if service customized health check and didn't default to inheriting template) */}
             {!isHealthCheckInherited && (

@@ -174,4 +174,51 @@ describe('TemplateSyncModal Component', () => {
       });
     });
   });
+
+  it('omits JVM parameter card for generic_archive template and syncs without sync_jvm', async () => {
+    const archiveDiff: TemplateSyncDiff = {
+      ...mockDiff,
+      template_type: 'generic_archive',
+      jvm_diff: {
+        current: '',
+        template: '',
+        is_different: false,
+      },
+      health_check_diff: {
+        current: '{"type":"tcp","port":8080}',
+        template: '{"type":"process"}',
+        is_different: true,
+      },
+    };
+
+    (api.syncTemplate as any).mockResolvedValueOnce(mockService);
+    const onSuccess = vi.fn();
+
+    render(
+      <TemplateSyncModal
+        isOpen={true}
+        onClose={() => {}}
+        service={mockService}
+        diff={archiveDiff}
+        onSuccess={onSuccess}
+      />
+    );
+
+    // JVM card should be completely omitted
+    expect(screen.queryByText('JVM 内存与调优参数 (JVM Options)')).not.toBeInTheDocument();
+    // Health check card is rendered
+    expect(screen.getByText('健康检测探针参数 (Health Check)')).toBeInTheDocument();
+
+    const syncBtn = screen.getByText('仅同步配置');
+    fireEvent.click(syncBtn);
+
+    await waitFor(() => {
+      expect(api.syncTemplate).toHaveBeenCalledWith(10, {
+        sync_jvm: false,
+        sync_health_check: true,
+        restart_now: false,
+        ignore_update: false,
+      });
+    });
+  });
 });

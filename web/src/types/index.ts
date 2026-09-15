@@ -58,6 +58,7 @@ export interface TemplateSyncDiff {
   has_update: boolean;
   template_id: number;
   template_name: string;
+  template_type?: string;
   template_updated_at: string;
   ignored: boolean;
   jvm_diff: TemplateSyncDiffItem;

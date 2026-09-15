@@ -593,11 +593,11 @@ export const ServiceDetail: React.FC = () => {
                   <span className="font-semibold text-amber-300">
                     {(() => {
                       const diffItems = [];
-                      if (syncDiff.jvm_diff.is_different) diffItems.push('JVM 参数');
+                      if (syncDiff.jvm_diff.is_different && syncDiff.template_type !== 'generic_archive') diffItems.push('JVM 参数');
                       if (syncDiff.health_check_diff.is_different && !syncDiff.health_check_diff.inherited) {
                         diffItems.push('健康检查探针');
                       }
-                      return diffItems.length > 0 ? diffItems.join('及') : 'JVM 参数';
+                      return diffItems.length > 0 ? diffItems.join('及') : '配置';
                     })()}
                   </span>{' '}
                   已更新，您可以选择性同步到当前服务。
@@ -932,6 +932,8 @@ export const ServiceDetail: React.FC = () => {
 
               {/* JVM Parameter Strategy & Health Check */}
               <div className="rounded-xl border border-ops-border bg-ops-card p-5 space-y-4">
+                {template?.type !== 'generic_archive' && (
+                <>
                 <div className="flex items-center justify-between">
                   <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
                     JVM 内存与系统调优参数
@@ -952,11 +954,24 @@ export const ServiceDetail: React.FC = () => {
                 <div className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-emerald-400 break-all select-all leading-relaxed">
                   {service.jvm_options || '(未指定个性化 JVM 参数，将默认沿用模板配置)'}
                 </div>
+                </>
+                )}
 
                 <div className="flex items-center justify-between pt-2">
                   <h3 className="font-mono text-xs uppercase tracking-wider text-ops-cyan font-bold">
                     健康检测探针配置 (Health Check)
                   </h3>
+                  {template?.type === 'generic_archive' && template && (
+                    <button
+                      type="button"
+                      onClick={() => setSyncModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan hover:bg-ops-cyan/20 transition-colors"
+                      title="打开模板差异对比与同步弹窗"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      <span>同步模板配置</span>
+                    </button>
+                  )}
                 </div>
                 <div className="rounded-xl border border-ops-border bg-ops-bg p-3.5 font-mono text-xs text-ops-text-sub break-all select-all leading-relaxed">
                   {service.health_check_config || template?.health_check_config || '(默认沿用模板端口/进程探针)'}
@@ -1547,6 +1562,7 @@ export const ServiceDetail: React.FC = () => {
           onClose={() => setSyncModalOpen(false)}
           service={service}
           diff={syncDiff}
+          templateType={template?.type}
           onSuccess={(updated) => {
             setService(updated);
             loadServiceData(true);

@@ -168,5 +168,39 @@ describe('TemplateEditorModal', () => {
     fireEvent.click(javaBinBadge);
     expect(startCmdInput).toHaveValue('${JAVA_BIN}');
   });
+
+  it('hides JVM tuner section and JDK selector when type is generic_archive and submits with empty jvm_options', async () => {
+    mockOnSave.mockReset();
+    mockOnSave.mockResolvedValue(undefined);
+    render(<TemplateEditorModal {...defaultProps} />);
+
+    // Initially java_jar: JVM section and JDK selector exist
+    expect(screen.getByText(/JVM 内存与 GC 调优/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/默认运行 JDK/i)).toBeInTheDocument();
+
+    // Switch to generic_archive
+    const typeSelect = screen.getByLabelText(/工程制品类型/i);
+    fireEvent.change(typeSelect, { target: { value: 'generic_archive' } });
+
+    // JVM tuner and JDK selector are now hidden
+    expect(screen.queryByText(/JVM 内存与 GC 调优/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/默认运行 JDK/i)).not.toBeInTheDocument();
+
+    // Set name and submit
+    const nameInput = screen.getByLabelText(/模板名称/i);
+    fireEvent.change(nameInput, { target: { value: 'Archive-App' } });
+
+    const submitBtn = screen.getByRole('button', { name: /保存模板/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledTimes(1);
+    });
+
+    const savedPayload = mockOnSave.mock.calls[0][0];
+    expect(savedPayload.type).toBe('generic_archive');
+    expect(savedPayload.jvm_options).toBe('');
+    expect(savedPayload.default_jdk_id).toBeNull();
+  });
 });
 

@@ -245,7 +245,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
       setValidationError('模板名称不能为空');
       return;
     }
-    if (heapMin > heapMax) {
+    if (type !== 'generic_archive' && heapMin > heapMax) {
       setValidationError('初始堆内存 (Xms) 不能大于最大堆内存 (Xmx)');
       return;
     }
@@ -263,9 +263,9 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
     const payload: Partial<Template> = {
       name: name.trim(),
       type,
-      default_jdk_id: defaultJdkId || null,
+      default_jdk_id: type === 'generic_archive' ? null : (defaultJdkId || null),
       install_dir_pattern: installDirPattern.trim(),
-      jvm_options: renderedJvmOptions,
+      jvm_options: type === 'generic_archive' ? '' : renderedJvmOptions,
       env_vars: envVars.trim(),
       supervision_mode: supervisionMode,
       start_cmd: startCmd.trim(),
@@ -378,6 +378,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {type !== 'generic_archive' && (
                 <div>
                   <label htmlFor="template-jdk" className="block text-xs font-medium text-ops-text-sub mb-1.5">
                     默认运行 JDK
@@ -396,6 +397,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                     ))}
                   </select>
                 </div>
+                )}
 
                 <div>
                   <label htmlFor="template-supervision" className="block text-xs font-medium text-ops-text-sub mb-1.5">
@@ -428,7 +430,8 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               </div>
             </div>
 
-            {/* Section 2: Visual JVM Memory & GC Tuner (Highlights!) */}
+            {/* Section 2: Visual JVM Memory & GC Tuner (hidden for generic_archive) */}
+            {type !== 'generic_archive' && (
             <div className="rounded-xl border border-ops-border bg-ops-bg/60 p-4 space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -620,6 +623,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* Section 3: Health Check & Process Lifecycle */}
             <div className="space-y-4">

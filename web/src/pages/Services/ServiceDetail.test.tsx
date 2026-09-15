@@ -635,5 +635,52 @@ describe('ServiceDetail Component', () => {
       );
     });
   });
+
+  it('hides JVM options section when template type is generic_archive', async () => {
+    const archiveTemplate = {
+      id: 2,
+      name: 'Generic Archive Template',
+      type: 'generic_archive',
+      install_dir_pattern: '/opt/apps/{{.Name}}',
+      jvm_options: '',
+      env_vars: '',
+      supervision_mode: 'native',
+      start_cmd: '',
+      stop_cmd: '',
+      health_check_config: '{"type":"process"}',
+      uninstall_rules: '',
+    };
+
+    const archiveService = {
+      ...mockService,
+      id: 20,
+      template_id: 2,
+      name: 'nginx-proxy',
+      jvm_options: '',
+      health_check_config: '{"type":"process"}',
+    };
+
+    (api.getService as any).mockResolvedValue(archiveService);
+    (api.getTemplates as any).mockResolvedValue([archiveTemplate]);
+    (api.getTemplateSyncDiff as any).mockResolvedValue(null);
+
+    render(
+      <MemoryRouter initialEntries={['/services/20']}>
+        <Routes>
+          <Route path="/services/:id" element={<ServiceDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('nginx-proxy')).toBeInTheDocument();
+    });
+
+    // JVM section title should NOT be present
+    expect(screen.queryByText(/JVM 内存与系统调优参数/i)).not.toBeInTheDocument();
+    // Health check and environment variables should still be present
+    expect(screen.getByText(/健康检测探针配置/i)).toBeInTheDocument();
+    expect(screen.getByText(/环境变量/i)).toBeInTheDocument();
+  });
 });
 

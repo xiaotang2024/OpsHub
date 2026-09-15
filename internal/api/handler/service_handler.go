@@ -99,6 +99,7 @@ type TemplateSyncDiffResponse struct {
 	HasUpdate         bool         `json:"has_update"`
 	TemplateID        int64        `json:"template_id"`
 	TemplateName      string       `json:"template_name"`
+	TemplateType      string       `json:"template_type"`
 	TemplateUpdatedAt time.Time    `json:"template_updated_at"`
 	Ignored           bool         `json:"ignored"`
 	JVMDiff           SyncDiffItem `json:"jvm_diff"`
@@ -1330,7 +1331,12 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 	isHCInherited := strings.TrimSpace(svc.HealthCheckConfig) == "" || strings.TrimSpace(svc.HealthCheckConfig) == "{}"
 	isJVMInherited := strings.TrimSpace(svc.JVMOptions) == "" || strings.TrimSpace(svc.JVMOptions) == "{}"
 
-	jvmDiffers := IsConfigDifferent(svc.JVMOptions, tpl.JVMOptions)
+	// For generic_archive templates, JVM parameters are irrelevant (startup via custom scripts)
+	isGenericArchive := tpl.Type == model.TemplateTypeGenericArchive
+	jvmDiffers := false
+	if !isGenericArchive {
+		jvmDiffers = IsConfigDifferent(svc.JVMOptions, tpl.JVMOptions)
+	}
 	// If health check defaults to inheriting template, it is automatically inherited dynamically; ignore it during sync
 	hcDiffers := false
 	if !isHCInherited {
@@ -1349,6 +1355,7 @@ func (h *ServiceHandler) GetTemplateSyncDiff(c *gin.Context) {
 		HasUpdate:         hasUpdate,
 		TemplateID:        tpl.ID,
 		TemplateName:      tpl.Name,
+		TemplateType:      tpl.Type,
 		TemplateUpdatedAt: tpl.UpdatedAt,
 		Ignored:           ignored,
 		JVMDiff: SyncDiffItem{
