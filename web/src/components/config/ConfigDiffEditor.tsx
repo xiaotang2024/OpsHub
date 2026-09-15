@@ -745,7 +745,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
             {/* Hover Tooltip Card */}
             <div
-              className={`absolute right-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-ops-surface/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+              className={`absolute right-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-ops-tooltip shadow-2xl z-50 transition-all duration-200 ${
                 showHelpTooltip
                   ? 'opacity-100 visible pointer-events-auto'
                   : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
@@ -1074,7 +1074,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               readOnly={readOnly}
               onScroll={handleTextareaScroll}
               spellCheck={false}
-              className={`flex-1 p-4 bg-transparent text-ops-text-main font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-ops-cyan/20 selection:text-ops-cyan ${
+              className={`flex-1 p-4 bg-transparent text-ops-text-main font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-ops-editor-selection selection:text-ops-editor-selection-text ${
                 readOnly ? 'cursor-not-allowed opacity-80' : ''
               }`}
             />

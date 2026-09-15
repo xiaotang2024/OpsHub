@@ -11,8 +11,11 @@
     --ops-surface: #2b273d;         /* 饱满木紫卡片表面 */
     --ops-card: #2b273d;
     --ops-card-hover: #38334f;      /* 木紫卡片悬浮高亮 */
-    --ops-editor-bg: #555363;       /* 浅熔岩木紫灰编辑框背景（偏边框色#606165，明显浅亮通透） */
-    --ops-editor-gutter: #494754;   /* 行号槽背景 */
+    --ops-editor-bg: #625f70;       /* 更浅的木紫灰编辑区，避免编辑器过暗 */
+    --ops-editor-gutter: #514e60;   /* 行号槽背景 */
+    --ops-editor-selection: #aa5140; /* 高对比选中态，避免与编辑区融为一体 */
+    --ops-editor-selection-text: #ffffff;
+    --ops-tooltip-bg: #2b273d;      /* 不透明提示层，与编辑区形成明确层级 */
     --ops-border: #606165;          /* 熔岩灰边框 */
     --ops-border-hover: #aa5140;    /* 茶色悬浮高亮 */
     --ops-primary: #aa5140;         /* 茶色高亮 */
@@ -30,8 +33,11 @@
     --ops-surface: #1E293B;         /* Surface & Cards: #1E293B */
     --ops-card: #1E293B;            /* Container: #1E293B */
     --ops-card-hover: #334155;      /* Elevated Hover Surface: #334155 */
-    --ops-editor-bg: #384659;       /* 浅战术冷灰蓝面板背景（偏边框色#334155/#475569，明显浅亮通透） */
-    --ops-editor-gutter: #2c3848;   /* 行号槽背景 */
+    --ops-editor-bg: #43536a;       /* 更浅的战术冷灰蓝编辑区 */
+    --ops-editor-gutter: #334155;   /* 行号槽背景 */
+    --ops-editor-selection: #06b6d4; /* 高对比青蓝选中态 */
+    --ops-editor-selection-text: #07111c;
+    --ops-tooltip-bg: #1e293b;      /* 不透明提示层，与编辑区形成明确层级 */
     --ops-border: #334155;          /* Hairline Border: #334155 */
     --ops-border-hover: #475569;    /* Active Structural Border: #475569 */
     --ops-primary: #06B6D4;         /* Primary Cyber Cyan: #06B6D4 */
@@ -49,8 +55,11 @@
     --ops-surface: #FFFFFF;         /* Surface & Cards: #FFFFFF */
     --ops-card: #FFFFFF;            /* Container: #FFFFFF */
     --ops-card-hover: #F1F5F9;      /* Elevated Hover Surface: #F1F5F9 */
-    --ops-editor-bg: #F1F5F9;       /* 极昼微灰软纸背景（偏边框色#E2E8F0，与纯白弹窗立体分界） */
-    --ops-editor-gutter: #E2E8F0;   /* 行号槽背景 */
+    --ops-editor-bg: #F8FAFC;       /* 更浅的极昼软纸编辑区 */
+    --ops-editor-gutter: #EEF2F7;   /* 行号槽背景 */
+    --ops-editor-selection: #00687A; /* 高对比青蓝选中态 */
+    --ops-editor-selection-text: #ffffff;
+    --ops-tooltip-bg: #FFFFFF;      /* 不透明提示层，与编辑区形成明确层级 */
     --ops-border: #E2E8F0;          /* Hairline Border: #E2E8F0 */
     --ops-border-hover: #CBD5E1;    /* Active Structural Border: #CBD5E1 */
     --ops-primary: #00687A;         /* Primary Cyber Cyan: #00687A */
@@ -114,6 +123,9 @@
   .bg-ops-editor-gutter {
     background-color: var(--ops-editor-gutter, #494754);
   }
+  .bg-ops-tooltip {
+    background-color: var(--ops-tooltip-bg, #2b273d);
+  }
 }
 
 /* =========================================================
@@ -154,6 +166,14 @@
 [data-theme="tactical-light"] [class*="bg-cyan-950"],
 [data-theme="tactical-light"] [class*="bg-cyan-900"] {
   background-color: rgba(0, 104, 122, 0.12) !important;
+}
+
+/* Cyan utility text is designed for dark panels. In the light theme it must
+   remain readable on the translucent cyan information panels. */
+[data-theme="tactical-light"] [class*="text-cyan-400"],
+[data-theme="tactical-light"] [class*="text-cyan-300"],
+[data-theme="tactical-light"] [class*="text-cyan-200"] {
+  color: #0f5968 !important;
 }
 
 [data-theme="tactical-light"] [class*="hover:bg-cyan-400"]:hover {
@@ -378,4 +398,3 @@
   color: #0F172A !important;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
 }
-
