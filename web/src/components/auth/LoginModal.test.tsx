@@ -166,41 +166,24 @@ describe('LoginModal Component', () => {
     });
   });
 
-  it('switches full-page theme when double-clicking characters and persists to localStorage', async () => {
+  it('applies unified tactical-light theme and does not trigger easter egg on double click', async () => {
     render(<LoginModal isOpen={true} />);
 
     const root = screen.getByTestId('login-modal-root');
     expect(root).toBeInTheDocument();
 
-    // Default theme is index 1 (天水雾蓝雅致)
-    expect(root.className).toContain('from-[#122232]');
+    // Unified Tactical Light theme
+    expect(root.className).toContain('from-[#f8fafc]');
+    expect(root.className).toContain('to-[#e2e8f0]');
 
-    // Double click purple character (theme index 0)
+    // Characters are rendered
     const purpleChars = screen.getAllByTestId('char-purple');
+    expect(purpleChars.length).toBeGreaterThan(0);
+
+    // Double clicking characters does not trigger any easter egg toast
     fireEvent.doubleClick(purpleChars[0]);
-    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('赛博深空极光');
-    expect(localStorage.getItem('opshub_login_theme')).toBe('0');
-    expect(root.className).toContain('from-[#0b1022]');
-
-    // Double click orange character (theme index 2)
-    const orangeChars = screen.getAllByTestId('char-orange');
-    fireEvent.doubleClick(orangeChars[0]);
-    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('熔岩落日余晖');
-    expect(localStorage.getItem('opshub_login_theme')).toBe('2');
-    expect(root.className).toContain('from-[#241315]');
-
-    // Double click yellow character (theme index 3)
-    const yellowChars = screen.getAllByTestId('char-yellow');
-    fireEvent.doubleClick(yellowChars[0]);
-    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('翡翠极客矩阵');
-    expect(localStorage.getItem('opshub_login_theme')).toBe('3');
-    expect(root.className).toContain('from-[#0a1f18]');
-
-    // Double click black character (theme index 1)
-    const blackChars = screen.getAllByTestId('char-black');
-    fireEvent.doubleClick(blackChars[0]);
-    expect(screen.getByTestId('easter-egg-toast')).toHaveTextContent('天水雾蓝雅致');
-    expect(localStorage.getItem('opshub_login_theme')).toBe('1');
-    expect(root.className).toContain('from-[#122232]');
+    expect(screen.queryByTestId('easter-egg-toast')).not.toBeInTheDocument();
+    expect(localStorage.getItem('opshub_login_theme')).toBeNull();
+    expect(root.className).toContain('from-[#f8fafc]');
   });
 });

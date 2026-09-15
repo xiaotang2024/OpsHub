@@ -121,9 +121,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'UNINSTALLED':
       return (
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-slate-900/60 text-slate-500 border border-slate-700/40 ${className}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-ops-surface text-ops-text-muted border border-ops-border ${className}`}
         >
-          <span className="h-2 w-2 rounded-full bg-slate-600" />
+          <span className="h-2 w-2 rounded-full bg-ops-text-muted/60" />
           {showText && <span>已卸载</span>}
         </span>
       );
@@ -132,7 +132,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     default:
       return (
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-slate-900/60 text-slate-400 border border-slate-700/50 ${className}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-ops-surface text-ops-text-muted border border-ops-border ${className}`}
         >
           <span className="h-2 w-2 rounded-full bg-rose-500" />
           {showText && <span>已停止</span>}

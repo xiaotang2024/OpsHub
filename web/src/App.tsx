@@ -28,9 +28,27 @@ export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }
 };
 
 export const App: React.FC = () => {
+  const [toasterTheme, setToasterTheme] = React.useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('opshub_theme');
+      return saved === 'tactical-light' ? 'light' : 'dark';
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: CustomEvent<{ theme: string }>) => {
+      setToasterTheme(e.detail?.theme === 'tactical-light' ? 'light' : 'dark');
+    };
+    window.addEventListener('opshub:theme-changed', handleThemeChange as EventListener);
+    return () => {
+      window.removeEventListener('opshub:theme-changed', handleThemeChange as EventListener);
+    };
+  }, []);
+
   return (
     <>
-      <Toaster richColors position="top-right" theme="dark" closeButton />
+      <Toaster richColors position="top-right" theme={toasterTheme} closeButton />
       <Shell>
         <Routes>
           <Route path="/" element={<Navigate to="/services" replace />} />

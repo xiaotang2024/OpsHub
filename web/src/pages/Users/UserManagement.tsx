@@ -586,8 +586,8 @@ export const UserManagement: React.FC = () => {
                             <span>管理员</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-xs">
-                            <Shield className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-ops-surface border border-ops-border text-ops-text-main font-semibold text-xs shadow-sm">
+                            <Shield className="h-3.5 w-3.5 text-ops-cyan" />
                             <span>运维人员</span>
                           </span>
                         )}
@@ -596,7 +596,7 @@ export const UserManagement: React.FC = () => {
                       {/* Permissions Summary */}
                       <td className="px-4 py-3.5">
                         {isAdmin ? (
-                          <span className="inline-flex items-center gap-1 text-ops-cyan text-xs">
+                          <span className="inline-flex items-center gap-1 text-ops-cyan text-xs font-semibold">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             <span>全部权限 (Admin 超级管理)</span>
                           </span>
@@ -607,7 +607,7 @@ export const UserManagement: React.FC = () => {
                           </span>
                         ) : (
                           <div className="flex items-center gap-1.5">
-                            <span className="rounded-full bg-ops-surface border border-ops-border px-2 py-0.5 text-xs text-white font-bold">
+                            <span className="rounded-full bg-cyan-950/50 border border-ops-cyan/30 px-2.5 py-0.5 text-xs text-ops-cyan font-bold">
                               {perms.length} 项权限
                             </span>
                             <span className="text-[11px] text-ops-text-muted truncate max-w-[200px]" title={perms.join(', ')}>
@@ -1219,7 +1219,7 @@ export const UserManagement: React.FC = () => {
                   <AlertCircle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">确认删除用户</h3>
+                  <h3 className="text-base font-bold text-ops-text-main">确认删除用户</h3>
                   <p className="text-xs text-ops-text-muted font-mono">该操作将永久注销用户身份凭证</p>
                 </div>
               </div>
@@ -1232,7 +1232,7 @@ export const UserManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDeleteModalUser(null)}
-                  className="px-4 py-2 rounded-lg border border-ops-border text-xs font-mono text-ops-text-muted hover:text-white hover:bg-ops-border/50 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-ops-border text-xs font-mono text-ops-text-muted hover:text-ops-text-main hover:bg-ops-border/50 transition-colors"
                 >
                   取消
                 </button>

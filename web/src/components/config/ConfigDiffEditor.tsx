@@ -590,7 +590,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
       )}
 
       {/* Tier 1: File Asset & Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-[#080D18] border-b border-ops-border">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-ops-surface border-b border-ops-border">
         {/* Left: File Selector & State Badges */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1.5 text-ops-cyan font-bold text-xs sm:text-sm">
@@ -599,7 +599,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           </div>
 
           {/* Integrated File Selector Box */}
-          <div className="flex items-center rounded-lg border border-ops-border bg-slate-900 shadow-inner divide-x divide-ops-border/60">
+          <div className="flex items-center rounded-lg border border-ops-border bg-ops-surface shadow-inner divide-x divide-ops-border/60">
             {/* Part 1: Select Name or Custom Input */}
             <div className="relative">
               {!isCustomName ? (
@@ -620,14 +620,14 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                         handleNameChange(e.target.value);
                       }
                     }}
-                    className="bg-transparent text-white font-mono text-xs px-2.5 py-1.5 pr-7 focus:outline-none appearance-none cursor-pointer"
+                    className="bg-transparent text-ops-text-main font-mono text-xs px-2.5 py-1.5 pr-7 focus:outline-none appearance-none cursor-pointer"
                   >
                     {nameList.map((n) => (
-                      <option key={n} value={n} className="bg-slate-900 text-white">
+                      <option key={n} value={n} className="bg-ops-surface text-ops-text-main">
                         {n}
                       </option>
                     ))}
-                    <option value="__custom__" className="bg-slate-900 text-ops-cyan">自定义名称...</option>
+                    <option value="__custom__" className="bg-ops-surface text-ops-cyan">自定义名称...</option>
                   </select>
                   <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ops-text-muted text-[10px]">
                     ▼
@@ -646,7 +646,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                     }}
                     onBlur={handleCustomNameBlur}
                     placeholder="输入自定义名称"
-                    className="bg-slate-950 border border-ops-cyan rounded px-2 py-0.5 text-white font-mono text-xs focus:outline-none w-32"
+                    className="bg-ops-bg border border-ops-cyan rounded px-2 py-0.5 text-ops-text-main font-mono text-xs focus:outline-none w-32"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Escape') {
@@ -663,7 +663,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                       setCustomName('');
                       setError(null);
                     }}
-                    className="p-0.5 text-ops-text-muted hover:text-white transition-colors"
+                    className="p-0.5 text-ops-text-muted hover:text-ops-text-main transition-colors"
                     title="返回名称列表"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -682,7 +682,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                 className="bg-transparent text-ops-cyan font-mono text-xs font-semibold px-2 py-1.5 pr-6 focus:outline-none appearance-none cursor-pointer"
               >
                 {extList.map((ext) => (
-                  <option key={ext} value={ext} className="bg-slate-900 text-white">
+                  <option key={ext} value={ext} className="bg-ops-surface text-ops-text-main">
                     .{ext}
                   </option>
                 ))}
@@ -698,7 +698,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             type="button"
             onClick={() => loadFileContent(selectedFile)}
             title="刷新重新加载当前文件"
-            className="p-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-muted hover:text-white transition-colors shrink-0"
+            className="p-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-muted hover:text-ops-text-main hover:bg-ops-card-hover transition-colors shrink-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -714,7 +714,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               未保存变更
             </span>
           ) : (
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900/60 border border-ops-border/50 text-slate-400 shrink-0">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-ops-surface/80 border border-ops-border/50 text-ops-text-muted shrink-0">
               已就绪
             </span>
           )}
@@ -725,7 +725,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
           {/* Current full filename preview badge */}
           <span
             data-testid="config-current-filename"
-            className="hidden xl:inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900/90 border border-ops-border text-ops-cyan font-mono text-xs font-semibold"
+            className="hidden xl:inline-flex items-center px-2.5 py-1 rounded-lg bg-ops-surface border border-ops-border text-ops-cyan font-mono text-xs font-semibold"
             title="当前选中的完整配置文件名"
           >
             {isCustomName && !customName.trim() ? `[请输入名称].${selectedExt}` : selectedFile}
@@ -736,7 +736,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             <button
               type="button"
               onClick={() => setShowHelpTooltip((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-xs text-ops-text-muted hover:text-ops-cyan font-mono bg-slate-900 hover:bg-slate-800 border border-ops-border px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
+              className="inline-flex items-center gap-1 text-xs text-ops-text-muted hover:text-ops-cyan font-mono bg-ops-surface hover:bg-ops-card-hover border border-ops-border px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
               title="查看配置生效机理与端口优先级说明"
             >
               <HelpCircle className="h-3.5 w-3.5 text-ops-cyan" />
@@ -745,7 +745,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
             {/* Hover Tooltip Card */}
             <div
-              className={`absolute right-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+              className={`absolute right-0 top-full mt-2 w-80 sm:w-[480px] p-4 rounded-xl border border-ops-border bg-ops-surface/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
                 showHelpTooltip
                   ? 'opacity-100 visible pointer-events-auto'
                   : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
@@ -805,7 +805,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               type="button"
               data-testid="config-backups-button"
               onClick={() => setShowBackupsDropdown((prev) => !prev)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors text-xs font-mono shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-ops-text-main hover:bg-ops-card-hover transition-colors text-xs font-mono shrink-0"
               title="查看与管理自动生成的 .bak 历史备份快照"
             >
               <History className="h-3.5 w-3.5 text-purple-400" />
@@ -820,17 +820,17 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                 />
                 <div
                   data-testid="config-backups-dropdown"
-                  className="absolute right-0 top-full mt-2 w-[520px] max-w-[calc(100vw-2.5rem)] max-h-80 overflow-y-auto rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 p-3 space-y-2"
+                  className="absolute right-0 top-full mt-2 w-[520px] max-w-[calc(100vw-2.5rem)] max-h-80 overflow-y-auto rounded-xl border border-ops-border bg-ops-surface shadow-2xl z-50 p-3.5 space-y-2.5 ring-1 ring-black/15"
                 >
                   <div className="flex items-center justify-between border-b border-ops-border/60 pb-2">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <div className="text-xs font-bold text-ops-text-main flex items-center gap-1.5">
                       <History className="h-3.5 w-3.5 text-purple-400" />
                       <span>历史快照备份文件</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowBackupsDropdown(false)}
-                      className="text-ops-text-muted hover:text-white text-xs p-0.5 rounded"
+                      className="text-ops-text-muted hover:text-ops-text-main text-xs p-0.5 rounded transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -841,23 +841,26 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                       暂无历史备份快照（修改并保存配置后将自动生成）
                     </div>
                   ) : (
-                    <div className="space-y-1.5 divide-y divide-ops-border/40">
+                    <div className="space-y-2">
                       {backups.map((bak) => (
-                        <div key={bak.file} className="pt-2 pb-1.5 flex items-center justify-between gap-3 text-xs">
+                        <div
+                          key={bak.file}
+                          className="p-2.5 rounded-lg bg-ops-bg/50 hover:bg-ops-card-hover border border-transparent hover:border-ops-border/60 transition-all flex items-center justify-between gap-3 text-xs"
+                        >
                           <div
                             className="min-w-0 flex-1 cursor-pointer group"
                             onClick={() => handleLoadBackupToEditor(bak.file)}
                             title="点击载入此快照至编辑器进行对比"
                           >
-                            <div className="font-mono text-white truncate text-[11px] group-hover:text-ops-cyan transition-colors" title={bak.file}>
+                            <div className="font-mono text-ops-text-main truncate text-[11px] group-hover:text-ops-cyan transition-colors font-semibold" title={bak.file}>
                               {bak.file}
                             </div>
-                            <div className="text-[10px] text-ops-text-muted font-mono flex items-center gap-1.5">
+                            <div className="text-[10px] text-ops-text-muted font-mono flex items-center gap-1.5 mt-0.5">
                               <span>{bak.updated_at}</span>
                               <span>·</span>
                               <span>{(bak.size / 1024).toFixed(1)} KB</span>
                               <span>·</span>
-                              <span className="text-ops-cyan/80 group-hover:underline">载入对比</span>
+                              <span className="text-ops-cyan group-hover:underline">载入对比</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -925,7 +928,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
       </div>
 
       {/* Tier 2: Editor Action & View Mode Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-[#060A14] border-b border-ops-border/80">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-ops-surface/90 border-b border-ops-border/80">
         {/* Left: Save / Revert & Changes Summary */}
         <div className="flex items-center gap-3">
           {/* Save Button */}
@@ -950,7 +953,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               type="button"
               onClick={handleRevert}
               title="放弃修改并还原"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white transition-colors text-xs shrink-0"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-ops-text-main hover:bg-ops-card-hover transition-colors text-xs shrink-0"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>放弃修改</span>
@@ -969,7 +972,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
         {/* Right: View Switcher (Edit vs Diff) & Diff Style */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5 shrink-0">
+          <div className="flex items-center bg-ops-surface border border-ops-border rounded-lg p-0.5 shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('edit')}
@@ -1004,14 +1007,14 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
 
           {/* Diff Style Switcher (Split vs Unified) */}
           {viewMode === 'diff' && hasChanges && (
-            <div className="flex items-center bg-slate-900 border border-ops-border rounded-lg p-0.5 shrink-0">
+            <div className="flex items-center bg-ops-surface border border-ops-border rounded-lg p-0.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setDiffStyle('split')}
                 title="并排分栏对比"
                 className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
                   diffStyle === 'split'
-                    ? 'bg-slate-800 text-ops-cyan'
+                    ? 'bg-ops-card-hover text-ops-cyan'
                     : 'text-ops-text-muted hover:text-white'
                 }`}
               >
@@ -1024,7 +1027,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                 title="行内统一对比"
                 className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-colors ${
                   diffStyle === 'unified'
-                    ? 'bg-slate-800 text-ops-cyan'
+                    ? 'bg-ops-card-hover text-ops-cyan'
                     : 'text-ops-text-muted hover:text-white'
                 }`}
               >
@@ -1037,7 +1040,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
       </div>
 
       {/* Editor Body */}
-      <div className="relative min-h-[420px] max-h-[600px] flex overflow-hidden bg-[#080C14]">
+      <div className="relative min-h-[420px] max-h-[600px] flex overflow-hidden bg-ops-editor-bg">
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-ops-text-muted gap-2">
             <Loader2 className="h-5 w-5 animate-spin text-ops-cyan" />
@@ -1049,7 +1052,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
             {/* Synchronized Line Numbers Gutter */}
             <div
               ref={gutterRef}
-              className="w-12 bg-[#050811] py-4 px-2 text-right text-slate-600 font-mono select-none border-r border-ops-border/60 overflow-hidden"
+              className="w-12 bg-ops-editor-gutter py-4 px-2 text-right text-ops-text-muted/60 font-mono select-none border-r border-ops-border/60 overflow-hidden"
             >
               {Array.from({ length: lineCount }).map((_, idx) => (
                 <div key={idx} className="leading-6">
@@ -1071,7 +1074,7 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
               readOnly={readOnly}
               onScroll={handleTextareaScroll}
               spellCheck={false}
-              className={`flex-1 p-4 bg-transparent text-slate-200 font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-cyan-950 selection:text-ops-cyan ${
+              className={`flex-1 p-4 bg-transparent text-ops-text-main font-mono text-xs leading-6 outline-none resize-none overflow-auto whitespace-pre selection:bg-ops-cyan/20 selection:text-ops-cyan ${
                 readOnly ? 'cursor-not-allowed opacity-80' : ''
               }`}
             />
@@ -1102,11 +1105,11 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                         row.left?.type === 'removed'
                           ? 'bg-red-950/40 text-red-300 border-red-500'
                           : row.left
-                          ? 'text-slate-400 border-transparent'
-                          : 'bg-slate-900/30 text-slate-700 border-transparent select-none'
+                          ? 'text-ops-text-sub border-transparent'
+                          : 'bg-ops-surface/30 text-ops-text-muted/40 border-transparent select-none'
                       }`}
                     >
-                      <span className="w-8 text-right select-none text-slate-600 shrink-0">
+                      <span className="w-8 text-right select-none text-ops-text-muted/60 shrink-0">
                         {row.left?.lineNo ?? ''}
                       </span>
                       <pre className="flex-1 whitespace-pre-wrap font-mono break-all">
@@ -1120,11 +1123,11 @@ export const ConfigDiffEditor: React.FC<ConfigDiffEditorProps> = ({
                         row.right?.type === 'added'
                           ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500'
                           : row.right
-                          ? 'text-slate-400 border-transparent'
-                          : 'bg-slate-900/30 text-slate-700 border-transparent select-none'
+                          ? 'text-ops-text-sub border-transparent'
+                          : 'bg-ops-surface/30 text-ops-text-muted/40 border-transparent select-none'
                       }`}
                     >
-                      <span className="w-8 text-right select-none text-slate-600 shrink-0">
+                      <span className="w-8 text-right select-none text-ops-text-muted/60 shrink-0">
                         {row.right?.lineNo ?? ''}
                       </span>
                       <pre className="flex-1 whitespace-pre-wrap font-mono break-all">

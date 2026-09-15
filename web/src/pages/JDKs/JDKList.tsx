@@ -417,7 +417,7 @@ export const JDKList: React.FC = () => {
                             {jdk.version_str || 'Java'}
                           </span>
                           {isSystem && (
-                            <span className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-mono text-ops-text-muted border border-slate-700">
+                            <span className="rounded bg-cyan-950/80 px-1.5 py-0.5 text-[10px] font-mono text-ops-cyan border border-ops-cyan/30">
                               SYSTEM
                             </span>
                           )}

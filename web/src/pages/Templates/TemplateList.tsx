@@ -422,18 +422,12 @@ export const TemplateList: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       {/* Type Badge */}
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase ${
-                          tpl.type === 'java_jar'
-                            ? 'bg-cyan-950/70 text-ops-cyan border border-ops-cyan/40'
-                            : 'bg-slate-900 text-slate-300 border border-slate-700'
-                        }`}
-                      >
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold uppercase bg-cyan-950/70 text-ops-cyan border border-ops-cyan/40">
                         {tpl.type.replace('_', ' ')}
                       </span>
 
                       {/* Supervision Badge */}
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-ops-text-muted border border-ops-border">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-ops-surface text-ops-text-muted border border-ops-border">
                         {tpl.supervision_mode === 'systemd' ? 'Systemd' : 'Native'}
                       </span>
                     </div>

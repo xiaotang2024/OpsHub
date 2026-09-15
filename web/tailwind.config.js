@@ -13,6 +13,8 @@ export default {
           surface: 'var(--ops-surface, #2b273d)',
           card: 'var(--ops-card, #2b273d)',
           'card-hover': 'var(--ops-card-hover, #38334f)',
+          'editor-bg': 'var(--ops-editor-bg, #555363)',
+          'editor-gutter': 'var(--ops-editor-gutter, #494754)',
           border: 'var(--ops-border, #606165)',
           'border-hover': 'var(--ops-border-hover, #aa5140)',
           cyan: 'var(--ops-primary, #aa5140)',

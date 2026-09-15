@@ -77,7 +77,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white tracking-tight">{title}</h3>
+                <h3 className="text-sm font-bold text-ops-text-main tracking-tight">{title}</h3>
                 <p
                   className={`text-[11px] font-mono ${
                     isDanger ? 'text-red-400/80' : isWarning ? 'text-amber-400/80' : 'text-ops-text-muted'
@@ -92,7 +92,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               type="button"
               disabled={loading}
               onClick={onCancel}
-              className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-white disabled:opacity-30 transition-colors"
+              className="rounded-lg p-1.5 text-ops-text-muted hover:bg-ops-border hover:text-ops-text-main disabled:opacity-30 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -119,7 +119,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               type="button"
               disabled={loading}
               onClick={onCancel}
-              className="px-4 py-2 rounded-lg border border-ops-border text-xs font-mono text-ops-text-muted hover:text-white hover:bg-ops-border/50 transition-colors disabled:opacity-40"
+              className="px-4 py-2 rounded-lg border border-ops-border text-xs font-mono text-ops-text-muted hover:text-ops-text-main hover:bg-ops-border/50 transition-colors disabled:opacity-40"
             >
               {cancelText}
             </button>

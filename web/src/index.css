@@ -11,6 +11,8 @@
     --ops-surface: #2b273d;         /* 饱满木紫卡片表面 */
     --ops-card: #2b273d;
     --ops-card-hover: #38334f;      /* 木紫卡片悬浮高亮 */
+    --ops-editor-bg: #555363;       /* 浅熔岩木紫灰编辑框背景（偏边框色#606165，明显浅亮通透） */
+    --ops-editor-gutter: #494754;   /* 行号槽背景 */
     --ops-border: #606165;          /* 熔岩灰边框 */
     --ops-border-hover: #aa5140;    /* 茶色悬浮高亮 */
     --ops-primary: #aa5140;         /* 茶色高亮 */
@@ -28,6 +30,8 @@
     --ops-surface: #1E293B;         /* Surface & Cards: #1E293B */
     --ops-card: #1E293B;            /* Container: #1E293B */
     --ops-card-hover: #334155;      /* Elevated Hover Surface: #334155 */
+    --ops-editor-bg: #384659;       /* 浅战术冷灰蓝面板背景（偏边框色#334155/#475569，明显浅亮通透） */
+    --ops-editor-gutter: #2c3848;   /* 行号槽背景 */
     --ops-border: #334155;          /* Hairline Border: #334155 */
     --ops-border-hover: #475569;    /* Active Structural Border: #475569 */
     --ops-primary: #06B6D4;         /* Primary Cyber Cyan: #06B6D4 */
@@ -45,6 +49,8 @@
     --ops-surface: #FFFFFF;         /* Surface & Cards: #FFFFFF */
     --ops-card: #FFFFFF;            /* Container: #FFFFFF */
     --ops-card-hover: #F1F5F9;      /* Elevated Hover Surface: #F1F5F9 */
+    --ops-editor-bg: #F1F5F9;       /* 极昼微灰软纸背景（偏边框色#E2E8F0，与纯白弹窗立体分界） */
+    --ops-editor-gutter: #E2E8F0;   /* 行号槽背景 */
     --ops-border: #E2E8F0;          /* Hairline Border: #E2E8F0 */
     --ops-border-hover: #CBD5E1;    /* Active Structural Border: #CBD5E1 */
     --ops-primary: #00687A;         /* Primary Cyber Cyan: #00687A */
@@ -101,6 +107,12 @@
     background-color: rgba(2, 6, 23, 0.45);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+  }
+  .bg-ops-editor {
+    background-color: var(--ops-editor-bg, #555363);
+  }
+  .bg-ops-editor-gutter {
+    background-color: var(--ops-editor-gutter, #494754);
   }
 }
 
@@ -176,7 +188,9 @@
 [data-theme="tactical-light"] [class*="bg-emerald-950"] {
   background-color: rgba(16, 185, 129, 0.15) !important;
 }
-[data-theme="tactical-light"] [class*="text-emerald-400"] {
+[data-theme="tactical-light"] [class*="text-emerald-400"],
+[data-theme="tactical-light"] [class*="text-emerald-300"],
+[data-theme="tactical-light"] [class*="text-emerald-200"] {
   color: #047857 !important;
 }
 [data-theme="tactical-light"] [class*="border-emerald-500"] {
@@ -186,7 +200,9 @@
 [data-theme="tactical-light"] [class*="bg-amber-950"] {
   background-color: rgba(245, 158, 11, 0.15) !important;
 }
-[data-theme="tactical-light"] [class*="text-amber-400"] {
+[data-theme="tactical-light"] [class*="text-amber-400"],
+[data-theme="tactical-light"] [class*="text-amber-300"],
+[data-theme="tactical-light"] [class*="text-amber-200"] {
   color: #b45309 !important;
 }
 [data-theme="tactical-light"] [class*="border-amber-500"] {
@@ -196,11 +212,43 @@
 [data-theme="tactical-light"] [class*="bg-red-950"] {
   background-color: rgba(239, 68, 68, 0.12) !important;
 }
-[data-theme="tactical-light"] [class*="text-red-400"] {
+[data-theme="tactical-light"] [class*="text-red-400"],
+[data-theme="tactical-light"] [class*="text-red-300"],
+[data-theme="tactical-light"] [class*="text-red-200"] {
   color: #b91c1c !important;
 }
 [data-theme="tactical-light"] [class*="border-red-500"] {
   border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-rose-950"] {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+}
+[data-theme="tactical-light"] [class*="text-rose-400"] {
+  color: #be123c !important;
+}
+[data-theme="tactical-light"] [class*="border-rose-500"] {
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-purple-950"] {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+}
+[data-theme="tactical-light"] [class*="text-purple-400"] {
+  color: #7e22ce !important;
+}
+[data-theme="tactical-light"] [class*="border-purple-500"] {
+  border-color: rgba(168, 85, 247, 0.25) !important;
+}
+
+[data-theme="tactical-light"] [class*="bg-yellow-950"] {
+  background-color: rgba(234, 179, 8, 0.15) !important;
+}
+[data-theme="tactical-light"] [class*="text-yellow-400"] {
+  color: #a16207 !important;
+}
+[data-theme="tactical-light"] [class*="border-yellow-500"] {
+  border-color: rgba(234, 179, 8, 0.30) !important;
 }
 
 /* Light mode text contrast overrides for headers and body copy outside dark terminal */
@@ -287,3 +335,37 @@
   background-color: #0b0f19 !important;
   color: #f8fafc;
 }
+
+/* =========================================================
+   Sonner Toast Adaptive Theme Styling
+   ========================================================= */
+[data-theme="purple-tea"] [data-sonner-toast] {
+  font-family: inherit;
+}
+[data-theme="purple-tea"] [data-sonner-toast]:not([data-type="error"]):not([data-type="success"]):not([data-type="warning"]):not([data-type="info"]) {
+  background-color: #2b273d !important;
+  border-color: #606165 !important;
+  color: #FFFDFD !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="tactical-dark"] [data-sonner-toast] {
+  font-family: inherit;
+}
+[data-theme="tactical-dark"] [data-sonner-toast]:not([data-type="error"]):not([data-type="success"]):not([data-type="warning"]):not([data-type="info"]) {
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="tactical-light"] [data-sonner-toast] {
+  font-family: inherit;
+}
+[data-theme="tactical-light"] [data-sonner-toast]:not([data-type="error"]):not([data-type="success"]):not([data-type="warning"]):not([data-type="info"]) {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+}
+

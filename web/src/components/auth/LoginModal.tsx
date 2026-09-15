@@ -36,7 +36,7 @@ export interface LoginThemeConfig {
     className: string;
   }[];
   particleColors: string[];
-  gradientVariant: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald';
+  gradientVariant: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald' | 'tactical-light';
   cardBorder: string;
   cardShadow: string;
   topAccentGradient: string;
@@ -68,184 +68,51 @@ export interface LoginThemeConfig {
   secQuestionBorder: string;
 }
 
-export const LOGIN_THEMES: LoginThemeConfig[] = [
-  // 0: 紫色小人 · 赛博深空极光 (Cyber Aurora)
-  {
-    id: 'cyber-aurora',
-    name: '赛博深空极光',
-    character: '紫色小人',
-    badgeLabel: '赛博极光 · 实时拟态感知',
-    bgGradient: 'from-[#0b1022] via-[#080d1e] to-[#04060f]',
-    glowOrbs: [
-      { className: '-top-36 -left-36 w-[540px] h-[540px] bg-cyan-500/28 blur-[125px]' },
-      { className: '-bottom-36 -right-36 w-[600px] h-[600px] bg-violet-600/28 blur-[135px]' },
-      { className: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-blue-600/18 blur-[150px]' },
-    ],
-    particleColors: ['#06b6d4', '#8b5cf6', '#3b82f6', '#a855f7', '#38bdf8'],
-    gradientVariant: 'cyber',
-    cardBorder: 'border-cyan-500/35',
-    cardShadow: 'shadow-[0_25px_80px_rgba(6,182,212,0.18),0_15px_40px_rgba(0,0,0,0.85)]',
-    topAccentGradient: 'from-cyan-500 via-violet-500 to-cyan-500',
-    leftPanelBg: 'from-[#0d162a] to-[#070b16]',
-    leftPanelBorder: 'border-cyan-900/40',
-    brandIconBg: 'bg-[#132242]/90',
-    brandIconBorder: 'border-cyan-500/50',
-    brandIconText: 'text-cyan-400',
-    brandBadgeBg: 'bg-cyan-500/20',
-    brandBadgeBorder: 'border-cyan-500/30',
-    brandBadgeText: 'text-cyan-400',
-    footerAccentText: 'text-cyan-400',
-    rightPanelBg: 'from-[#111a33]/90 via-[#0d152a]/95 to-[#070b16]/95',
-    tabActiveBg: 'bg-cyan-500/25',
-    tabActiveText: 'text-cyan-400',
-    tabActiveBorder: 'border-cyan-500/50',
-    tabIndicatorIconBg: 'bg-[#132242]/80',
-    tabIndicatorIconBorder: 'border-cyan-500/40',
-    tabIndicatorIconText: 'text-cyan-400',
-    tipNoticeBg: 'from-[#132242]/70 to-[#0d1830]/60',
-    tipNoticeBorder: 'border-cyan-500/35',
-    tipNoticeText: 'text-cyan-100',
-    tipNoticeHighlight: 'text-cyan-400',
-    inputFocusBorder: 'focus:border-cyan-400',
-    inputFocusRing: 'focus:ring-cyan-400/40',
-    submitButtonGradient: 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500',
-    accentText: 'text-cyan-400',
-    secQuestionBg: 'bg-[#0d1830]/60',
-    secQuestionBorder: 'border-cyan-500/30',
-  },
-  // 1: 黑色小人 · 天水雾蓝雅致 (Celadon Mist)
-  {
-    id: 'celadon-mist',
-    name: '天水雾蓝雅致',
-    character: '黑色小人',
-    badgeLabel: '天水雾蓝 · 实时拟态感知',
-    bgGradient: 'from-[#122232] via-[#0e1b28] to-[#07111a]',
-    glowOrbs: [
-      { className: '-top-36 -left-36 w-[540px] h-[540px] bg-[#5fa3b0]/32 blur-[125px]' },
-      { className: '-bottom-36 -right-36 w-[600px] h-[600px] bg-[#2d5678]/35 blur-[135px]' },
-      { className: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-[#475061]/24 blur-[150px]' },
-    ],
-    particleColors: ['#5fa3b0', '#2d5678', '#76b8c4', '#475061', '#8ed1dc'],
-    gradientVariant: 'celadon-blue',
-    cardBorder: 'border-[#5fa3b0]/35',
-    cardShadow: 'shadow-[0_25px_80px_rgba(95,163,176,0.18),0_15px_40px_rgba(0,0,0,0.85)]',
-    topAccentGradient: 'from-[#5fa3b0] via-[#2d5678] to-[#5fa3b0]',
-    leftPanelBg: 'from-[#132536] to-[#0b1723]',
-    leftPanelBorder: 'border-[#475061]/50',
-    brandIconBg: 'bg-[#1c3347]/90',
-    brandIconBorder: 'border-[#5fa3b0]/50',
-    brandIconText: 'text-[#5fa3b0]',
-    brandBadgeBg: 'bg-[#5fa3b0]/20',
-    brandBadgeBorder: 'border-[#5fa3b0]/30',
-    brandBadgeText: 'text-[#5fa3b0]',
-    footerAccentText: 'text-[#5fa3b0]',
-    rightPanelBg: 'from-[#152738]/90 via-[#101f2d]/95 to-[#0b1621]/95',
-    tabActiveBg: 'bg-[#5fa3b0]/25',
-    tabActiveText: 'text-[#5fa3b0]',
-    tabActiveBorder: 'border-[#5fa3b0]/50',
-    tabIndicatorIconBg: 'bg-[#1c3347]/80',
-    tabIndicatorIconBorder: 'border-[#5fa3b0]/40',
-    tabIndicatorIconText: 'text-[#5fa3b0]',
-    tipNoticeBg: 'from-[#172e42]/70 to-[#112232]/60',
-    tipNoticeBorder: 'border-[#5fa3b0]/35',
-    tipNoticeText: 'text-[#d0e2ec]',
-    tipNoticeHighlight: 'text-[#5fa3b0]',
-    inputFocusBorder: 'focus:border-[#5fa3b0]',
-    inputFocusRing: 'focus:ring-[#5fa3b0]/40',
-    submitButtonGradient: 'bg-gradient-to-r from-[#5fa3b0] to-[#2d5678] hover:from-[#6cb6c4] hover:to-[#366790]',
-    accentText: 'text-[#5fa3b0]',
-    secQuestionBg: 'bg-[#0a1520]/60',
-    secQuestionBorder: 'border-[#5fa3b0]/30',
-  },
-  // 2: 橙色小人 · 熔岩落日余晖 (Sunset Amber)
-  {
-    id: 'sunset-amber',
-    name: '熔岩落日余晖',
-    character: '橙色小人',
-    badgeLabel: '落日熔岩 · 实时拟态感知',
-    bgGradient: 'from-[#241315] via-[#1a0e10] to-[#0e0708]',
-    glowOrbs: [
-      { className: '-top-36 -left-36 w-[540px] h-[540px] bg-[#ea580c]/30 blur-[125px]' },
-      { className: '-bottom-36 -right-36 w-[600px] h-[600px] bg-[#f59e0b]/26 blur-[135px]' },
-      { className: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-[#b91c1c]/22 blur-[150px]' },
-    ],
-    particleColors: ['#ff9b6b', '#f59e0b', '#fb923c', '#ea580c', '#f43f5e'],
-    gradientVariant: 'sunset',
-    cardBorder: 'border-[#ff9b6b]/35',
-    cardShadow: 'shadow-[0_25px_80px_rgba(255,155,107,0.18),0_15px_40px_rgba(0,0,0,0.85)]',
-    topAccentGradient: 'from-[#ea580c] via-[#f59e0b] to-[#ea580c]',
-    leftPanelBg: 'from-[#2a1719] to-[#160c0d]',
-    leftPanelBorder: 'border-[#582427]/50',
-    brandIconBg: 'bg-[#381a1a]/90',
-    brandIconBorder: 'border-[#ff9b6b]/50',
-    brandIconText: 'text-[#ff9b6b]',
-    brandBadgeBg: 'bg-[#ff9b6b]/20',
-    brandBadgeBorder: 'border-[#ff9b6b]/30',
-    brandBadgeText: 'text-[#ff9b6b]',
-    footerAccentText: 'text-[#ff9b6b]',
-    rightPanelBg: 'from-[#2a1719]/90 via-[#211214]/95 to-[#160c0d]/95',
-    tabActiveBg: 'bg-[#ff9b6b]/25',
-    tabActiveText: 'text-[#ff9b6b]',
-    tabActiveBorder: 'border-[#ff9b6b]/50',
-    tabIndicatorIconBg: 'bg-[#381a1a]/80',
-    tabIndicatorIconBorder: 'border-[#ff9b6b]/40',
-    tabIndicatorIconText: 'text-[#ff9b6b]',
-    tipNoticeBg: 'from-[#3b1c1d]/70 to-[#2c1415]/60',
-    tipNoticeBorder: 'border-[#ff9b6b]/35',
-    tipNoticeText: 'text-[#fed7aa]',
-    tipNoticeHighlight: 'text-[#ff9b6b]',
-    inputFocusBorder: 'focus:border-[#ff9b6b]',
-    inputFocusRing: 'focus:ring-[#ff9b6b]/40',
-    submitButtonGradient: 'bg-gradient-to-r from-[#ea580c] to-[#c2410c] hover:from-[#f97316] hover:to-[#ea580c]',
-    accentText: 'text-[#ff9b6b]',
-    secQuestionBg: 'bg-[#1f0f11]/60',
-    secQuestionBorder: 'border-[#ff9b6b]/30',
-  },
-  // 3: 黄色小人 · 翡翠极客矩阵 (Emerald Matrix)
-  {
-    id: 'emerald-matrix',
-    name: '翡翠极客矩阵',
-    character: '黄色小人',
-    badgeLabel: '翡翠矩阵 · 实时拟态感知',
-    bgGradient: 'from-[#0a1f18] via-[#071611] to-[#030c09]',
-    glowOrbs: [
-      { className: '-top-36 -left-36 w-[540px] h-[540px] bg-[#10b981]/30 blur-[125px]' },
-      { className: '-bottom-36 -right-36 w-[600px] h-[600px] bg-[#84cc16]/25 blur-[135px]' },
-      { className: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-[#059669]/22 blur-[150px]' },
-    ],
-    particleColors: ['#e8d754', '#10b981', '#84cc16', '#34d399', '#059669'],
-    gradientVariant: 'emerald',
-    cardBorder: 'border-[#10b981]/35',
-    cardShadow: 'shadow-[0_25px_80px_rgba(16,185,129,0.18),0_15px_40px_rgba(0,0,0,0.85)]',
-    topAccentGradient: 'from-[#10b981] via-[#84cc16] to-[#10b981]',
-    leftPanelBg: 'from-[#0f281d] to-[#06140f]',
-    leftPanelBorder: 'border-[#134230]/50',
-    brandIconBg: 'bg-[#113123]/90',
-    brandIconBorder: 'border-[#10b981]/50',
-    brandIconText: 'text-[#10b981]',
-    brandBadgeBg: 'bg-[#10b981]/20',
-    brandBadgeBorder: 'border-[#10b981]/30',
-    brandBadgeText: 'text-[#10b981]',
-    footerAccentText: 'text-[#10b981]',
-    rightPanelBg: 'from-[#0f281d]/90 via-[#0a1e16]/95 to-[#06140f]/95',
-    tabActiveBg: 'bg-[#10b981]/25',
-    tabActiveText: 'text-[#10b981]',
-    tabActiveBorder: 'border-[#10b981]/50',
-    tabIndicatorIconBg: 'bg-[#113123]/80',
-    tabIndicatorIconBorder: 'border-[#10b981]/40',
-    tabIndicatorIconText: 'text-[#10b981]',
-    tipNoticeBg: 'from-[#123625]/70 to-[#0b2419]/60',
-    tipNoticeBorder: 'border-[#10b981]/35',
-    tipNoticeText: 'text-[#a7f3d0]',
-    tipNoticeHighlight: 'text-[#10b981]',
-    inputFocusBorder: 'focus:border-[#10b981]',
-    inputFocusRing: 'focus:ring-[#10b981]/40',
-    submitButtonGradient: 'bg-gradient-to-r from-[#10b981] to-[#059669] hover:from-[#34d399] hover:to-[#10b981]',
-    accentText: 'text-[#10b981]',
-    secQuestionBg: 'bg-[#091b13]/60',
-    secQuestionBorder: 'border-[#10b981]/30',
-  },
-];
+export const TACTICAL_LIGHT_LOGIN_THEME: LoginThemeConfig = {
+  id: 'tactical-light',
+  name: '战术光棱',
+  character: '战术光棱',
+  badgeLabel: '战术光棱 · 极昼控制台',
+  bgGradient: 'from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0]',
+  glowOrbs: [
+    { className: '-top-36 -left-36 w-[540px] h-[540px] bg-[#00687a]/10 blur-[130px]' },
+    { className: '-bottom-36 -right-36 w-[600px] h-[600px] bg-[#06b6d4]/12 blur-[140px]' },
+    { className: 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-[#006c49]/8 blur-[160px]' },
+  ],
+  particleColors: ['#00687a', '#008ba3', '#006c49', '#64748b', '#0891b2'],
+  gradientVariant: 'tactical-light',
+  cardBorder: 'border-slate-200/90',
+  cardShadow: 'shadow-[0_20px_60px_rgba(15,23,42,0.08),0_1px_3px_rgba(0,0,0,0.05)]',
+  topAccentGradient: 'from-[#00687a] via-[#06b6d4] to-[#006c49]',
+  leftPanelBg: 'from-[#f8fafc] to-[#f1f5f9]',
+  leftPanelBorder: 'border-slate-200/80',
+  brandIconBg: 'bg-white',
+  brandIconBorder: 'border-[#00687a]/20',
+  brandIconText: 'text-[#00687a]',
+  brandBadgeBg: 'bg-[#00687a]/10',
+  brandBadgeBorder: 'border-[#00687a]/25',
+  brandBadgeText: 'text-[#00687a]',
+  footerAccentText: 'text-[#00687a]',
+  rightPanelBg: 'from-white via-[#fcfdff] to-[#f8fafc]',
+  tabActiveBg: 'bg-white',
+  tabActiveText: 'text-[#00687a]',
+  tabActiveBorder: 'border-slate-200/80',
+  tabIndicatorIconBg: 'bg-[#00687a]/10',
+  tabIndicatorIconBorder: 'border-[#00687a]/20',
+  tabIndicatorIconText: 'text-[#00687a]',
+  tipNoticeBg: 'from-cyan-50/80 to-blue-50/60',
+  tipNoticeBorder: 'border-cyan-200',
+  tipNoticeText: 'text-cyan-950',
+  tipNoticeHighlight: 'text-[#00687a]',
+  inputFocusBorder: 'focus:border-[#00687a]',
+  inputFocusRing: 'focus:ring-[#00687a]/30',
+  submitButtonGradient: 'bg-gradient-to-r from-[#00687a] to-[#0891b2] hover:from-[#005a6b] hover:to-[#00687a]',
+  accentText: 'text-[#00687a]',
+  secQuestionBg: 'bg-slate-50',
+  secQuestionBorder: 'border-slate-200',
+};
+
+export const LOGIN_THEMES: LoginThemeConfig[] = [TACTICAL_LIGHT_LOGIN_THEME];
 
 export interface LoginModalProps {
   isOpen: boolean;
@@ -271,38 +138,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   initialMode = 'login',
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-
-  // Easter egg theme switching state (persisted in localStorage)
-  const [currentThemeIndex, setCurrentThemeIndex] = useState<0 | 1 | 2 | 3>(() => {
-    try {
-      const saved = localStorage.getItem('opshub_login_theme');
-      if (saved !== null) {
-        const parsed = parseInt(saved, 10);
-        if (parsed >= 0 && parsed <= 3) return parsed as 0 | 1 | 2 | 3;
-      }
-    } catch {
-      // ignore
-    }
-    return 1; // Default to Celadon Mist
-  });
-
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleCharacterDoubleClick = (index: 0 | 1 | 2 | 3) => {
-    setCurrentThemeIndex(index);
-    try {
-      localStorage.setItem('opshub_login_theme', String(index));
-    } catch {
-      // ignore
-    }
-    const theme = LOGIN_THEMES[index];
-    setToastMessage(`已切换至【${theme.name}】全屏背景`);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToastMessage(null);
-    }, 2200);
-  };
+  const currentTheme = TACTICAL_LIGHT_LOGIN_THEME;
 
   // Login form state
   const [loginUsername, setLoginUsername] = useState('admin');
@@ -375,15 +211,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       if (typingTimerRef.current) {
         clearTimeout(typingTimerRef.current);
       }
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
     };
   }, []);
 
   if (!isOpen) return null;
-
-  const currentTheme = LOGIN_THEMES[currentThemeIndex];
 
   const resetAllErrors = () => {
     setError(null);
@@ -563,24 +394,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         data-testid="login-modal-root"
         className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-gradient-to-br ${currentTheme.bgGradient} transition-colors duration-700`}
       >
-        {/* Floating Easter Egg Theme Switch Toast */}
-        <AnimatePresence>
-          {toastMessage && (
-            <motion.div
-              data-testid="easter-egg-toast"
-              initial={{ opacity: 0, y: -24, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="fixed top-6 z-50 flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-mono font-medium text-white shadow-2xl backdrop-blur-xl border border-white/25 bg-[#0b121e]/90"
-            >
-              <Sparkles className="h-4 w-4 text-yellow-300 animate-pulse shrink-0" />
-              <span>{toastMessage}</span>
-              <span className="ml-1 text-[11px] opacity-75">（{currentTheme.character}彩蛋）</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Dynamic Ambient Glowing Lights */}
         <div className={`fixed rounded-full pointer-events-none transition-all duration-700 ${currentTheme.glowOrbs[0].className}`} />
         <div className={`fixed rounded-full pointer-events-none transition-all duration-700 ${currentTheme.glowOrbs[1].className}`} />
@@ -597,7 +410,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           onClick={() => {
             if (canDismiss && onClose) onClose();
           }}
-          className="fixed inset-0 bg-[#07111a]/30 backdrop-blur-[1.5px]"
+          className="fixed inset-0 bg-slate-900/10 backdrop-blur-[1px]"
         />
 
         {/* Dual-Panel Split Modal Card */}
@@ -607,7 +420,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 14 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className={`relative w-full overflow-hidden rounded-2xl border ${currentTheme.cardBorder} bg-[#10202e]/95 backdrop-blur-2xl ${currentTheme.cardShadow} grid grid-cols-1 lg:grid-cols-12 max-h-[92vh] transition-all duration-500`}
+            className={`relative w-full overflow-hidden rounded-2xl border ${currentTheme.cardBorder} bg-white/95 backdrop-blur-2xl ${currentTheme.cardShadow} grid grid-cols-1 lg:grid-cols-12 max-h-[92vh] transition-all duration-500`}
           >
             {/* Top Accent Gradient Border */}
             <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${currentTheme.topAccentGradient} z-30 transition-all duration-500`} />
@@ -617,7 +430,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute top-4 right-4 p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-border/60 transition-colors z-40"
+                className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors z-40"
                 aria-label="关闭"
               >
                 <X className="h-4 w-4" />
@@ -631,15 +444,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
               {/* Brand Header */}
               <div className="relative z-20 flex items-center gap-3">
-                <OpsHubLogo size="lg" showGlow={true} />
+                <OpsHubLogo size="lg" showGlow={false} />
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg text-white tracking-wide">OpsHub Gateway</span>
+                    <span className="font-bold text-lg text-slate-900 tracking-wide">OpsHub Gateway</span>
                     <span className={`rounded ${currentTheme.brandBadgeBg} px-1.5 py-0.5 text-[10px] font-mono ${currentTheme.brandBadgeText} border ${currentTheme.brandBadgeBorder}`}>
                       v1.0
                     </span>
                   </div>
-                  <p className="text-xs text-ops-text-muted font-mono mt-0.5">企业级轻量自动化运维平台</p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">企业级轻量自动化运维平台</p>
                 </div>
               </div>
 
@@ -650,17 +463,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   showPassword={activeShowPassword}
                   passwordLength={activePasswordLength}
                   scale={0.82}
-                  onCharacterDoubleClick={handleCharacterDoubleClick}
                 />
               </div>
 
               {/* Footer interactive hints */}
-              <div className="relative z-20 flex items-center justify-between text-xs text-ops-text-muted font-mono border-t border-white/10 pt-3.5">
+              <div className="relative z-20 flex items-center justify-between text-xs text-slate-500 font-mono border-t border-slate-200/80 pt-3.5">
                 <div className={`flex items-center gap-1.5 ${currentTheme.footerAccentText} transition-colors duration-300`}>
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>{currentTheme.badgeLabel}</span>
                 </div>
-                <span className="text-gray-400 font-sans" title="双击任意小人切换全屏配色方案">双击小人切换彩蛋</span>
+                <span className="text-slate-400 font-mono text-[11px]">OpsHub Control Plane</span>
               </div>
             </div>
 
@@ -675,13 +487,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     showPassword={activeShowPassword}
                     passwordLength={activePasswordLength}
                     scale={0.44}
-                    onCharacterDoubleClick={handleCharacterDoubleClick}
                   />
                 </div>
               </div>
 
               {/* Mode Switcher Tabs */}
-              <div className="flex items-center justify-between border-b border-[#475061]/40 pb-3 mb-4 shrink-0">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${currentTheme.tabIndicatorIconBg} border ${currentTheme.tabIndicatorIconBorder} ${currentTheme.tabIndicatorIconText} shadow-sm transition-colors duration-300`}>
                     {mode === 'login' && <Terminal className="h-4 w-4" />}
@@ -689,7 +500,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     {mode === 'forgot-password' && <KeyRound className="h-4 w-4" />}
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white tracking-wide">
+                    <h2 className="text-base font-bold text-slate-900 tracking-wide">
                       {mode === 'login' && 'OpsHub 控制台登录'}
                       {mode === 'register' && '注册 OpsHub 账号'}
                       {mode === 'forgot-password' && '重置与找回密码'}
@@ -698,14 +509,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex items-center gap-1 rounded-lg bg-[#0a1520]/90 p-1 border border-[#475061]/50 text-xs font-mono">
+                <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 border border-slate-200 text-xs font-mono">
                   <button
                     type="button"
                     onClick={() => switchMode('login')}
                     className={`rounded-md px-2.5 py-1 transition-all ${
                       mode === 'login'
                         ? `${currentTheme.tabActiveBg} ${currentTheme.tabActiveText} font-bold border ${currentTheme.tabActiveBorder} shadow-sm`
-                        : 'text-ops-text-muted hover:text-white'
+                        : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     登录
@@ -716,7 +527,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     className={`rounded-md px-2.5 py-1 transition-all ${
                       mode === 'register'
                         ? `${currentTheme.tabActiveBg} ${currentTheme.tabActiveText} font-bold border ${currentTheme.tabActiveBorder} shadow-sm`
-                        : 'text-ops-text-muted hover:text-white'
+                        : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     用户注册
@@ -727,7 +538,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     className={`rounded-md px-2.5 py-1 transition-all ${
                       mode === 'forgot-password'
                         ? `${currentTheme.tabActiveBg} ${currentTheme.tabActiveText} font-bold border ${currentTheme.tabActiveBorder} shadow-sm`
-                        : 'text-ops-text-muted hover:text-white'
+                        : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     忘记密码
@@ -740,9 +551,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-3 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-950/40 p-2.5 text-xs text-red-300 shrink-0"
+                  className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 shrink-0"
                 >
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
                   <span className="font-mono">{error}</span>
                 </motion.div>
               )}
@@ -751,9 +562,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/40 p-2.5 text-xs text-emerald-300 shrink-0"
+                  className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-700 shrink-0"
                 >
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                   <span className="font-mono">{successMsg}</span>
                 </motion.div>
               )}
@@ -767,16 +578,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     <div className={`rounded-lg border ${currentTheme.tipNoticeBorder} bg-gradient-to-r ${currentTheme.tipNoticeBg} p-3 text-xs ${currentTheme.tipNoticeText} leading-relaxed font-sans shadow-sm transition-all duration-300`}>
                       <span className={`font-semibold ${currentTheme.tipNoticeHighlight}`}>💡 初始管理员提示：</span>
                       管理员初始口令已在首次启动时于终端打印，默认管理员账号为{' '}
-                      <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-white">admin</code>。
+                      <code className="rounded bg-cyan-100/90 px-1 py-0.5 font-mono text-[#00687a]">admin</code>。
                     </div>
 
                     <form onSubmit={handleLoginSubmit} className="space-y-4">
                       <div>
-                        <label className="block text-xs font-mono text-ops-text-muted mb-1.5">
+                        <label className="block text-xs font-mono text-slate-600 mb-1.5">
                           用户名 / Username
                         </label>
                         <div className="relative flex items-center">
-                          <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                          <User className="absolute left-3 h-4 w-4 text-slate-400" />
                           <input
                             type="text"
                             value={loginUsername}
@@ -786,14 +597,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="admin"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-9 pr-3 py-2 text-sm text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing} transition-colors`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-9 pr-3 py-2 text-sm text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing} transition-colors`}
                           />
                         </div>
                       </div>
 
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-xs font-mono text-ops-text-muted">
+                          <label className="text-xs font-mono text-slate-600">
                             密码 / Password
                           </label>
                           <button
@@ -805,7 +616,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           </button>
                         </div>
                         <div className="relative flex items-center">
-                          <Lock className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                          <Lock className="absolute left-3 h-4 w-4 text-slate-400" />
                           <input
                             type={showLoginPassword ? 'text' : 'password'}
                             value={loginPassword}
@@ -815,12 +626,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="请输入访问凭据密钥"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-9 pr-10 py-2 text-sm text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing} transition-colors`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-9 pr-10 py-2 text-sm text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing} transition-colors`}
                           />
                           <button
                             type="button"
                             onClick={() => setShowLoginPassword(!showLoginPassword)}
-                            className="absolute right-3 text-ops-text-muted hover:text-white transition-colors"
+                            className="absolute right-3 text-slate-400 hover:text-slate-700 transition-colors"
                             aria-label={showLoginPassword ? '隐藏密码' : '显示密码'}
                           >
                             {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -832,10 +643,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         type="submit"
                         loading={loading}
                         text="确认登录 / Login"
-                        className={`mt-3 ${currentTheme.submitButtonGradient} font-semibold text-white transition-all duration-300`}
+                        className={`mt-3 ${currentTheme.submitButtonGradient} font-semibold text-white shadow-md shadow-[#00687a]/20 transition-all duration-300`}
                       />
 
-                      <div className="pt-2 text-center text-xs text-ops-text-muted">
+                      <div className="pt-2 text-center text-xs text-slate-500">
                         还没有运维账号？{' '}
                         <button
                           type="button"
@@ -854,11 +665,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <form onSubmit={handleRegisterSubmit} className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                          用户名 / Username <span className="text-red-400">*</span>
+                        <label className="block text-xs font-mono text-slate-600 mb-1">
+                          用户名 / Username <span className="text-red-500">*</span>
                         </label>
                         <div className="relative flex items-center">
-                          <User className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                          <User className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type="text"
                             value={regUsername}
@@ -868,13 +679,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="例如: devops_john"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                        <label className="block text-xs font-mono text-slate-600 mb-1">
                           真实姓名 / 昵称 (选填)
                         </label>
                         <input
@@ -886,17 +697,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           }}
                           placeholder="例如: 张三"
                           disabled={loading}
-                          className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                          className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-mono text-ops-text-muted mb-1">
+                      <label className="block text-xs font-mono text-slate-600 mb-1">
                         电子邮箱 / Email (选填)
                       </label>
                       <div className="relative flex items-center">
-                        <Mail className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                        <Mail className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                         <input
                           type="email"
                           value={regEmail}
@@ -906,18 +717,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           }}
                           placeholder="ops@company.com"
                           disabled={loading}
-                          className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                          className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                          设置登录密码 <span className="text-red-400">*</span>
+                        <label className="block text-xs font-mono text-slate-600 mb-1">
+                          设置登录密码 <span className="text-red-500">*</span>
                         </label>
                         <div className="relative flex items-center">
-                          <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                          <Lock className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type={showRegPassword ? 'text' : 'password'}
                             value={regPassword}
@@ -927,12 +738,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="至少 6 位字符"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-8 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-8 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                           />
                           <button
                             type="button"
                             onClick={() => setShowRegPassword(!showRegPassword)}
-                            className="absolute right-2.5 text-ops-text-muted hover:text-white"
+                            className="absolute right-2.5 text-slate-400 hover:text-slate-700"
                           >
                             {showRegPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                           </button>
@@ -940,11 +751,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                          确认密码 <span className="text-red-400">*</span>
+                        <label className="block text-xs font-mono text-slate-600 mb-1">
+                          确认密码 <span className="text-red-500">*</span>
                         </label>
                         <div className="relative flex items-center">
-                          <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                          <Lock className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                           <input
                             type={showRegPassword ? 'text' : 'password'}
                             value={regConfirmPassword}
@@ -954,7 +765,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="重复输入密码"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                           />
                         </div>
                       </div>
@@ -968,17 +779,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                          选择密保安全问题 <span className="text-red-400">*</span>
+                        <label className="block text-[11px] font-mono text-slate-600 mb-1">
+                          选择密保安全问题 <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={selectedQuestion}
                           onChange={(e) => setSelectedQuestion(e.target.value)}
                           disabled={loading}
-                          className={`w-full rounded-lg border border-[#475061]/70 bg-[#122332] px-3 py-1.5 text-xs text-white font-mono ${currentTheme.inputFocusBorder} focus:outline-none`}
+                          className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 font-mono ${currentTheme.inputFocusBorder} focus:outline-none`}
                         >
                           {PRESET_QUESTIONS.map((q) => (
-                            <option key={q} value={q} className="bg-[#0a1520] text-white">
+                            <option key={q} value={q} className="bg-white text-slate-900">
                               {q}
                             </option>
                           ))}
@@ -987,8 +798,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
                       {selectedQuestion === '自定义密保问题...' && (
                         <div>
-                          <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                            自定义密保安全问题 <span className="text-red-400">*</span>
+                          <label className="block text-[11px] font-mono text-slate-600 mb-1">
+                            自定义密保安全问题 <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -999,14 +810,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="例如: 您的大学室友名字是什么？"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#122332] px-3 py-1.5 text-xs text-white font-mono ${currentTheme.inputFocusBorder} focus:outline-none`}
+                            className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 font-mono ${currentTheme.inputFocusBorder} focus:outline-none`}
                           />
                         </div>
                       )}
 
                       <div>
-                        <label className="block text-[11px] font-mono text-ops-text-muted mb-1">
-                          密保问题答案 <span className="text-red-400">*</span>
+                        <label className="block text-[11px] font-mono text-slate-600 mb-1">
+                          密保问题答案 <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -1017,7 +828,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           }}
                           placeholder="请准确牢记，答案区分大小写"
                           disabled={loading}
-                          className={`w-full rounded-lg border border-[#475061]/70 bg-[#122332] px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none`}
+                          className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:outline-none`}
                         />
                       </div>
                     </div>
@@ -1026,10 +837,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       type="submit"
                       loading={loading}
                       text="立即注册并登录 / Register"
-                      className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white transition-all duration-300`}
+                      className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white shadow-md shadow-[#00687a]/20 transition-all duration-300`}
                     />
 
-                    <div className="text-center text-xs text-ops-text-muted pt-1">
+                    <div className="text-center text-xs text-slate-500 pt-1">
                       已有账号？{' '}
                       <button
                         type="button"
@@ -1053,11 +864,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                            找回账号的用户名 / Username <span className="text-red-400">*</span>
+                          <label className="block text-xs font-mono text-slate-600 mb-1">
+                            找回账号的用户名 / Username <span className="text-red-500">*</span>
                           </label>
                           <div className="relative flex items-center">
-                            <User className="absolute left-3 h-4 w-4 text-ops-text-muted" />
+                            <User className="absolute left-3 h-4 w-4 text-slate-400" />
                             <input
                               type="text"
                               value={forgotUsername}
@@ -1067,7 +878,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                               }}
                               placeholder="例如: devops_john"
                               disabled={queryingQuestion}
-                              className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-9 pr-3 py-2 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
+                              className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-9 pr-3 py-2 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none focus:ring-1 ${currentTheme.inputFocusRing}`}
                             />
                           </div>
                         </div>
@@ -1076,10 +887,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           type="submit"
                           loading={queryingQuestion}
                           text="检索密保问题"
-                          className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white transition-all duration-300`}
+                          className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white shadow-md shadow-[#00687a]/20 transition-all duration-300`}
                         />
 
-                        <div className="text-center text-xs text-ops-text-muted pt-2">
+                        <div className="text-center text-xs text-slate-500 pt-2">
                           想起密码了？{' '}
                           <button
                             type="button"
@@ -1095,12 +906,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       <form onSubmit={handleResetPasswordSubmit} className="space-y-3">
                         <div className="flex items-center justify-between pb-1">
                           <span className={`text-xs font-mono ${currentTheme.accentText}`}>
-                            当前账号: <span className="text-white font-semibold">{forgotUsername}</span>
+                            当前账号: <span className="text-slate-900 font-semibold">{forgotUsername}</span>
                           </span>
                           <button
                             type="button"
                             onClick={() => setRetrievedQuestion(null)}
-                            className="flex items-center gap-1 text-[11px] font-mono text-ops-text-muted hover:text-white"
+                            className="flex items-center gap-1 text-[11px] font-mono text-slate-500 hover:text-slate-800"
                           >
                             <ArrowLeft className="h-3 w-3" />
                             重新输入账号
@@ -1113,12 +924,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             <HelpCircle className="h-3.5 w-3.5" />
                             <span>密保安全问题:</span>
                           </div>
-                          <div className="text-sm text-white font-sans pl-5">{retrievedQuestion}</div>
+                          <div className="text-sm text-slate-900 font-medium font-sans pl-5">{retrievedQuestion}</div>
                         </div>
 
                         <div>
-                          <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                            密保问题答案 / Security Answer <span className="text-red-400">*</span>
+                          <label className="block text-xs font-mono text-slate-600 mb-1">
+                            密保问题答案 / Security Answer <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -1129,17 +940,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                             }}
                             placeholder="请输入注册时填写的密保答案"
                             disabled={loading}
-                            className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] px-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none`}
+                            className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 px-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none`}
                           />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                              设置新密码 <span className="text-red-400">*</span>
+                            <label className="block text-xs font-mono text-slate-600 mb-1">
+                              设置新密码 <span className="text-red-500">*</span>
                             </label>
                             <div className="relative flex items-center">
-                              <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                              <Lock className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                               <input
                                 type={showForgotNewPassword ? 'text' : 'password'}
                                 value={forgotNewPassword}
@@ -1149,12 +960,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                                 }}
                                 placeholder="至少 6 位字符"
                                 disabled={loading}
-                                className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-8 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none`}
+                                className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-8 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none`}
                               />
                               <button
                                 type="button"
                                 onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
-                                className="absolute right-2.5 text-ops-text-muted hover:text-white"
+                                className="absolute right-2.5 text-slate-400 hover:text-slate-700"
                               >
                                 {showForgotNewPassword ? (
                                   <EyeOff className="h-3.5 w-3.5" />
@@ -1166,11 +977,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           </div>
 
                           <div>
-                            <label className="block text-xs font-mono text-ops-text-muted mb-1">
-                              确认新密码 <span className="text-red-400">*</span>
+                            <label className="block text-xs font-mono text-slate-600 mb-1">
+                              确认新密码 <span className="text-red-500">*</span>
                             </label>
                             <div className="relative flex items-center">
-                              <Lock className="absolute left-3 h-3.5 w-3.5 text-ops-text-muted" />
+                              <Lock className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                               <input
                                 type={showForgotNewPassword ? 'text' : 'password'}
                                 value={forgotConfirmPassword}
@@ -1180,7 +991,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                                 }}
                                 placeholder="重复新密码"
                                 disabled={loading}
-                                className={`w-full rounded-lg border border-[#475061]/70 bg-[#0a1520] pl-8 pr-3 py-1.5 text-xs text-white font-mono placeholder:text-gray-500 ${currentTheme.inputFocusBorder} focus:outline-none`}
+                                className={`w-full rounded-lg border border-slate-300 bg-slate-50/50 pl-8 pr-3 py-1.5 text-xs text-slate-900 font-mono placeholder:text-slate-400 ${currentTheme.inputFocusBorder} focus:bg-white focus:outline-none`}
                               />
                             </div>
                           </div>
@@ -1190,7 +1001,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                           type="submit"
                           loading={loading}
                           text="确认重置并更新密码"
-                          className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white transition-all duration-300`}
+                          className={`mt-2 ${currentTheme.submitButtonGradient} font-semibold text-white shadow-md shadow-[#00687a]/20 transition-all duration-300`}
                         />
                       </form>
                     )}

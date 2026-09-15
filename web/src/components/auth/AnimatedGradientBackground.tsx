@@ -12,13 +12,13 @@ export interface AnimatedGradientBackgroundProps {
   containerClassName?: string;
   topOffset?: number;
   showGrid?: boolean;
-  variant?: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald';
+  variant?: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald' | 'tactical-light';
 }
 
 export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProps> = ({
   startingGap = 120,
   breathing = true,
-  variant = 'celadon-blue',
+  variant = 'tactical-light',
   gradientColors,
   gradientStops = [20, 45, 65, 80, 92, 100],
   animationSpeed = 0.04,
@@ -28,8 +28,10 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
   topOffset = 0,
   showGrid = true,
 }) => {
-  const getVariantColors = (v: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald') => {
+  const getVariantColors = (v: 'cyber' | 'celadon-blue' | 'sunset' | 'emerald' | 'tactical-light') => {
     switch (v) {
+      case 'tactical-light':
+        return ['#e0f2fe', '#f0fdfa', '#f1f5f9', '#e2e8f0', '#f8fafc', '#ffffff'];
       case 'cyber':
         return ['#0d1b3e', '#1e1b4b', '#0e2a47', '#1a103c', '#0b1329', '#060913'];
       case 'sunset':
@@ -100,14 +102,21 @@ export const AnimatedGradientBackground: React.FC<AnimatedGradientBackgroundProp
           className="absolute inset-0 opacity-25"
           style={{
             backgroundImage:
-              'radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px)',
+              variant === 'tactical-light'
+                ? 'radial-gradient(rgba(0, 104, 122, 0.20) 1px, transparent 1px)'
+                : 'radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
           }}
         />
       )}
 
       {/* Ambient glowing orbs for depth */}
-      {variant === 'celadon-blue' ? (
+      {variant === 'tactical-light' ? (
+        <>
+          <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#00687a]/10 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#06b6d4]/10 blur-3xl pointer-events-none" />
+        </>
+      ) : variant === 'celadon-blue' ? (
         <>
           <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[#5fa3b0]/24 blur-3xl pointer-events-none" />
           <div className="absolute bottom-1/3 right-1/4 translate-x-1/4 translate-y-1/4 w-96 h-96 rounded-full bg-[#2d5678]/30 blur-3xl pointer-events-none" />

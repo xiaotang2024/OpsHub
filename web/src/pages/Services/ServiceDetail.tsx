@@ -648,10 +648,10 @@ export const ServiceDetail: React.FC = () => {
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-bold tracking-tight text-white">{service.name}</h1>
                 <StatusBadge status={service.status} />
-                <span className="rounded-md bg-slate-900 border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-muted">
+                <span className="rounded-md bg-ops-surface border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-muted">
                   ID: #{service.id}
                 </span>
-                <span className="rounded-md bg-slate-900 border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-sub">
+                <span className="rounded-md bg-ops-surface border border-ops-border px-2.5 py-0.5 text-xs font-mono text-ops-text-sub">
                   {service.supervision_mode === 'systemd' ? 'Linux Systemd' : 'Native Supervisor'}
                 </span>
               </div>
@@ -1058,7 +1058,7 @@ export const ServiceDetail: React.FC = () => {
                                 </span>
                                 {!matchedArtifact && (
                                   <span
-                                    className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-800/80 border border-slate-700 text-ops-text-muted"
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-ops-surface border border-ops-border text-ops-text-muted"
                                     title="该制品的物理文件与元数据已从服务器清理，仅保留发版审计流水"
                                   >
                                     实体包已清理
@@ -1242,11 +1242,11 @@ export const ServiceDetail: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-ops-border text-ops-cyan">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ops-surface border border-ops-border text-ops-cyan">
                   <Terminal className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">实时控制台终端 (Live Terminal)</h3>
+                  <h3 className="text-sm font-bold text-ops-text-main">实时控制台终端 (Live Terminal)</h3>
                   <p className="text-xs text-ops-text-muted font-mono">
                     基于 WebSocket 与 xterm.js 的全双工低延迟实时运维终端
                   </p>

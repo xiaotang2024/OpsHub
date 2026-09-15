@@ -844,7 +844,7 @@ export const ServiceFleet: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       {/* Supervision mode badge */}
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-900 text-ops-text-sub border border-ops-border">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-ops-surface text-ops-text-sub border border-ops-border">
                         {svc.supervision_mode === 'systemd' ? 'Systemd' : 'Native'}
                       </span>
 

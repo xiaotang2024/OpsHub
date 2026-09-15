@@ -316,10 +316,10 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
 
   return (
     <div
-      className={`rounded-2xl border border-ops-border bg-[#050811] shadow-2xl overflow-hidden flex flex-col font-mono ${className}`}
+      className={`rounded-2xl border border-ops-border bg-ops-surface shadow-2xl overflow-hidden flex flex-col font-mono ${className}`}
     >
       {/* Top Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#080D18] border-b border-ops-border text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-ops-surface border-b border-ops-border text-xs">
         {/* Left: Terminal Brand & Connection Status Pill */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-ops-cyan font-bold">
@@ -360,7 +360,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
                 type="button"
                 onClick={connectWebSocket}
                 title="重新连接终端"
-                className="ml-1 text-xs hover:text-white underline underline-offset-2 flex items-center gap-1"
+                className="ml-1 text-xs hover:text-ops-text-main underline underline-offset-2 flex items-center gap-1"
               >
                 <RefreshCw className="h-3 w-3" />
                 <span>重连</span>
@@ -377,19 +377,19 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
         </div>
 
         {/* Center: Real-time Search Bar */}
-        <div className="flex items-center gap-1.5 bg-[#0D1527] border border-ops-border/80 rounded-lg px-2.5 py-1">
+        <div className="flex items-center gap-1.5 bg-ops-bg border border-ops-border/80 rounded-lg px-2.5 py-1">
           <Search className="h-3.5 w-3.5 text-ops-text-muted shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder="搜索控制台日志 (如 ERROR / Exception)"
-            className="bg-transparent border-none outline-none text-white text-xs w-44 sm:w-60 placeholder:text-slate-600 font-mono"
+            className="bg-transparent border-none outline-none text-ops-text-main text-xs w-44 sm:w-60 placeholder:text-ops-text-muted/60 font-mono"
           />
           {searchQuery && (
             <div className="flex items-center gap-1 pl-1 border-l border-ops-border">
               <span
-                className="text-[10px] bg-cyan-950 border border-ops-cyan/30 text-ops-cyan px-1.5 py-0.2 rounded truncate max-w-[180px]"
+                className="text-[10px] bg-ops-cyan/15 border border-ops-cyan/30 text-ops-cyan px-1.5 py-0.2 rounded truncate max-w-[180px]"
                 title={`${matchCount} matches for "${searchQuery}"`}
               >
                 {`${matchCount} matches for "${searchQuery}"`}
@@ -398,7 +398,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
                 type="button"
                 onClick={handleSearchPrev}
                 title="上一个匹配项"
-                className="text-ops-text-muted hover:text-white p-0.5"
+                className="text-ops-text-muted hover:text-ops-text-main p-0.5 transition-colors"
               >
                 <ChevronUp className="h-3 w-3" />
               </button>
@@ -406,7 +406,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
                 type="button"
                 onClick={handleSearchNext}
                 title="下一个匹配项"
-                className="text-ops-text-muted hover:text-white p-0.5"
+                className="text-ops-text-muted hover:text-ops-text-main p-0.5 transition-colors"
               >
                 <ChevronDown className="h-3 w-3" />
               </button>
@@ -425,8 +425,8 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
             title={autoScroll ? '锁定到底部滚动 (已开启)' : '自动滚动已暂停'}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors ${
               autoScroll
-                ? 'bg-cyan-950/60 border-ops-cyan/50 text-ops-cyan shadow-sm'
-                : 'bg-slate-900 border-ops-border text-ops-text-muted hover:text-white'
+                ? 'bg-ops-cyan/20 border-ops-cyan/50 text-ops-cyan shadow-sm'
+                : 'bg-ops-surface border-ops-border text-ops-text-muted hover:text-ops-text-main hover:bg-ops-card-hover'
             }`}
           >
             {autoScroll ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
@@ -443,7 +443,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors ${
               isPaused
                 ? 'bg-amber-950/80 border-amber-500/50 text-amber-400'
-                : 'bg-slate-900 border-ops-border text-ops-text-sub hover:text-white'
+                : 'bg-ops-surface border-ops-border text-ops-text-sub hover:text-ops-text-main hover:bg-ops-card-hover'
             }`}
           >
             {isPaused ? <Play className="h-3.5 w-3.5 fill-current" /> : <Pause className="h-3.5 w-3.5" />}
@@ -456,7 +456,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
             aria-label="clear-screen"
             onClick={handleClearScreen}
             title="清除当前屏幕日志"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-ops-border bg-slate-900 text-ops-text-sub hover:text-white text-xs transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-ops-border bg-ops-surface text-ops-text-sub hover:text-ops-text-main hover:bg-ops-card-hover text-xs transition-colors"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">清屏</span>
@@ -468,7 +468,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
             aria-label="download-log"
             onClick={handleDownloadLog}
             title="导出全部控制台日志"
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-ops-cyan/40 bg-cyan-950/40 text-ops-cyan hover:bg-cyan-500/20 text-xs font-bold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-ops-cyan/40 bg-ops-cyan/15 text-ops-cyan hover:bg-ops-cyan/25 text-xs font-bold transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
             <span>导出日志</span>

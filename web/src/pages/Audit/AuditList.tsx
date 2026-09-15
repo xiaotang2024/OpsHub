@@ -251,7 +251,7 @@ export const AuditList: React.FC = () => {
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-ops-surface text-ops-text-sub border border-ops-border">
             <Activity className="h-3 w-3" />
             <span>{action}</span>
           </span>
@@ -720,7 +720,7 @@ export const AuditList: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#080D1A] border-l border-ops-border shadow-2xl z-50 flex flex-col font-mono text-xs"
+              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-ops-surface text-ops-text-main border-l border-ops-border shadow-2xl z-50 flex flex-col font-mono text-xs"
             >
               {/* Drawer Header */}
               <div className="p-5 border-b border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
@@ -792,7 +792,7 @@ export const AuditList: React.FC = () => {
 
                   <div>
                     <span className="text-[10px] uppercase text-ops-text-muted block">记录时间</span>
-                    <span className="text-slate-300 block mt-1">
+                    <span className="text-ops-text-sub block mt-1">
                       {new Date(selectedLog.created_at).toLocaleString()}
                     </span>
                   </div>
@@ -818,7 +818,7 @@ export const AuditList: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-ops-border bg-[#050811] text-slate-200 font-mono text-xs whitespace-pre-wrap break-all leading-relaxed max-h-[360px] overflow-y-auto selection:bg-cyan-950 selection:text-ops-cyan">
+                  <div className="p-4 rounded-xl border border-ops-border bg-ops-bg text-ops-text-main font-mono text-xs whitespace-pre-wrap break-all leading-relaxed max-h-[360px] overflow-y-auto selection:bg-cyan-950 selection:text-ops-cyan">
                     {selectedLog.details || '（无附加详情文本）'}
                   </div>
                 </div>
@@ -829,7 +829,7 @@ export const AuditList: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="px-4 py-2 rounded-lg bg-ops-surface border border-ops-border text-white text-xs font-medium hover:border-ops-border-hover transition-colors"
+                  className="px-4 py-2 rounded-lg bg-ops-surface border border-ops-border text-ops-text-main text-xs font-medium hover:border-ops-border-hover transition-colors"
                 >
                   关闭
                 </button>

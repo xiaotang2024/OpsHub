@@ -586,7 +586,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
               </div>
 
               {/* Real-time Dynamic Preview Box (Directive highlight!) */}
-              <div className="rounded-lg border border-ops-cyan/30 bg-slate-950/80 p-3 space-y-2">
+              <div className="rounded-lg border border-ops-border bg-ops-surface p-3 space-y-2 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Terminal className="h-3.5 w-3.5 text-ops-cyan" />
@@ -614,7 +614,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                 </div>
                 <div
                   data-testid="jvm-preview-text"
-                  className="p-2.5 rounded bg-ops-bg/90 border border-ops-border/60 text-xs font-mono text-emerald-400 break-all select-all selection:bg-ops-cyan/30"
+                  className="p-2.5 rounded-lg bg-ops-bg border border-ops-border text-xs font-mono text-ops-text-main break-all select-all selection:bg-ops-cyan/30"
                 >
                   {renderedJvmOptions}
                 </div>
@@ -743,7 +743,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
 
                       {/* Floating Tooltip Card */}
                       <div
-                        className={`absolute right-0 sm:left-0 bottom-full mb-2 w-80 sm:w-[450px] p-4 rounded-xl border border-ops-border bg-slate-950/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
+                        className={`absolute right-0 sm:left-0 bottom-full mb-2 w-80 sm:w-[450px] p-4 rounded-xl border border-ops-border bg-ops-surface/95 backdrop-blur-md shadow-2xl z-50 transition-all duration-200 ${
                           showVarTooltip
                             ? 'opacity-100 visible pointer-events-auto'
                             : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto pointer-events-none'
@@ -752,7 +752,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                         <div className="flex items-center justify-between border-b border-ops-border/60 pb-2 mb-2.5">
                           <div className="flex items-center gap-2">
                             <Info className="h-4 w-4 text-ops-cyan" />
-                            <h4 className="text-xs font-bold text-white tracking-wide">
+                            <h4 className="text-xs font-bold text-ops-text-main tracking-wide">
                               内置运行时占位符 (点击快速插入)
                             </h4>
                           </div>
@@ -760,7 +760,7 @@ export const TemplateEditorModal: React.FC<TemplateEditorModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setShowVarTooltip(false)}
-                              className="text-ops-text-muted hover:text-white text-xs p-1"
+                              className="text-ops-text-muted hover:text-ops-text-main text-xs p-1"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
