@@ -277,7 +277,7 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
                   const active = navActive || isActive;
                   return `group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     active
-                      ? 'bg-ops-cyan/10 text-white border border-ops-cyan/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
+                      ? 'sidebar-active-nav bg-ops-cyan/20 text-white border border-ops-cyan/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]'
                       : 'text-ops-text-muted hover:bg-ops-border/60 hover:text-ops-text-sub border border-transparent'
                   }`;
                 }}

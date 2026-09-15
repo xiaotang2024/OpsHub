@@ -256,8 +256,18 @@
 [data-theme="tactical-light"] h2,
 [data-theme="tactical-light"] h3,
 [data-theme="tactical-light"] h4,
-[data-theme="tactical-light"] [class*="text-white"]:not(button[class*="bg-ops-cyan"]):not(button[class*="bg-red-"]):not(button[class*="bg-emerald-"]):not(button[class*="bg-cyan-"]):not([class*="bg-gradient-to-"]):not([data-testid="terminal-container"] *):not(.xterm *) {
+[data-theme="tactical-light"] [class*="text-white"]:not(button[class*="bg-ops-cyan"]):not(button[class*="bg-red-"]):not(button[class*="bg-emerald-"]):not(button[class*="bg-cyan-"]):not([class*="bg-gradient-to-"]):not([data-testid="terminal-container"] *):not(.xterm *):not([class*="sidebar-active-nav"]) {
   color: #0f172a !important;
+}
+
+/* Light mode sidebar active nav: solid cyan background for white text legibility */
+[data-theme="tactical-light"] .sidebar-active-nav {
+  background-color: #00687A !important;
+  border-color: #005566 !important;
+  color: #ffffff !important;
+}
+[data-theme="tactical-light"] .sidebar-active-nav * {
+  color: #ffffff !important;
 }
 
 /* Light mode table row hover */

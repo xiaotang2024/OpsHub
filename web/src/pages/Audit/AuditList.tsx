@@ -570,7 +570,7 @@ export const AuditList: React.FC = () => {
                   <th className="px-4 py-3.5 bg-ops-card/95">执行结果</th>
                   <th className="px-4 py-3.5 bg-ops-card/95">记录时间</th>
                   <th className="px-4 py-3.5 bg-ops-card/95">详情摘要</th>
-                  <th className="px-4 py-3.5 text-right bg-ops-card/95">操作</th>
+                  <th className="px-4 py-3.5 text-right bg-ops-card/95 min-w-[80px] whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody ref={auditListRef} className="divide-y divide-ops-border/70 text-ops-text-sub">
@@ -624,7 +624,7 @@ export const AuditList: React.FC = () => {
                       >
                         {log.details || '-'}
                       </td>
-                      <td className="px-4 py-3.5 text-right">
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <button
                           type="button"
                           aria-label="查看详情"
