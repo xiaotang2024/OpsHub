@@ -37,6 +37,7 @@ describe('ThemePicker Component', () => {
     fireEvent.click(darkBtn);
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('tactical-dark');
+    expect(document.documentElement).toHaveClass('theme-switching');
     expect(localStorage.getItem('opshub_theme')).toBe('tactical-dark');
   });
 

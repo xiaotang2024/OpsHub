@@ -83,6 +83,27 @@
     transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
   }
 
+  /* Apply a short transition window to all theme-driven colors. Keeping this
+     behind a temporary class avoids changing the behavior of normal UI
+     interactions and motion animations. */
+  html.theme-switching,
+  html.theme-switching *,
+  html.theme-switching *::before,
+  html.theme-switching *::after {
+    transition-property: background-color, border-color, color, box-shadow, fill, stroke !important;
+    transition-duration: 0.28s !important;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-switching,
+    html.theme-switching *,
+    html.theme-switching *::before,
+    html.theme-switching *::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   /* Custom high-craft scrollbar */
   ::-webkit-scrollbar {
     width: 6px;

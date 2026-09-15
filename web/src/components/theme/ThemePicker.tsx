@@ -65,16 +65,41 @@ export const ThemePicker: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const themeTransitionTimeoutRef = useRef<number | null>(null);
+
+  const startThemeTransition = () => {
+    const root = document.documentElement;
+
+    if (themeTransitionTimeoutRef.current !== null) {
+      window.clearTimeout(themeTransitionTimeoutRef.current);
+    }
+
+    root.classList.add('theme-switching');
+    themeTransitionTimeoutRef.current = window.setTimeout(() => {
+      root.classList.remove('theme-switching');
+      themeTransitionTimeoutRef.current = null;
+    }, 300);
+  };
 
   const applyTheme = (themeId: ThemeId) => {
     setCurrentTheme(themeId);
     if (typeof window !== 'undefined') {
+      startThemeTransition();
       document.documentElement.setAttribute('data-theme', themeId);
       document.body.setAttribute('data-theme', themeId);
       localStorage.setItem('opshub_theme', themeId);
       window.dispatchEvent(new CustomEvent('opshub:theme-changed', { detail: { theme: themeId } }));
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (themeTransitionTimeoutRef.current !== null) {
+        window.clearTimeout(themeTransitionTimeoutRef.current);
+      }
+      document.documentElement.classList.remove('theme-switching');
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
