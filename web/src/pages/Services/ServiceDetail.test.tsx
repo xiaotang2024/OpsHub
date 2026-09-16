@@ -29,6 +29,7 @@ vi.mock('../../api', () => ({
     checkDeployPermission: vi.fn(),
     getTemplateSyncDiff: vi.fn(),
     syncTemplate: vi.fn(),
+    deleteAuditLog: vi.fn(),
   },
 }));
 
@@ -681,6 +682,95 @@ describe('ServiceDetail Component', () => {
     // Health check and environment variables should still be present
     expect(screen.getByText(/健康检测探针配置/i)).toBeInTheDocument();
     expect(screen.getByText(/环境变量/i)).toBeInTheDocument();
+  });
+
+  it('allows admin to delete audit log from audit trail tab with confirmation', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteAuditLog as any).mockResolvedValue({ message: 'Audit log deleted successfully', id: 99 });
+    (api.getAuditLogs as any).mockResolvedValue({
+      items: [
+        {
+          id: 99,
+          operator: 'admin',
+          client_ip: '127.0.0.1',
+          action: 'DEPLOY',
+          target_type: 'service',
+          target_id: '10',
+          details: 'Deploy artifact',
+          status: 'SUCCESS',
+          created_at: '2026-09-10T08:05:00Z',
+        },
+      ],
+      total: 1,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /审计轨迹/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Deploy artifact')).toBeInTheDocument();
+    });
+
+    // Admin should see 操作 header and delete button
+    expect(screen.getByText('操作')).toBeInTheDocument();
+    const deleteBtn = screen.getByRole('button', { name: /删除服务审计日志/i });
+    expect(deleteBtn).toBeInTheDocument();
+
+    fireEvent.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('确认删除审计日志')).toBeInTheDocument();
+      expect(screen.getByText(/审计日志 #99/)).toBeInTheDocument();
+    });
+
+    const confirmBtn = screen.getByRole('button', { name: /确认删除/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(api.deleteAuditLog).toHaveBeenCalledWith(99);
+    });
+  });
+
+  it('hides delete button and operation column in audit tab when user is operator', async () => {
+    localStorage.setItem(
+      'opshub_user',
+      JSON.stringify({ role: 'operator', permissions: ['service:view', 'audit:view'] })
+    );
+    (api.getAuditLogs as any).mockResolvedValue({
+      items: [
+        {
+          id: 99,
+          operator: 'admin',
+          client_ip: '127.0.0.1',
+          action: 'DEPLOY',
+          target_type: 'service',
+          target_id: '10',
+          details: 'Deploy artifact',
+          status: 'SUCCESS',
+          created_at: '2026-09-10T08:05:00Z',
+        },
+      ],
+      total: 1,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.getByText('order-center')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /审计轨迹/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Deploy artifact')).toBeInTheDocument();
+    });
+
+    // Operator should not see 操作 header or delete button
+    expect(screen.queryByText('操作')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /删除服务审计日志/i })).not.toBeInTheDocument();
   });
 });
 

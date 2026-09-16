@@ -7,6 +7,7 @@ vi.mock('../../api', () => ({
   api: {
     getAuditLogs: vi.fn(),
     exportAuditLogs: vi.fn(),
+    deleteAuditLog: vi.fn(),
   },
 }));
 
@@ -288,6 +289,88 @@ describe('AuditList Component', () => {
     await waitFor(() => {
       expect(screen.queryByText(/审计详情/i)).not.toBeInTheDocument();
     });
+  });
+
+  it('allows admin to delete an audit log via table action with confirmation', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteAuditLog as any).mockResolvedValue({ message: 'Audit log deleted successfully', id: 101 });
+
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByRole('button', { name: /删除审计日志/i });
+    expect(deleteButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/确认删除审计日志/i)).toBeInTheDocument();
+      expect(screen.getByText(/审计日志 #101/i)).toBeInTheDocument();
+    });
+
+    const confirmBtn = screen.getByRole('button', { name: /确认删除/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(api.deleteAuditLog).toHaveBeenCalledWith(101);
+    });
+  });
+
+  it('allows admin to delete an audit log from detail drawer footer', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'admin' }));
+    (api.deleteAuditLog as any).mockResolvedValue({ message: 'Audit log deleted successfully', id: 101 });
+
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    const viewDetailBtn = screen.getAllByRole('button', { name: /查看详情/i })[0];
+    fireEvent.click(viewDetailBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/审计详情/i)).toBeInTheDocument();
+    });
+
+    const drawerDeleteBtn = screen.getByRole('button', { name: /删除此记录/i });
+    expect(drawerDeleteBtn).toBeInTheDocument();
+    fireEvent.click(drawerDeleteBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/确认删除审计日志/i)).toBeInTheDocument();
+    });
+
+    const confirmBtn = screen.getByRole('button', { name: /确认删除/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(api.deleteAuditLog).toHaveBeenCalledWith(101);
+    });
+  });
+
+  it('hides delete buttons in table and drawer when user is operator', async () => {
+    localStorage.setItem('opshub_user', JSON.stringify({ role: 'operator', permissions: ['audit:view'] }));
+
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: /删除审计日志/i })).not.toBeInTheDocument();
+
+    const viewDetailBtn = screen.getAllByRole('button', { name: /查看详情/i })[0];
+    fireEvent.click(viewDetailBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/审计详情/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: /删除此记录/i })).not.toBeInTheDocument();
   });
 });
 

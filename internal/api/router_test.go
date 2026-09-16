@@ -264,6 +264,45 @@ func TestRouter_SystemMetricsAndAuditLogs(t *testing.T) {
 	assert.Equal(t, byte(0xBB), exportBody[1])
 	assert.Equal(t, byte(0xBF), exportBody[2])
 	assert.Contains(t, string(exportBody), "日志ID,操作动作,目标类型,目标ID,操作人,客户端IP,执行状态,记录时间,操作详情")
+
+	// 5. Delete Audit Log
+	// Insert a specific audit log to delete
+	res, err := f.db.Exec(`INSERT INTO audit_logs (operator, client_ip, action, target_type, target_id, details, status) VALUES ('admin', '127.0.0.1', 'TEST_ACTION', 'service', '999', 'test details', 'SUCCESS')`)
+	require.NoError(t, err)
+	delID, err := res.LastInsertId()
+	require.NoError(t, err)
+
+	// Admin deletes audit log -> 200 OK
+	wDel := doRequest(f.router, "DELETE", fmt.Sprintf("/api/audit-logs/%d", delID), f.token, nil)
+	assert.Equal(t, http.StatusOK, wDel.Code)
+
+	// Verify it's deleted
+	var checkID int64
+	err = f.db.QueryRow(`SELECT id FROM audit_logs WHERE id = ?`, delID).Scan(&checkID)
+	assert.Equal(t, sql.ErrNoRows, err)
+
+	// Deleting again -> 404
+	wDelNotFound := doRequest(f.router, "DELETE", fmt.Sprintf("/api/audit-logs/%d", delID), f.token, nil)
+	assert.Equal(t, http.StatusNotFound, wDelNotFound.Code)
+
+	// Operator tries to delete audit log -> 403 Forbidden
+	res2, err := f.db.Exec(`INSERT INTO audit_logs (operator, client_ip, action, target_type, target_id, details, status) VALUES ('admin', '127.0.0.1', 'TEST_ACTION_2', 'service', '999', 'test details', 'SUCCESS')`)
+	require.NoError(t, err)
+	delID2, err := res2.LastInsertId()
+	require.NoError(t, err)
+
+	userSvc := service.NewUserService(f.db)
+	opUser, err := userSvc.CreateUser(httptest.NewRequest("GET", "/", nil).Context(), service.CreateUserRequest{
+		Username: "op_audit_del",
+		Password: "Password123!",
+		Role:     model.RoleOperator,
+	})
+	require.NoError(t, err)
+	opToken, err := f.authSvc.Login(opUser.Username, "Password123!")
+	require.NoError(t, err)
+
+	wDelForbidden := doRequest(f.router, "DELETE", fmt.Sprintf("/api/audit-logs/%d", delID2), opToken, nil)
+	assert.Equal(t, http.StatusForbidden, wDelForbidden.Code)
 }
 
 func TestRouter_JDKManagement(t *testing.T) {

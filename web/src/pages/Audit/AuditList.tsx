@@ -28,14 +28,18 @@ import {
   Activity,
   Download,
   Calendar,
+  Trash2,
 } from 'lucide-react';
 import { AuditLog } from '../../types';
 import { api } from '../../api';
+import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { usePermission } from '../../hooks/usePermission';
 import NumberFlow from '@number-flow/react';
 import { toast } from 'sonner';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 export const AuditList: React.FC = () => {
+  const { isAdmin } = usePermission();
   const [auditListRef] = useAutoAnimate();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
@@ -54,8 +58,10 @@ export const AuditList: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState('');
   const [exporting, setExporting] = useState(false);
 
-  // Selected Log Drawer
+  // Selected Log Drawer & Delete Confirmation
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [logToDelete, setLogToDelete] = useState<AuditLog | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [copiedDetail, setCopiedDetail] = useState(false);
 
   // Global Macro Statistics (Uncoupled from pagination)
@@ -204,6 +210,24 @@ export const AuditList: React.FC = () => {
     setCopiedDetail(true);
     toast.success('审计明细已复制到剪贴板');
     setTimeout(() => setCopiedDetail(false), 2000);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!logToDelete) return;
+    try {
+      setIsDeleting(true);
+      await api.deleteAuditLog(logToDelete.id);
+      toast.success(`审计日志 #${logToDelete.id} 已成功删除`);
+      if (selectedLog?.id === logToDelete.id) {
+        setSelectedLog(null);
+      }
+      setLogToDelete(null);
+      fetchLogs();
+    } catch (err: any) {
+      toast.error(err.message || '删除审计日志失败');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getActionBadge = (action: string) => {
@@ -571,7 +595,7 @@ export const AuditList: React.FC = () => {
                   <th className="px-4 py-3.5 bg-ops-card/95">执行结果</th>
                   <th className="px-4 py-3.5 bg-ops-card/95">记录时间</th>
                   <th className="px-4 py-3.5 bg-ops-card/95">详情摘要</th>
-                  <th className="px-4 py-3.5 text-right bg-ops-card/95 min-w-[80px] whitespace-nowrap">操作</th>
+                  <th className={`px-4 py-3.5 text-right bg-ops-card/95 whitespace-nowrap ${isAdmin ? 'min-w-[130px]' : 'min-w-[80px]'}`}>操作</th>
                 </tr>
               </thead>
               <tbody ref={auditListRef} className="divide-y divide-ops-border/70 text-ops-text-sub">
@@ -583,23 +607,17 @@ export const AuditList: React.FC = () => {
                       onClick={() => setSelectedLog(log)}
                       className="hover:bg-ops-surface/60 transition-colors cursor-pointer group"
                     >
-                      <td className="px-4 py-3.5 text-white font-bold">#{log.id}</td>
+                      <td className="px-4 py-3.5 text-white font-semibold">
+                        #{log.id}
+                      </td>
                       <td className="px-4 py-3.5">{getActionBadge(log.action)}</td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center gap-1 text-ops-cyan">
-                          <Layers className="h-3.5 w-3.5 opacity-70" />
-                          <span>
-                            {log.target_type} #{log.target_id || '-'}
-                          </span>
-                        </span>
+                      <td className="px-4 py-3.5 text-white font-medium">
+                        {log.target_type} #{log.target_id || '-'}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 text-white">
-                          <User className="h-3 w-3 text-ops-text-muted" />
-                          <span>{log.operator || 'system'}</span>
-                        </span>
+                      <td className="px-4 py-3.5 text-white">{log.operator || 'system'}</td>
+                      <td className="px-4 py-3.5 text-ops-cyan font-mono text-[11px]">
+                        {log.client_ip || '-'}
                       </td>
-                      <td className="px-4 py-3.5 text-ops-text-muted">{log.client_ip || '-'}</td>
                       <td className="px-4 py-3.5">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -626,18 +644,35 @@ export const AuditList: React.FC = () => {
                         {log.details || '-'}
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          aria-label="查看详情"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedLog(log);
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-ops-bg border border-ops-border text-ops-cyan hover:border-ops-cyan transition-colors text-[11px]"
-                        >
-                          <Eye className="h-3 w-3" />
-                          <span>详情</span>
-                        </button>
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            type="button"
+                            aria-label="查看详情"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedLog(log);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-ops-bg border border-ops-border text-ops-cyan hover:border-ops-cyan transition-colors text-[11px]"
+                          >
+                            <Eye className="h-3 w-3" />
+                            <span>详情</span>
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              aria-label="删除审计日志"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLogToDelete(log);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-ops-bg border border-red-500/30 text-red-400 hover:bg-red-950/40 hover:border-red-500 transition-colors text-[11px]"
+                              title="删除该审计日志记录"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span>删除</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -822,7 +857,17 @@ export const AuditList: React.FC = () => {
                   </div>
 
                   {/* Drawer Footer */}
-                  <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex justify-end">
+                  <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex justify-end gap-2">
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setLogToDelete(selectedLog)}
+                        className="px-4 py-2 rounded-lg bg-red-950/30 border border-red-500/40 text-red-400 text-xs font-medium hover:bg-red-900/40 hover:border-red-500 transition-colors inline-flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>删除此记录</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setSelectedLog(null)}
@@ -837,6 +882,20 @@ export const AuditList: React.FC = () => {
           </AnimatePresence>,
           document.body
         )}
+
+      <ConfirmModal
+        visible={!!logToDelete}
+        title="确认删除审计日志"
+        subtitle={`审计日志 #${logToDelete?.id || ''}`}
+        message="删除后该审计记录将永久移除且不可恢复。确定要删除此条审计日志吗？"
+        confirmText="确认删除"
+        variant="danger"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (!isDeleting) setLogToDelete(null);
+        }}
+      />
     </div>
   );
 };

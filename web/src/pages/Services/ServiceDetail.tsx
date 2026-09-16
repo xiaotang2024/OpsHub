@@ -84,6 +84,9 @@ export const ServiceDetail: React.FC = () => {
   const [artifactToDelete, setArtifactToDelete] = useState<{ id: number; filename: string } | null>(null);
   const [isDeletingArtifact, setIsDeletingArtifact] = useState(false);
 
+  const [auditLogToDelete, setAuditLogToDelete] = useState<AuditLog | null>(null);
+  const [isDeletingAuditLog, setIsDeletingAuditLog] = useState(false);
+
   const handleConfirmDeleteArtifact = async () => {
     if (!service || !artifactToDelete) return;
     try {
@@ -96,6 +99,21 @@ export const ServiceDetail: React.FC = () => {
       toast.error(err.message || '删除制品失败');
     } finally {
       setIsDeletingArtifact(false);
+    }
+  };
+
+  const handleConfirmDeleteAuditLog = async () => {
+    if (!auditLogToDelete) return;
+    try {
+      setIsDeletingAuditLog(true);
+      await api.deleteAuditLog(auditLogToDelete.id);
+      toast.success(`审计日志 #${auditLogToDelete.id} 已成功删除`);
+      setAuditLogToDelete(null);
+      loadAuditLogs(auditPage, auditPageSize);
+    } catch (err: any) {
+      toast.error(err.message || '删除审计日志失败');
+    } finally {
+      setIsDeletingAuditLog(false);
     }
   };
   const canConfig = hasPermission('service:config');
@@ -1303,6 +1321,11 @@ export const ServiceDetail: React.FC = () => {
                         <th className="px-4 py-3 bg-ops-bg">状态</th>
                         <th className="px-4 py-3 bg-ops-bg">时间</th>
                         <th className="px-4 py-3 bg-ops-bg">详情说明</th>
+                        {isAdmin && (
+                          <th className="px-4 py-3 bg-ops-bg text-right whitespace-nowrap min-w-[80px]">
+                            操作
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody ref={auditListRef} className="divide-y divide-ops-border text-ops-text-sub">
@@ -1329,6 +1352,20 @@ export const ServiceDetail: React.FC = () => {
                           <td className="px-4 py-3 text-slate-400 truncate max-w-xs" title={log.details}>
                             {log.details}
                           </td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                aria-label="删除服务审计日志"
+                                onClick={() => setAuditLogToDelete(log)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-ops-bg border border-red-500/30 text-red-400 hover:bg-red-950/40 hover:border-red-500 transition-colors text-[11px]"
+                                title="删除该审计日志记录"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span>删除</span>
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1589,6 +1626,22 @@ export const ServiceDetail: React.FC = () => {
         loading={isDeletingArtifact}
         onConfirm={handleConfirmDeleteArtifact}
         onCancel={() => setArtifactToDelete(null)}
+      />
+
+      {/* Delete Audit Log Confirmation Modal */}
+      <ConfirmModal
+        visible={!!auditLogToDelete}
+        title="确认删除审计日志"
+        subtitle={`审计日志 #${auditLogToDelete?.id || ''}`}
+        message="删除后该审计记录将永久移除且不可恢复。确定要删除此条审计日志吗？"
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        loading={isDeletingAuditLog}
+        onConfirm={handleConfirmDeleteAuditLog}
+        onCancel={() => {
+          if (!isDeletingAuditLog) setAuditLogToDelete(null);
+        }}
       />
 
     </div>

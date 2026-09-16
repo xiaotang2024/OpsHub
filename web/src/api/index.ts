@@ -296,6 +296,10 @@ export const api = {
     }
     return res.blob();
   },
+  deleteAuditLog: (id: number) =>
+    request<{ message: string; id: number }>(`/audit-logs/${id}`, {
+      method: 'DELETE',
+    }),
 
   // Auth
   login: (username: string, password: string) =>

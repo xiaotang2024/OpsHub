@@ -171,5 +171,23 @@ describe('User Management API Client', () => {
       })
     );
   });
+
+  it('deleteAuditLog sends DELETE to /api/audit-logs/:id', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ message: 'audit log deleted successfully', id: 101 }),
+    } as Response);
+
+    const res = await api.deleteAuditLog(101);
+    expect(res.message).toBe('audit log deleted successfully');
+    expect(res.id).toBe(101);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/audit-logs/101',
+      expect.objectContaining({
+        method: 'DELETE',
+      })
+    );
+  });
 });
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"opshub/internal/api/middleware"
 	"opshub/internal/config"
 	"opshub/internal/model"
 )
@@ -340,6 +341,41 @@ func (h *SystemHandler) ExportAuditLogs(c *gin.Context) {
 		})
 	}
 	csvWriter.Flush()
+}
+
+// DeleteAuditLog deletes a specific audit log by its ID. Restricted to admin role.
+// DELETE /api/audit-logs/:id
+func (h *SystemHandler) DeleteAuditLog(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid audit log id"})
+		return
+	}
+
+	var existsID int64
+	err = h.db.QueryRowContext(c.Request.Context(), "SELECT id FROM audit_logs WHERE id = ?", id).Scan(&existsID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "audit log not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check audit log existence"})
+		return
+	}
+
+	middleware.SetAudit(c, "DELETE_AUDIT_LOG", "audit_log", idStr, fmt.Sprintf("Deleted audit log record #%d", id))
+
+	_, err = h.db.ExecContext(c.Request.Context(), "DELETE FROM audit_logs WHERE id = ?", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete audit log"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "audit log deleted successfully",
+		"id":      id,
+	})
 }
 
 func getDiskUsage(path string) (uint64, uint64) {
