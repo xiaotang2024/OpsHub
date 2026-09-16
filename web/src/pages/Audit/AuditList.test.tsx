@@ -263,5 +263,31 @@ describe('AuditList Component', () => {
 
     clickSpy.mockRestore();
   });
+
+  it('renders detail drawer inside portal with backdrop overlay and closes on backdrop click', async () => {
+    render(<AuditList />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/order-center/i)).toBeInTheDocument();
+    });
+
+    const viewDetailBtn = screen.getAllByRole('button', { name: /查看详情/i })[0];
+    fireEvent.click(viewDetailBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/审计详情/i)).toBeInTheDocument();
+    });
+
+    // Verify backdrop overlay exists with z-50 fixed inset-0
+    const backdrop = document.querySelector('.fixed.inset-0.z-50');
+    expect(backdrop).toBeInTheDocument();
+
+    // Clicking the backdrop closes the drawer
+    fireEvent.click(backdrop!);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/审计详情/i)).not.toBeInTheDocument();
+    });
+  });
 });
 

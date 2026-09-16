@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ShieldCheck,
@@ -702,142 +703,140 @@ export const AuditList: React.FC = () => {
       </div>
 
       {/* Detail Slide-Over Drawer */}
-      <AnimatePresence>
-        {selectedLog && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedLog(null)}
-              className="fixed inset-0 bg-slate-950/45 backdrop-blur-md z-40"
-            />
-
-            {/* Drawer */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-ops-surface text-ops-text-main border-l border-ops-border shadow-2xl z-50 flex flex-col font-mono text-xs"
-            >
-              {/* Drawer Header */}
-              <div className="p-5 border-b border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-950/60 border border-ops-cyan/40 text-ops-cyan">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white tracking-wide">
-                      审计详情 #{selectedLog.id}
-                    </h3>
-                    <p className="text-[11px] text-ops-text-muted">
-                      记录不可篡改审计追踪明细
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedLog(null)}
-                  className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {selectedLog && (
+              <div
+                className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-md cursor-pointer"
+                onClick={() => setSelectedLog(null)}
+              >
+                <motion.div
+                  onClick={(e) => e.stopPropagation()}
+                  initial={{ opacity: 0, x: 400 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 400 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="relative w-full max-w-lg h-screen min-h-screen bg-ops-surface text-ops-text-main border-l border-ops-border shadow-2xl flex flex-col font-mono text-xs overflow-hidden cursor-default"
                 >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+                  {/* Drawer Header */}
+                  <div className="p-5 border-b border-ops-border bg-ops-bg/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-950/60 border border-ops-cyan/40 text-ops-cyan">
+                        <ShieldCheck className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white tracking-wide">
+                          审计详情 #{selectedLog.id}
+                        </h3>
+                        <p className="text-[11px] text-ops-text-muted">
+                          记录不可篡改审计追踪明细
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                {/* Meta Grid */}
-                <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-ops-border bg-ops-bg/60">
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">操作动作</span>
-                    <div className="mt-1">{getActionBadge(selectedLog.action)}</div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">执行结果</span>
-                    <span
-                      className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
-                        selectedLog.status?.toUpperCase() === 'SUCCESS'
-                          ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
-                          : 'bg-rose-950/60 text-rose-400 border-rose-500/40'
-                      }`}
-                    >
-                      {selectedLog.status}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">操作人</span>
-                    <span className="text-white font-bold block mt-1">
-                      {selectedLog.operator || 'system'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">来源 IP</span>
-                    <span className="text-ops-cyan block mt-1">
-                      {selectedLog.client_ip || '-'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">目标资源</span>
-                    <span className="text-white block mt-1">
-                      {selectedLog.target_type} #{selectedLog.target_id || '-'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] uppercase text-ops-text-muted block">记录时间</span>
-                    <span className="text-ops-text-sub block mt-1">
-                      {new Date(selectedLog.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Details Content Box */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      操作详情 / Output Details
-                    </span>
                     <button
                       type="button"
-                      onClick={() => handleCopyDetail(selectedLog.details)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-ops-surface border border-ops-border text-ops-text-muted hover:text-white transition-colors text-[11px]"
+                      onClick={() => setSelectedLog(null)}
+                      className="p-1.5 rounded-lg text-ops-text-muted hover:text-white hover:bg-ops-surface transition-colors"
                     >
-                      {copiedDetail ? (
-                        <Check className="h-3 w-3 text-emerald-400" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                      <span>{copiedDetail ? '已复制' : '复制详情'}</span>
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-ops-border bg-ops-bg text-ops-text-main font-mono text-xs whitespace-pre-wrap break-all leading-relaxed max-h-[360px] overflow-y-auto selection:bg-cyan-950 selection:text-ops-cyan">
-                    {selectedLog.details || '（无附加详情文本）'}
-                  </div>
-                </div>
-              </div>
+                  {/* Drawer Body */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    {/* Meta Grid */}
+                    <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-ops-border bg-ops-bg/60">
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">操作动作</span>
+                        <div className="mt-1">{getActionBadge(selectedLog.action)}</div>
+                      </div>
 
-              {/* Drawer Footer */}
-              <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setSelectedLog(null)}
-                  className="px-4 py-2 rounded-lg bg-ops-surface border border-ops-border text-ops-text-main text-xs font-medium hover:border-ops-border-hover transition-colors"
-                >
-                  关闭
-                </button>
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">执行结果</span>
+                        <span
+                          className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            selectedLog.status?.toUpperCase() === 'SUCCESS'
+                              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
+                              : 'bg-rose-950/60 text-rose-400 border-rose-500/40'
+                          }`}
+                        >
+                          {selectedLog.status}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">操作人</span>
+                        <span className="text-white font-bold block mt-1">
+                          {selectedLog.operator || 'system'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">来源 IP</span>
+                        <span className="text-ops-cyan block mt-1">
+                          {selectedLog.client_ip || '-'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">目标资源</span>
+                        <span className="text-white block mt-1">
+                          {selectedLog.target_type} #{selectedLog.target_id || '-'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] uppercase text-ops-text-muted block">记录时间</span>
+                        <span className="text-ops-text-sub block mt-1">
+                          {new Date(selectedLog.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Details Content Box */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                          操作详情 / Output Details
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyDetail(selectedLog.details)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-ops-surface border border-ops-border text-ops-text-muted hover:text-white transition-colors text-[11px]"
+                        >
+                          {copiedDetail ? (
+                            <Check className="h-3 w-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          <span>{copiedDetail ? '已复制' : '复制详情'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl border border-ops-border bg-ops-bg text-ops-text-main font-mono text-xs whitespace-pre-wrap break-all leading-relaxed max-h-[360px] overflow-y-auto selection:bg-cyan-950 selection:text-ops-cyan">
+                        {selectedLog.details || '（无附加详情文本）'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Drawer Footer */}
+                  <div className="p-4 border-t border-ops-border bg-ops-bg/80 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLog(null)}
+                      className="px-4 py-2 rounded-lg bg-ops-surface border border-ops-border text-ops-text-main text-xs font-medium hover:border-ops-border-hover transition-colors"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          </>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   );
 };
