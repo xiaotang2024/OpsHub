@@ -78,17 +78,49 @@ export const ThemePicker: React.FC = () => {
     themeTransitionTimeoutRef.current = window.setTimeout(() => {
       root.classList.remove('theme-switching');
       themeTransitionTimeoutRef.current = null;
-    }, 300);
+    }, 280);
   };
 
   const applyTheme = (themeId: ThemeId) => {
-    setCurrentTheme(themeId);
-    if (typeof window !== 'undefined') {
-      startThemeTransition();
+    if (typeof window === 'undefined') return;
+
+    const commitThemeChange = () => {
+      setCurrentTheme(themeId);
       document.documentElement.setAttribute('data-theme', themeId);
       document.body.setAttribute('data-theme', themeId);
       localStorage.setItem('opshub_theme', themeId);
       window.dispatchEvent(new CustomEvent('opshub:theme-changed', { detail: { theme: themeId } }));
+    };
+
+    startThemeTransition();
+
+    // Hardware-accelerated View Transitions API (Chrome 111+, Safari 18+)
+    if (
+      'startViewTransition' in document &&
+      typeof (document as any).startViewTransition === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      document.documentElement.classList.add('view-transitioning');
+      try {
+        const transition = (document as any).startViewTransition(() => {
+          commitThemeChange();
+        });
+
+        if (transition && typeof transition.finished?.then === 'function') {
+          transition.finished
+            .catch(() => {})
+            .finally(() => {
+              document.documentElement.classList.remove('view-transitioning');
+            });
+        } else {
+          document.documentElement.classList.remove('view-transitioning');
+        }
+      } catch {
+        document.documentElement.classList.remove('view-transitioning');
+        commitThemeChange();
+      }
+    } else {
+      commitThemeChange();
     }
   };
 
@@ -98,6 +130,7 @@ export const ThemePicker: React.FC = () => {
         window.clearTimeout(themeTransitionTimeoutRef.current);
       }
       document.documentElement.classList.remove('theme-switching');
+      document.documentElement.classList.remove('view-transitioning');
     };
   }, []);
 

@@ -165,7 +165,7 @@ export const AuditList: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const dateStr = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+      const dateStr = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
       a.download = `OpsHub_AuditLogs_${dateStr}.csv`;
       document.body.appendChild(a);
       a.click();

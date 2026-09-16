@@ -78,29 +78,107 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  /* Smooth transition on theme switch */
+  /* Smooth transition on theme switch:
+     Target key layout surfaces and containers. Avoid universal '*' and 'box-shadow'
+     which trigger heavy CPU rasterization, SVG re-layouts, and visible stutter. */
   body, aside, header, main {
-    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Apply a short transition window to all theme-driven colors. Keeping this
-     behind a temporary class avoids changing the behavior of normal UI
-     interactions and motion animations. */
-  html.theme-switching,
-  html.theme-switching *,
-  html.theme-switching *::before,
-  html.theme-switching *::after {
-    transition-property: background-color, border-color, color, box-shadow, fill, stroke !important;
-    transition-duration: 0.28s !important;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
+  html.theme-switching body,
+  html.theme-switching aside,
+  html.theme-switching header,
+  html.theme-switching main,
+  html.theme-switching nav,
+  html.theme-switching footer,
+  html.theme-switching [class*="bg-ops-"],
+  html.theme-switching [class*="border-ops-"],
+  html.theme-switching [class*="text-ops-"],
+  html.theme-switching [class*="bg-cyan-"],
+  html.theme-switching [class*="border-cyan-"],
+  html.theme-switching [class*="text-cyan-"],
+  html.theme-switching [class*="bg-emerald-"],
+  html.theme-switching [class*="text-emerald-"],
+  html.theme-switching [class*="bg-amber-"],
+  html.theme-switching [class*="text-amber-"],
+  html.theme-switching [class*="bg-red-"],
+  html.theme-switching [class*="text-red-"],
+  html.theme-switching [class*="bg-rose-"],
+  html.theme-switching [class*="text-rose-"],
+  html.theme-switching [class*="bg-purple-"],
+  html.theme-switching [class*="text-purple-"],
+  html.theme-switching [class*="bg-yellow-"],
+  html.theme-switching [class*="text-yellow-"],
+  html.theme-switching .glass-panel,
+  html.theme-switching table,
+  html.theme-switching th,
+  html.theme-switching td,
+  html.theme-switching tr,
+  html.theme-switching input,
+  html.theme-switching select,
+  html.theme-switching textarea,
+  html.theme-switching button {
+    transition-property: background-color, border-color, color !important;
+    transition-duration: 0.2s !important;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* During native view transitions, disable individual CSS transitions so the GPU cross-fade captures the clean target state */
+  html.view-transitioning,
+  html.view-transitioning *,
+  html.view-transitioning *::before,
+  html.view-transitioning *::after {
+    transition: none !important;
+  }
+
+  /* Hardware-accelerated theme transition via View Transitions API */
+  ::view-transition-group(root) {
+    animation-duration: 0.22s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.22s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-old(root) {
+    animation-name: opshub-theme-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: opshub-theme-fade-in;
+  }
+
+  @keyframes opshub-theme-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes opshub-theme-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     html.theme-switching,
-    html.theme-switching *,
-    html.theme-switching *::before,
-    html.theme-switching *::after {
+    html.theme-switching * {
       transition-duration: 0.01ms !important;
+    }
+    ::view-transition-group(root),
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none !important;
     }
   }
 
