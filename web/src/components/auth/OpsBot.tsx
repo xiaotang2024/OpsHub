@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { motion } from 'motion/react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(useGSAP);
 
 export interface OpsBotProps {
   isPasswordFocused?: boolean;
@@ -17,34 +21,54 @@ export const OpsBot: React.FC<OpsBotProps> = ({
   hasError = false,
 }) => {
   const botRef = useRef<HTMLDivElement | null>(null);
-  const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
+  const leftEyeRef = useRef<HTMLDivElement | null>(null);
+  const rightEyeRef = useRef<HTMLDivElement | null>(null);
 
-  // Track mouse position to make eyes follow the cursor
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isPasswordFocused || isLoading || isSuccess || !botRef.current) return;
+  // High-performance GSAP quickTo tracking: avoids 60fps React re-renders on mousemove
+  useGSAP(
+    () => {
+      if (!leftEyeRef.current || !rightEyeRef.current) return;
 
-      const rect = botRef.current.getBoundingClientRect();
-      const botCenterX = rect.left + rect.width / 2;
-      const botCenterY = rect.top + rect.height / 2;
+      const xToLeft = gsap.quickTo(leftEyeRef.current, 'x', { duration: 0.25, ease: 'power2.out' });
+      const yToLeft = gsap.quickTo(leftEyeRef.current, 'y', { duration: 0.25, ease: 'power2.out' });
+      const xToRight = gsap.quickTo(rightEyeRef.current, 'x', { duration: 0.25, ease: 'power2.out' });
+      const yToRight = gsap.quickTo(rightEyeRef.current, 'y', { duration: 0.25, ease: 'power2.out' });
 
-      const deltaX = e.clientX - botCenterX;
-      const deltaY = e.clientY - botCenterY;
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      const handleMouseMove = (e: MouseEvent) => {
+        if (isPasswordFocused || isLoading || isSuccess || !botRef.current) return;
 
-      if (distance === 0) return;
+        const rect = botRef.current.getBoundingClientRect();
+        const botCenterX = rect.left + rect.width / 2;
+        const botCenterY = rect.top + rect.height / 2;
 
-      // Max eye pupil shift is 5 pixels
-      const maxShift = 4.5;
-      const shiftX = Math.min(Math.max((deltaX / distance) * maxShift, -maxShift), maxShift);
-      const shiftY = Math.min(Math.max((deltaY / distance) * maxShift, -maxShift), maxShift);
+        const deltaX = e.clientX - botCenterX;
+        const deltaY = e.clientY - botCenterY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-      setEyeOffset({ x: shiftX, y: shiftY });
-    };
+        if (distance === 0) return;
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isPasswordFocused, isLoading, isSuccess]);
+        const maxShift = 4.5;
+        const shiftX = Math.min(Math.max((deltaX / distance) * maxShift, -maxShift), maxShift);
+        const shiftY = Math.min(Math.max((deltaY / distance) * maxShift, -maxShift), maxShift);
+
+        xToLeft(shiftX);
+        yToLeft(shiftY);
+        xToRight(shiftX);
+        yToRight(shiftY);
+      };
+
+      if (isPasswordFocused) {
+        xToLeft(0);
+        yToLeft(0);
+        xToRight(0);
+        yToRight(0);
+      }
+
+      window.addEventListener('mousemove', handleMouseMove);
+      return () => window.removeEventListener('mousemove', handleMouseMove);
+    },
+    { dependencies: [isPasswordFocused, isLoading, isSuccess], scope: botRef }
+  );
 
   // Determine eye expression
   const renderEyes = () => {
@@ -86,23 +110,21 @@ export const OpsBot: React.FC<OpsBotProps> = ({
       );
     }
 
-    // Normal tracking eyes
+    // Normal tracking eyes (GSAP quickTo targets)
     return (
       <div className="flex items-center justify-center gap-4">
         {/* Left Eye */}
         <div className="relative flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-950/80 border border-ops-cyan/30">
-          <motion.div
-            animate={{ x: eyeOffset.x, y: eyeOffset.y }}
-            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          <div
+            ref={leftEyeRef}
             className="h-2 w-2 rounded-full bg-ops-cyan shadow-[0_0_6px_#06B6D4]"
           />
         </div>
 
         {/* Right Eye */}
         <div className="relative flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-950/80 border border-ops-cyan/30">
-          <motion.div
-            animate={{ x: eyeOffset.x, y: eyeOffset.y }}
-            transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+          <div
+            ref={rightEyeRef}
             className="h-2 w-2 rounded-full bg-ops-cyan shadow-[0_0_6px_#06B6D4]"
           />
         </div>

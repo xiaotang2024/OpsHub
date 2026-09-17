@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import gsap from 'gsap';
 import { cn } from '../../utils/cn';
 
 export interface InteractiveHoverButtonProps
@@ -12,13 +13,37 @@ export interface InteractiveHoverButtonProps
 export const InteractiveHoverButton = React.forwardRef<
   HTMLButtonElement,
   InteractiveHoverButtonProps
->(({ text, icon, loading = false, className, disabled, children, ...props }, ref) => {
+>(({ text, icon, loading = false, className, disabled, children, onMouseDown, onMouseUp, onMouseLeave, ...props }, ref) => {
   const displayText = text || (typeof children === 'string' ? children : '确认提交');
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading) {
+      gsap.to(e.currentTarget, { scale: 0.97, duration: 0.1, ease: 'power2.out' });
+    }
+    onMouseDown?.(e);
+  };
+
+  const handleMouseUp = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading) {
+      gsap.to(e.currentTarget, { scale: 1, duration: 0.25, ease: 'back.out(2)' });
+    }
+    onMouseUp?.(e);
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading) {
+      gsap.to(e.currentTarget, { scale: 1, duration: 0.2, ease: 'power2.out' });
+    }
+    onMouseLeave?.(e);
+  };
 
   return (
     <button
       ref={ref}
       disabled={disabled || loading}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
       className={cn(
         'group relative w-full cursor-pointer overflow-hidden rounded-xl border border-ops-border bg-ops-surface px-6 py-2.5 text-center text-sm font-medium text-white transition-all duration-300 shadow-md hover:border-ops-cyan/60 hover:shadow-lg hover:shadow-ops-cyan/20 disabled:cursor-not-allowed disabled:opacity-50',
         className

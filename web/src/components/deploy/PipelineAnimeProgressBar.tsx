@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Clock, Heart, Zap, AlertTriangle, PartyPopper } from 'lucide-react';
 
@@ -84,6 +86,29 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
 
   const isFailed = Boolean(error);
 
+  const speechBubbleRef = useRef<HTMLDivElement>(null);
+  const percentBadgeRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (speechBubbleRef.current) {
+      gsap.fromTo(
+        speechBubbleRef.current,
+        { scale: 0.94, opacity: 0.85 },
+        { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.7)', clearProps: 'transform,opacity' }
+      );
+    }
+  }, { dependencies: [activeStep, error], revertOnUpdate: true });
+
+  useGSAP(() => {
+    if (percentBadgeRef.current) {
+      gsap.fromTo(
+        percentBadgeRef.current,
+        { scale: 1.18 },
+        { scale: 1, duration: 0.3, ease: 'power2.out', clearProps: 'transform' }
+      );
+    }
+  }, { dependencies: [percent], revertOnUpdate: true });
+
   return (
     <motion.div
       data-testid="pipeline-anime-progress-bar"
@@ -156,6 +181,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
       <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         {/* Cute Speech Bubble from Ops-Chan */}
         <div
+          ref={speechBubbleRef}
           data-testid="anime-speech-bubble"
           className="flex items-center gap-2 rounded-lg border border-ops-border/80 bg-slate-900/90 px-2.5 py-1.5 shadow-md backdrop-blur-sm max-w-full"
         >
@@ -189,6 +215,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
           {/* Animated Mascot Badge */}
           <div
+            ref={percentBadgeRef}
             data-testid="anime-percent-badge"
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-black shadow-md transition-colors ${
               isFailed

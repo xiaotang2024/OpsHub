@@ -58,3 +58,23 @@ if (typeof Element !== 'undefined' && !Element.prototype.animate) {
   } as any);
 }
 
+// JSDOM getComputedStyle transform fallback for GSAP
+if (typeof window !== 'undefined' && window.getComputedStyle) {
+  const originalGetComputedStyle = window.getComputedStyle;
+  window.getComputedStyle = function (elt: Element, pseudoElt?: string | null) {
+    const style = originalGetComputedStyle.call(this, elt, pseudoElt);
+    const origGetPropertyValue = style.getPropertyValue.bind(style);
+    style.getPropertyValue = function (prop: string) {
+      if (prop === 'transform') {
+        const val = origGetPropertyValue('transform');
+        if (!val || val === 'none' || !val.startsWith('matrix')) {
+          return 'matrix(1, 0, 0, 1, 0, 0)';
+        }
+        return val;
+      }
+      return origGetPropertyValue(prop);
+    };
+    return style;
+  };
+}
+

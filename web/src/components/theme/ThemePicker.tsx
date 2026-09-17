@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Palette, Check } from 'lucide-react';
 
@@ -65,7 +67,21 @@ export const ThemePicker: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const optionsListRef = useRef<HTMLDivElement>(null);
   const themeTransitionTimeoutRef = useRef<number | null>(null);
+
+  useGSAP(() => {
+    if (isOpen && optionsListRef.current) {
+      gsap.from(optionsListRef.current.children, {
+        y: 6,
+        opacity: 0,
+        duration: 0.2,
+        stagger: 0.04,
+        ease: 'power2.out',
+        clearProps: 'all',
+      });
+    }
+  }, { dependencies: [isOpen], scope: optionsListRef });
 
   const startThemeTransition = () => {
     const root = document.documentElement;
@@ -197,7 +213,7 @@ export const ThemePicker: React.FC = () => {
               <span className="text-[10px] font-mono text-ops-cyan">{THEME_OPTIONS.length} 种配色</span>
             </div>
 
-            <div className="space-y-1">
+            <div ref={optionsListRef} className="space-y-1">
               {THEME_OPTIONS.map((theme) => {
                 const isSelected = theme.id === currentTheme;
                 return (

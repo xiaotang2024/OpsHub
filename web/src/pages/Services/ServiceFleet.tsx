@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Layers,
@@ -73,6 +75,20 @@ export const ServiceFleet: React.FC = () => {
   const [jdks, setJdks] = useState<JDKAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const statsContainerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!statsContainerRef.current) return;
+    gsap.from(statsContainerRef.current.children, {
+      y: 12,
+      opacity: 0,
+      duration: 0.4,
+      stagger: 0.06,
+      ease: 'power2.out',
+      clearProps: 'all',
+    });
+  }, { scope: statsContainerRef });
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -600,7 +616,7 @@ export const ServiceFleet: React.FC = () => {
       </div>
 
       {/* Fleet Health Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div ref={statsContainerRef} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div
           onClick={() => setStatusFilter('ALL')}
           className={`cursor-pointer rounded-xl border p-3.5 transition-all ${

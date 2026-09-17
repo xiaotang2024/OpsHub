@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+import gsap from 'gsap';
+
 export interface PupilProps {
   size?: number;
   maxDistance?: number;
@@ -160,17 +162,27 @@ export const AnimatedCharacters: React.FC<AnimatedCharactersProps> = ({
   const [isPurplePeeking, setIsPurplePeeking] = useState(false);
   const [bouncingIndex, setBouncingIndex] = useState<number | null>(null);
 
+  const purpleRef = useRef<HTMLDivElement>(null);
+  const blackRef = useRef<HTMLDivElement>(null);
+  const orangeRef = useRef<HTMLDivElement>(null);
+  const yellowRef = useRef<HTMLDivElement>(null);
+
+  const characterRefs = [purpleRef, blackRef, orangeRef, yellowRef];
+
   const handleCharDoubleClick = (index: 0 | 1 | 2 | 3, e: React.MouseEvent) => {
     e.stopPropagation();
+    const target = characterRefs[index]?.current;
+    if (target) {
+      gsap.killTweensOf(target);
+      gsap.timeline()
+        .to(target, { scaleY: 0.88, scaleX: 1.12, duration: 0.1, ease: 'power2.out' })
+        .to(target, { y: -24, scaleY: 1.08, scaleX: 0.94, duration: 0.18, ease: 'power2.out' })
+        .to(target, { y: 0, scaleY: 1, scaleX: 1, duration: 0.25, ease: 'bounce.out' });
+    }
     setBouncingIndex(index);
     setTimeout(() => setBouncingIndex(null), 350);
     onCharacterDoubleClick?.(index);
   };
-
-  const purpleRef = useRef<HTMLDivElement>(null);
-  const blackRef = useRef<HTMLDivElement>(null);
-  const yellowRef = useRef<HTMLDivElement>(null);
-  const orangeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
