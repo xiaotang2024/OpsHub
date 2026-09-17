@@ -20,6 +20,7 @@ const (
 	AuditTargetIDKey   = "audit_target_id"
 	AuditDetailsKey    = "audit_details"
 	AuditStatusKey     = "audit_status"
+	AuditSkipKey       = "audit_skip"
 )
 
 // SetAudit allows handlers to attach detailed audit context to the current request.
@@ -36,6 +37,11 @@ func SetAudit(c *gin.Context, action, targetType, targetID, details string) {
 	if details != "" {
 		c.Set(AuditDetailsKey, details)
 	}
+}
+
+// SkipAudit marks the current request to be skipped by AuditMiddleware, preventing any audit record from being created.
+func SkipAudit(c *gin.Context) {
+	c.Set(AuditSkipKey, true)
 }
 
 // SetAuditStatus explicitly sets the final audit outcome status (e.g. model.DeployStatusSuccess or model.DeployStatusFailed).
@@ -59,6 +65,15 @@ func AuditMiddleware(db *sql.DB) gin.HandlerFunc {
 		c.Next()
 
 		if db == nil {
+			return
+		}
+
+		if c.GetBool(AuditSkipKey) {
+			return
+		}
+
+		// Explicit safeguard: direct operations on audit logs must never recursively generate audit records
+		if strings.HasPrefix(c.Request.URL.Path, "/api/audit-logs") {
 			return
 		}
 

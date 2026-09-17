@@ -346,6 +346,8 @@ func (h *SystemHandler) ExportAuditLogs(c *gin.Context) {
 // DeleteAuditLog deletes a specific audit log by its ID. Restricted to admin role.
 // DELETE /api/audit-logs/:id
 func (h *SystemHandler) DeleteAuditLog(c *gin.Context) {
+	middleware.SkipAudit(c)
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
@@ -363,8 +365,6 @@ func (h *SystemHandler) DeleteAuditLog(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check audit log existence"})
 		return
 	}
-
-	middleware.SetAudit(c, "DELETE_AUDIT_LOG", "audit_log", idStr, fmt.Sprintf("Deleted audit log record #%d", id))
 
 	_, err = h.db.ExecContext(c.Request.Context(), "DELETE FROM audit_logs WHERE id = ?", id)
 	if err != nil {

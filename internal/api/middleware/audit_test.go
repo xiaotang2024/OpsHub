@@ -177,3 +177,39 @@ func TestAuditMiddleware_ClientDisconnectedContext(t *testing.T) {
 	assert.Equal(t, 1, count, "audit log must be recorded even if client request context was canceled")
 }
 
+func TestAuditMiddleware_SkipAudit(t *testing.T) {
+	db := setupAuditDB(t)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("username", "admin_user")
+		c.Next()
+	})
+	r.Use(middleware.AuditMiddleware(db))
+
+	r.DELETE("/api/audit-logs/:id", func(c *gin.Context) {
+		middleware.SkipAudit(c)
+		c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	})
+
+	r.POST("/api/custom-skip", func(c *gin.Context) {
+		middleware.SkipAudit(c)
+		c.JSON(http.StatusOK, gin.H{"message": "skipped"})
+	})
+
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest(http.MethodDelete, "/api/audit-logs/128", nil)
+	r.ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusOK, w1.Code)
+
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest(http.MethodPost, "/api/custom-skip", nil)
+	r.ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusOK, w2.Code)
+
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "skipped requests must not produce audit records")
+}
+

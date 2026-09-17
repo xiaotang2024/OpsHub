@@ -272,6 +272,10 @@ func TestRouter_SystemMetricsAndAuditLogs(t *testing.T) {
 	delID, err := res.LastInsertId()
 	require.NoError(t, err)
 
+	var countBefore int
+	err = f.db.QueryRow(`SELECT COUNT(*) FROM audit_logs`).Scan(&countBefore)
+	require.NoError(t, err)
+
 	// Admin deletes audit log -> 200 OK
 	wDel := doRequest(f.router, "DELETE", fmt.Sprintf("/api/audit-logs/%d", delID), f.token, nil)
 	assert.Equal(t, http.StatusOK, wDel.Code)
@@ -280,6 +284,17 @@ func TestRouter_SystemMetricsAndAuditLogs(t *testing.T) {
 	var checkID int64
 	err = f.db.QueryRow(`SELECT id FROM audit_logs WHERE id = ?`, delID).Scan(&checkID)
 	assert.Equal(t, sql.ErrNoRows, err)
+
+	// Verify total count strictly decreased by 1 and deletion itself was not recorded in audit_logs
+	var countAfter int
+	err = f.db.QueryRow(`SELECT COUNT(*) FROM audit_logs`).Scan(&countAfter)
+	require.NoError(t, err)
+	assert.Equal(t, countBefore-1, countAfter, "deleting an audit log must decrement total count without self-logging")
+
+	var selfAuditCount int
+	err = f.db.QueryRow(`SELECT COUNT(*) FROM audit_logs WHERE target_type = 'audit_log' OR action = 'DELETE_AUDIT_LOG'`).Scan(&selfAuditCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, selfAuditCount, "deleting an audit log must never create a recursive audit log entry")
 
 	// Deleting again -> 404
 	wDelNotFound := doRequest(f.router, "DELETE", fmt.Sprintf("/api/audit-logs/%d", delID), f.token, nil)

@@ -222,7 +222,11 @@ export const AuditList: React.FC = () => {
         setSelectedLog(null);
       }
       setLogToDelete(null);
-      fetchLogs();
+      if (logs.length === 1 && page > 1) {
+        setPage((prev) => prev - 1);
+      } else {
+        fetchLogs();
+      }
     } catch (err: any) {
       toast.error(err.message || '删除审计日志失败');
     } finally {

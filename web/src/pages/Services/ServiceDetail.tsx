@@ -109,7 +109,12 @@ export const ServiceDetail: React.FC = () => {
       await api.deleteAuditLog(auditLogToDelete.id);
       toast.success(`审计日志 #${auditLogToDelete.id} 已成功删除`);
       setAuditLogToDelete(null);
-      loadAuditLogs(auditPage, auditPageSize);
+      if (auditLogs.length === 1 && auditPage > 1) {
+        setAuditPage((prev) => prev - 1);
+        loadAuditLogs(auditPage - 1, auditPageSize);
+      } else {
+        loadAuditLogs(auditPage, auditPageSize);
+      }
     } catch (err: any) {
       toast.error(err.message || '删除审计日志失败');
     } finally {
