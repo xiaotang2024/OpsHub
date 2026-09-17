@@ -591,15 +591,15 @@ export const AuditList: React.FC = () => {
             <table className="w-full text-left text-xs font-mono">
               <thead className="sticky top-0 z-10 border-b border-ops-border bg-ops-card/95 backdrop-blur-sm text-ops-text-muted uppercase text-[11px] shadow-sm">
                 <tr>
-                  <th className="px-4 py-3.5 bg-ops-card/95">序号</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">操作动作</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">目标对象</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">操作人</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">客户端 IP</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">执行结果</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">记录时间</th>
-                  <th className="px-4 py-3.5 bg-ops-card/95">详情摘要</th>
-                  <th className={`px-4 py-3.5 text-right bg-ops-card/95 whitespace-nowrap ${isAdmin ? 'min-w-[130px]' : 'min-w-[80px]'}`}>操作</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">序号</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">操作动作</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">目标对象</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">操作人</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">客户端 IP</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">执行结果</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95">记录时间</th>
+                  <th className="px-3.5 py-3.5 bg-ops-card/95 max-w-[160px]">详情摘要</th>
+                  <th className={`px-3.5 py-3.5 text-right bg-ops-card/95 whitespace-nowrap ${isAdmin ? 'min-w-[130px]' : 'min-w-[80px]'}`}>操作</th>
                 </tr>
               </thead>
               <tbody ref={auditListRef} className="divide-y divide-ops-border/70 text-ops-text-sub">
@@ -611,18 +611,18 @@ export const AuditList: React.FC = () => {
                       onClick={() => setSelectedLog(log)}
                       className="hover:bg-ops-surface/60 transition-colors cursor-pointer group"
                     >
-                      <td className="px-4 py-3.5 text-white font-semibold">
+                      <td className="px-3.5 py-3.5 text-white font-semibold">
                         #{log.id}
                       </td>
-                      <td className="px-4 py-3.5">{getActionBadge(log.action)}</td>
-                      <td className="px-4 py-3.5 text-white font-medium">
+                      <td className="px-3.5 py-3.5">{getActionBadge(log.action)}</td>
+                      <td className="px-3.5 py-3.5 text-white font-medium">
                         {log.target_type} #{log.target_id || '-'}
                       </td>
-                      <td className="px-4 py-3.5 text-white">{log.operator || 'system'}</td>
-                      <td className="px-4 py-3.5 text-ops-cyan font-mono text-[11px]">
+                      <td className="px-3.5 py-3.5 text-white">{log.operator || 'system'}</td>
+                      <td className="px-3.5 py-3.5 text-ops-cyan font-mono text-[11px]">
                         {log.client_ip || '-'}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3.5 py-3.5">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
                             isSuccess
@@ -638,16 +638,16 @@ export const AuditList: React.FC = () => {
                           <span>{log.status || 'UNKNOWN'}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-ops-text-muted whitespace-nowrap">
+                      <td className="px-3.5 py-3.5 text-ops-text-muted whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td
-                        className="px-4 py-3.5 text-slate-300 max-w-xs truncate"
+                        className="px-3.5 py-3.5 text-slate-300 max-w-[160px]"
                         title={log.details}
                       >
-                        {log.details || '-'}
+                        <div className="max-w-[160px] truncate">{log.details || '-'}</div>
                       </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <td className="px-3.5 py-3.5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 justify-end">
                           <button
                             type="button"

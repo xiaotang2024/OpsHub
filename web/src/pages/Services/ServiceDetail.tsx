@@ -1325,7 +1325,7 @@ export const ServiceDetail: React.FC = () => {
                         <th className="px-4 py-3 bg-ops-bg">来源 IP</th>
                         <th className="px-4 py-3 bg-ops-bg">状态</th>
                         <th className="px-4 py-3 bg-ops-bg">时间</th>
-                        <th className="px-4 py-3 bg-ops-bg">详情说明</th>
+                        <th className="px-4 py-3 bg-ops-bg max-w-[160px]">详情说明</th>
                         {isAdmin && (
                           <th className="px-4 py-3 bg-ops-bg text-right whitespace-nowrap min-w-[80px]">
                             操作
@@ -1354,8 +1354,8 @@ export const ServiceDetail: React.FC = () => {
                           <td className="px-4 py-3 text-ops-text-muted">
                             {new Date(log.created_at).toLocaleString()}
                           </td>
-                          <td className="px-4 py-3 text-slate-400 truncate max-w-xs" title={log.details}>
-                            {log.details}
+                          <td className="px-4 py-3 text-slate-400 max-w-[160px]" title={log.details}>
+                            <div className="truncate max-w-[160px]">{log.details}</div>
                           </td>
                           {isAdmin && (
                             <td className="px-4 py-3 text-right whitespace-nowrap">
