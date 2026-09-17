@@ -343,7 +343,9 @@
 [data-theme="tactical-light"] [class*="bg-rose-950"] {
   background-color: rgba(244, 63, 94, 0.12) !important;
 }
-[data-theme="tactical-light"] [class*="text-rose-400"] {
+[data-theme="tactical-light"] [class*="text-rose-400"],
+[data-theme="tactical-light"] [class*="text-rose-300"],
+[data-theme="tactical-light"] [class*="text-rose-200"] {
   color: #be123c !important;
 }
 [data-theme="tactical-light"] [class*="border-rose-500"] {
@@ -497,3 +499,45 @@
   color: #0F172A !important;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
 }
+
+/* =========================================================
+   Pipeline Anime Progress Bar Adaptive Theme Styling
+   ========================================================= */
+/* Tactical Light Mode overrides */
+[data-theme="tactical-light"] [data-testid="anime-progress-track"] {
+  background-color: #EEF2F6 !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="tactical-light"] .anime-candy-stripes {
+  opacity: 0.07 !important;
+  background-image: repeating-linear-gradient(45deg, #0F172A 0, #0F172A 10px, transparent 10px, transparent 20px) !important;
+}
+
+[data-theme="tactical-light"] [data-testid="anime-progress-fill"]:not([class*="from-rose"]):not([class*="from-emerald"]) {
+  background: linear-gradient(90deg, #00687A 0%, #0891B2 50%, #00687A 100%) !important;
+  box-shadow: 0 0 12px rgba(0, 104, 122, 0.4) !important;
+}
+
+/* Purple Tea Mode overrides */
+[data-theme="purple-tea"] [data-testid="anime-progress-track"] {
+  background-color: #181523 !important;
+  border-color: #606165 !important;
+}
+
+[data-theme="purple-tea"] [data-testid="anime-progress-fill"]:not([class*="from-rose"]):not([class*="from-emerald"]) {
+  background: linear-gradient(90deg, #8B3A2B 0%, #AA5140 50%, #C25F4C 100%) !important;
+  box-shadow: 0 0 14px rgba(170, 81, 64, 0.55) !important;
+}
+
+/* Tactical Dark Mode overrides */
+[data-theme="tactical-dark"] [data-testid="anime-progress-track"] {
+  background-color: #0F172A !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="tactical-dark"] [data-testid="anime-progress-fill"]:not([class*="from-rose"]):not([class*="from-emerald"]) {
+  background: linear-gradient(90deg, #0284C7 0%, #06B6D4 50%, #22D3EE 100%) !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.5) !important;
+}
+

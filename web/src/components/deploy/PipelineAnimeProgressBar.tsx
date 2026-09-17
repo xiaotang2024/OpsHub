@@ -116,18 +116,18 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -6, scale: 0.98 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="relative overflow-hidden rounded-xl border border-ops-border/80 bg-gradient-to-b from-[#0e1628]/95 via-[#090f1d]/95 to-[#060a14]/95 p-3 sm:p-3.5 shadow-lg backdrop-blur-md space-y-2.5 select-none"
+      className="relative overflow-hidden rounded-xl border border-ops-border/80 bg-ops-card/90 p-3 sm:p-3.5 shadow-lg backdrop-blur-md space-y-2.5 select-none"
     >
       {/* Anime Background Glow & Floating Sparkles */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {/* Ambient colored lighting */}
         <div
-          className={`absolute -top-8 left-1/4 h-20 w-48 rounded-full blur-2xl opacity-25 transition-colors duration-500 ${
+          className={`absolute -top-8 left-1/4 h-20 w-48 rounded-full blur-2xl opacity-20 transition-colors duration-500 ${
             isFailed
               ? 'bg-rose-500'
               : finished
               ? 'bg-emerald-400'
-              : 'bg-gradient-to-r from-pink-500 via-cyan-400 to-purple-500'
+              : 'bg-ops-cyan'
           }`}
         />
 
@@ -183,7 +183,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         <div
           ref={speechBubbleRef}
           data-testid="anime-speech-bubble"
-          className="flex items-center gap-2 rounded-lg border border-ops-border/80 bg-slate-900/90 px-2.5 py-1.5 shadow-md backdrop-blur-sm max-w-full"
+          className="flex items-center gap-2 rounded-lg border border-ops-border/80 bg-ops-bg/90 px-2.5 py-1.5 shadow-md backdrop-blur-sm max-w-full"
         >
           <span className="text-base shrink-0" role="img" aria-label="emoji">
             {currentDialogue.emoji}
@@ -201,11 +201,11 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
               >
                 {currentDialogue.title}
               </span>
-              <span className="hidden sm:inline-block rounded-full bg-ops-border/60 px-1.5 py-0.2 text-[9px] font-mono text-ops-text-muted">
+              <span className="hidden sm:inline-block rounded-full bg-ops-border/40 px-1.5 py-0.2 text-[9px] font-mono text-ops-text-muted">
                 Step {activeStep}/{totalSteps}
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 truncate font-sans leading-tight">
+            <p className="text-[11px] text-ops-text-main/90 truncate font-sans leading-tight">
               {currentDialogue.quote}
             </p>
           </div>
@@ -219,10 +219,10 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
             data-testid="anime-percent-badge"
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-xs font-black shadow-md transition-colors ${
               isFailed
-                ? 'border border-rose-500/50 bg-rose-950/60 text-rose-300'
+                ? 'border border-rose-500/50 bg-rose-950/40 text-rose-400'
                 : finished
-                ? 'border border-emerald-400/50 bg-emerald-950/60 text-emerald-300 shadow-emerald-500/20'
-                : 'border border-cyan-400/50 bg-cyan-950/60 text-cyan-300 shadow-cyan-500/20'
+                ? 'border border-emerald-400/50 bg-emerald-950/40 text-emerald-400 shadow-emerald-500/20'
+                : 'border border-ops-cyan/50 bg-ops-cyan/15 text-ops-cyan shadow-cyan-glow'
             }`}
           >
             {finished ? (
@@ -236,7 +236,7 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
           </div>
 
           {/* Clock Timer */}
-          <div className="inline-flex items-center gap-1 rounded-full border border-ops-border bg-slate-900/80 px-2 py-0.5 text-xs font-mono text-ops-text-muted">
+          <div className="inline-flex items-center gap-1 rounded-full border border-ops-border bg-ops-bg/90 px-2 py-0.5 text-xs font-mono text-ops-text-muted">
             <Clock className="h-3 w-3 text-ops-text-muted" />
             <span>{elapsedSeconds}s</span>
           </div>
@@ -383,11 +383,11 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
         {/* Anime Track Container */}
         <div
           data-testid="anime-progress-track"
-          className="relative h-3.5 sm:h-4 w-full rounded-full bg-slate-950/90 border border-dashed border-ops-border/80 p-0.5 shadow-inner overflow-hidden"
+          className="relative h-3.5 sm:h-4 w-full rounded-full bg-ops-bg border border-dashed border-ops-border p-0.5 shadow-inner overflow-hidden"
         >
           {/* Animated Diagonal Candy Stripes Pattern */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-15"
+            className="pointer-events-none absolute inset-0 opacity-15 anime-candy-stripes"
             style={{
               backgroundImage:
                 'repeating-linear-gradient(45deg, #FFF 0, #FFF 10px, transparent 10px, transparent 20px)',
@@ -404,8 +404,8 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
               isFailed
                 ? 'bg-gradient-to-r from-rose-500 via-red-500 to-pink-600 shadow-[0_0_15px_rgba(244,63,94,0.6)]'
                 : finished
-                ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.7)]'
-                : 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 shadow-[0_0_18px_rgba(6,182,212,0.7)]'
+                ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.7)]'
+                : 'bg-gradient-to-r from-ops-cyan via-teal-400 to-cyan-400 shadow-cyan-glow'
             }`}
           >
             {/* Glossy highlight line */}
@@ -431,8 +431,8 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
                     isCurrent
                       ? 'text-ops-cyan font-bold scale-110'
                       : isPassed
-                      ? 'text-amber-300'
-                      : 'text-slate-600'
+                      ? 'text-amber-500'
+                      : 'text-ops-text-muted/40'
                   }`}
                 >
                   {isPassed ? '★' : '✦'}
@@ -442,8 +442,8 @@ export const PipelineAnimeProgressBar: React.FC<PipelineAnimeProgressBarProps> =
                     isCurrent
                       ? 'text-ops-cyan font-bold'
                       : isPassed
-                      ? 'text-slate-300'
-                      : 'text-slate-600'
+                      ? 'text-ops-text-main font-semibold'
+                      : 'text-ops-text-muted/50'
                   }`}
                 >
                   0{stepNum}

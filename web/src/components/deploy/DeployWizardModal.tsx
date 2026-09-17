@@ -433,17 +433,17 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         className="relative w-full max-w-4xl rounded-2xl border border-ops-border bg-ops-surface shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-ops-border bg-slate-900/90 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/90 backdrop-blur-sm px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950/80 border border-ops-cyan/30 text-ops-cyan shadow-cyan-glow">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ops-cyan/10 border border-ops-cyan/30 text-ops-cyan shadow-cyan-glow">
               <Layers className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white tracking-tight">
+                <h2 className="text-base font-bold text-ops-text-main tracking-tight">
                   7 步高可用部署流水线
                 </h2>
-                <span className="rounded-full bg-cyan-950/70 border border-ops-cyan/40 px-2 py-0.5 text-[11px] font-mono font-medium text-ops-cyan">
+                <span className="rounded-full bg-ops-cyan/10 border border-ops-cyan/30 px-2 py-0.5 text-[11px] font-mono font-medium text-ops-cyan">
                   {serviceName}
                 </span>
               </div>
@@ -457,7 +457,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={pipelineRunning}
-            className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border hover:text-white disabled:opacity-30 transition-colors"
+            className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border/60 hover:text-ops-text-main disabled:opacity-30 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -529,7 +529,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                           <Loader2 className="h-3.5 w-3.5 text-ops-cyan animate-spin" />
                         </div>
                       ) : (
-                        <span className="h-2 w-2 rounded-full bg-slate-600" />
+                        <span className="h-2 w-2 rounded-full bg-ops-border" />
                       )}
                     </div>
 
@@ -608,7 +608,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                   className={`pb-1 px-2 font-medium transition-colors border-b-2 ${
                     artifactTab === 'upload'
                       ? 'border-ops-cyan text-ops-cyan font-bold'
-                      : 'border-transparent text-ops-text-muted hover:text-white'
+                      : 'border-transparent text-ops-text-muted hover:text-ops-text-main'
                   }`}
                 >
                   上传新制品包 (Upload New Artifact)
@@ -619,7 +619,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                   className={`pb-1 px-2 font-medium transition-colors border-b-2 ${
                     artifactTab === 'existing'
                       ? 'border-ops-cyan text-ops-cyan font-bold'
-                      : 'border-transparent text-ops-text-muted hover:text-white'
+                      : 'border-transparent text-ops-text-muted hover:text-ops-text-main'
                   }`}
                 >
                   选择已有历史版本 ({existingArtifacts.length})
@@ -689,7 +689,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                         <span>客户端 SHA-256 完整性校验</span>
                         <span>{hashProgress}%</span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-ops-border overflow-hidden">
                         <div
                           className="h-full bg-ops-cyan transition-all duration-300"
                           style={{ width: `${hashProgress}%` }}
@@ -713,7 +713,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                       placeholder="如: v1.4.2 或 git-commit-c4e12"
                       value={versionTag}
                       onChange={(e) => setVersionTag(e.target.value)}
-                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-white placeholder-ops-text-muted focus:border-ops-cyan focus:outline-none font-mono"
+                      className="w-full rounded-lg border border-ops-border bg-ops-bg px-3 py-2 text-xs text-ops-text-main placeholder-ops-text-muted focus:border-ops-cyan focus:outline-none font-mono"
                     />
                   </div>
                 </div>
@@ -743,17 +743,17 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
                             onClick={() => setSelectedArtifactId(art.id)}
                             className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
                               isSelected
-                                ? 'bg-cyan-950/40 text-white'
+                                ? 'bg-ops-cyan/15 text-ops-text-main'
                                 : 'hover:bg-ops-surface text-ops-text-sub'
                             }`}
                           >
                             <div className="flex items-center gap-3">
                               <div
                                 className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                                  isSelected ? 'border-ops-cyan bg-ops-cyan' : 'border-slate-600'
+                                  isSelected ? 'border-ops-cyan bg-ops-cyan' : 'border-ops-border'
                                 }`}
                               >
-                                {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-black" />}
+                                {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                               </div>
                               <div>
                                 <div className="text-xs font-semibold">{art.filename}</div>
@@ -862,7 +862,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between border-t border-ops-border bg-slate-900/90 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-ops-border bg-ops-bg/90 backdrop-blur-sm px-6 py-4">
           <div className="text-xs font-mono text-ops-text-muted">
             {pipelineRunning
               ? '流水线运行中，请勿刷新或关闭窗口...'
@@ -876,7 +876,7 @@ export const DeployWizardModal: React.FC<DeployWizardModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={pipelineRunning}
-              className="rounded-lg border border-ops-border bg-ops-surface px-4 py-2 text-xs font-medium text-ops-text-sub hover:text-white hover:border-ops-border-hover disabled:opacity-30 transition-colors"
+              className="rounded-lg border border-ops-border bg-ops-surface px-4 py-2 text-xs font-medium text-ops-text-sub hover:text-ops-text-main hover:border-ops-border-hover disabled:opacity-30 transition-colors"
             >
               {pipelineFinished ? '完成并返回' : '取消'}
             </button>

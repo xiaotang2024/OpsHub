@@ -93,17 +93,17 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
         className="relative w-full max-w-2xl rounded-2xl border border-amber-500/30 bg-ops-surface shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-ops-border bg-slate-900/90 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-ops-border bg-ops-bg/90 backdrop-blur-sm px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-950/80 border border-amber-500/30 text-amber-400 shadow-amber-glow">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shadow-amber-glow">
               <RotateCcw className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white tracking-tight">
+                <h2 className="text-base font-bold text-ops-text-main tracking-tight">
                   一键版本回滚确认
                 </h2>
-                <span className="rounded-full bg-amber-950/70 border border-amber-500/40 px-2.5 py-0.5 text-[11px] font-mono font-medium text-amber-400">
+                <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-[11px] font-mono font-medium text-amber-400">
                   {serviceName}
                 </span>
               </div>
@@ -117,7 +117,7 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border hover:text-white disabled:opacity-30 transition-colors"
+            className="rounded-lg p-2 text-ops-text-muted hover:bg-ops-border/60 hover:text-ops-text-main disabled:opacity-30 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -278,7 +278,7 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-ops-border bg-slate-900/90 px-6 py-4">
+        <div className="flex items-center justify-between border-t border-ops-border bg-ops-bg/90 backdrop-blur-sm px-6 py-4">
           <div className="text-xs font-mono text-ops-text-muted">
             目标制品 ID: #{targetArtifact.id}
           </div>
@@ -288,7 +288,7 @@ export const RollbackModal: React.FC<RollbackModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="rounded-lg border border-ops-border bg-ops-surface px-4 py-2 text-xs font-medium text-ops-text-sub hover:text-white hover:border-ops-border-hover transition-colors"
+              className="rounded-lg border border-ops-border bg-ops-surface px-4 py-2 text-xs font-medium text-ops-text-sub hover:text-ops-text-main hover:border-ops-border-hover transition-colors"
             >
               取消
             </button>
