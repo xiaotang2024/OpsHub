@@ -14,9 +14,11 @@
 
 ---
 
-## 📖 用户使用手册 (User Manual)
+## 📖 平台文档与架构 (Documentation)
 
-请参阅完整的 [**OpsHub 用户使用手册 (USER_MANUAL.md)**](./USER_MANUAL.md)，包含详细的操作流程、架构解析、API 规范与故障排查指南。
+- 📘 [**用户使用手册 (User Manual)**](./docs/manuals/USER_MANUAL.md)：涵盖环境部署、账号权限、服务管理、模板配置与发版排障的操作指引。
+- 📙 [**开发者手册 (Developer Manual)**](./docs/manuals/DEVELOPER_MANUAL.md)：深度解析分层架构、状态机、数据流转、安全体系与二次开发规范。
+- 🗺️ [**全景交互架构图 (Interactive Architecture Diagram)**](./docs/architecture/opshub-architecture.html)：支持控制面、发布状态机与日志遥测三大视角的交互式架构图。
 
 ---
 

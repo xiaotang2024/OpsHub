@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpsHub 运维发布平台系统整体架构",
+    "locale": "zh-CN",
+    "output": "opshub-architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "control-plane",
+        "label": "核心管控链路",
+        "focus": ["browser", "router", "auth_mid", "app_svc", "supervisor", "target_proc"],
+        "note": "从 Web 控制台发起运维指令，经由权限门禁，最终向宿主机独立进程组发送调度信号。"
+      },
+      {
+        "id": "deploy-lifecycle",
+        "label": "7 步发版与探活",
+        "focus": ["app_svc", "pipeline", "prober", "supervisor", "target_proc"],
+        "note": "发布流水线执行预检、备份、分发并调用健康探测器，探测通过后正式提交版本生效。"
+      },
+      {
+        "id": "telemetry-stream",
+        "label": "实时日志流通道",
+        "focus": ["term", "ws_hub", "tailer", "target_proc"],
+        "note": "虚拟终端通过 WebSocket 双向长连接，结合底层大文件逆向 Seek 与轮转追踪实现秒级推流。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Web 控制台 SPA",
+      "sublabel": "React 18 + Tailwind",
+      "pos": [60, 240],
+      "size": [150, 60]
+    },
+    {
+      "id": "term",
+      "type": "frontend",
+      "label": "xterm.js 虚拟终端",
+      "sublabel": "Canvas 栅格渲染",
+      "pos": [60, 560],
+      "size": [150, 60]
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "Gin HTTP 路由",
+      "sublabel": "REST API :8080",
+      "pos": [300, 240],
+      "size": [150, 60]
+    },
+    {
+      "id": "ws_hub",
+      "type": "backend",
+      "label": "WebSocket Hub",
+      "sublabel": "gorilla/websocket",
+      "pos": [300, 560],
+      "size": [150, 60]
+    },
+    {
+      "id": "auth_mid",
+      "type": "security",
+      "label": "鉴权与审计中间件",
+      "sublabel": "JWT 门禁 + 异步审计",
+      "pos": [570, 80],
+      "size": [160, 60]
+    },
+    {
+      "id": "app_svc",
+      "type": "backend",
+      "label": "服务编排与模板引擎",
+      "sublabel": "AppService & Template",
+      "pos": [570, 240],
+      "size": [160, 60]
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "7 步发版流水线",
+      "sublabel": "DeployPipeline 状态机",
+      "pos": [570, 400],
+      "size": [160, 60]
+    },
+    {
+      "id": "tailer",
+      "type": "backend",
+      "label": "日志寻址推流 Tailer",
+      "sublabel": "逆向 Seek / 轮转自愈",
+      "pos": [570, 560],
+      "size": [160, 60]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "数据持久化引擎",
+      "sublabel": "modernc SQLite / MySQL",
+      "pos": [840, 80],
+      "size": [160, 60]
+    },
+    {
+      "id": "supervisor",
+      "type": "backend",
+      "label": "双模进程守护器",
+      "sublabel": "Native PGID / Systemd",
+      "pos": [840, 240],
+      "size": [160, 60]
+    },
+    {
+      "id": "prober",
+      "type": "backend",
+      "label": "多协议健康探测器",
+      "sublabel": "HTTP / TCP / Process",
+      "pos": [840, 400],
+      "size": [160, 60]
+    },
+    {
+      "id": "target_proc",
+      "type": "external",
+      "label": "宿主机服务进程树",
+      "sublabel": "Java / 中间件 (-PGID)",
+      "pos": [1110, 320],
+      "size": [160, 60]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "OpsHub 单二进制服务进程 (:8080)",
+      "wraps": ["router", "ws_hub", "auth_mid", "app_svc", "pipeline", "tailer", "supervisor", "prober", "db"]
+    },
+    {
+      "kind": "region",
+      "label": "目标宿主机环境 (Host OS)",
+      "wraps": ["router", "ws_hub", "auth_mid", "app_svc", "pipeline", "tailer", "supervisor", "prober", "db", "target_proc"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-router",
+      "from": "browser",
+      "to": "router",
+      "label": "REST API",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "term-to-ws",
+      "from": "term",
+      "to": "ws_hub",
+      "label": "WebSocket",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "router-to-auth",
+      "from": "router",
+      "to": "auth_mid",
+      "label": "JWT / 权限",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "auth-to-db",
+      "from": "auth_mid",
+      "to": "db",
+      "label": "异步审计落库",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "router-to-app",
+      "from": "router",
+      "to": "app_svc",
+      "label": "运维调度",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "app-to-pipeline",
+      "from": "app_svc",
+      "to": "pipeline",
+      "label": "触发发版",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [650, 350]
+    },
+    {
+      "id": "app-to-supervisor",
+      "from": "app_svc",
+      "to": "supervisor",
+      "label": "生命周期变更",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "pipeline-to-prober",
+      "from": "pipeline",
+      "to": "prober",
+      "label": "就绪探活",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "pipeline-to-supervisor",
+      "from": "pipeline",
+      "to": "supervisor",
+      "label": "停机拉起",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "id": "supervisor-to-proc",
+      "from": "supervisor",
+      "to": "target_proc",
+      "label": "负 PID 信号树",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "prober-to-proc",
+      "from": "prober",
+      "to": "target_proc",
+      "label": "Actuator 探活",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "ws-to-tailer",
+      "from": "ws_hub",
+      "to": "tailer",
+      "label": "流数据管道",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "tailer-to-proc",
+      "from": "tailer",
+      "to": "target_proc",
+      "label": "日志读取",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "接入与控制台交互",
+      "items": [
+        "React 18 单页面控制台无缝交互",
+        "xterm.js 高性能终端虚拟视口渲染",
+        "统一通过 8080 端口提供静态资源与 API"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "核心生命周期治理",
+      "items": [
+        "Native 独立进程组隔离与负 PID 信号广播",
+        "7 步高可用发版状态机与探针失败自动回滚",
+        "大日志文件毫秒级逆向读指针寻址与轮转自愈"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "安全与数据保障",
+      "items": [
+        "HMAC-SHA256 JWT 与 Bcrypt 密保自救",
+        "非阻塞洋葱模型异步操作审计落库",
+        "纯 Go 零 CGO 嵌入式 SQLite 与 MySQL 双存储支持"
+      ]
+    }
+  ]
+}
